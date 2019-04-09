@@ -11,26 +11,27 @@ func (z *AddrAndGas) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 3
-	o = append(o, 0x83)
+	o = append(o, 0x83, 0x83)
 	if oTemp, err := z.AccountAddress.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = hsp.AppendUint64(o, z.GasAmount)
 	// map header, size 1
-	o = append(o, 0x81)
+	o = append(o, 0x83, 0x81, 0x81)
 	if oTemp, err := z.RawNodeID.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
+	o = append(o, 0x83)
+	o = hsp.AppendUint64(o, z.GasAmount)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *AddrAndGas) Msgsize() (s int) {
-	s = 1 + 15 + z.AccountAddress.Msgsize() + 10 + hsp.Uint64Size + 10 + 1 + 5 + z.RawNodeID.Hash.Msgsize()
+	s = 1 + 15 + z.AccountAddress.Msgsize() + 10 + 1 + 5 + z.RawNodeID.Hash.Msgsize() + 10 + hsp.Uint64Size
 	return
 }
 
@@ -38,15 +39,8 @@ func (z *AddrAndGas) Msgsize() (s int) {
 func (z *Node) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85)
-	o = hsp.AppendString(o, z.Addr)
-	o = hsp.AppendString(o, string(z.ID))
-	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
+	// map header, size 6
+	o = append(o, 0x86, 0x86)
 	if z.PublicKey == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -56,19 +50,32 @@ func (z *Node) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
+	o = append(o, 0x86)
+	o = hsp.AppendString(o, string(z.ID))
+	o = append(o, 0x86)
 	o = hsp.AppendInt(o, int(z.Role))
+	o = append(o, 0x86)
+	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
+	o = append(o, 0x86)
+	o = hsp.AppendString(o, z.Addr)
+	o = append(o, 0x86)
+	o = hsp.AppendString(o, z.DirectAddr)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Node) Msgsize() (s int) {
-	s = 1 + 5 + hsp.StringPrefixSize + len(z.Addr) + 3 + hsp.StringPrefixSize + len(string(z.ID)) + 6 + z.Nonce.Msgsize() + 10
+	s = 1 + 10
 	if z.PublicKey == nil {
 		s += hsp.NilSize
 	} else {
 		s += z.PublicKey.Msgsize()
 	}
-	s += 5 + hsp.IntSize
+	s += 3 + hsp.StringPrefixSize + len(string(z.ID)) + 5 + hsp.IntSize + 6 + z.Nonce.Msgsize() + 5 + hsp.StringPrefixSize + len(z.Addr) + 11 + hsp.StringPrefixSize + len(z.DirectAddr)
 	return
 }
 
@@ -91,7 +98,7 @@ func (z *NodeKey) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 1
-	o = append(o, 0x81)
+	o = append(o, 0x81, 0x81)
 	if oTemp, err := z.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -111,7 +118,7 @@ func (z *RawNodeID) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 1
-	o = append(o, 0x81)
+	o = append(o, 0x81, 0x81)
 	if oTemp, err := z.Hash.MarshalHash(); err != nil {
 		return nil, err
 	} else {

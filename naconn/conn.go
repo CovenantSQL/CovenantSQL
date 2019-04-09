@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package noconn
+package naconn
 
 import (
 	"bytes"
@@ -39,8 +39,8 @@ type Remoter interface {
 	Remote() proto.RawNodeID
 }
 
-// NOConn defines node-oriented connection based on ETLS crypto connection.
-type NOConn struct {
+// NAConn defines node aware connection based on ETLS crypto connection.
+type NAConn struct {
 	*etls.CryptoConn
 	isClient bool
 
@@ -49,35 +49,35 @@ type NOConn struct {
 	remote      proto.RawNodeID
 }
 
-// NewServerConn takes a raw connection and returns a new server side NOConn.
-func NewServerConn(conn net.Conn) *NOConn {
-	return &NOConn{
+// NewServerConn takes a raw connection and returns a new server side NAConn.
+func NewServerConn(conn net.Conn) *NAConn {
+	return &NAConn{
 		CryptoConn: etls.NewConn(conn, nil), // at server side, cipher will be set during handshake
 	}
 }
 
-//func NewClientConn(conn net.Conn) *NOConn {
-//	return &NOConn{
+//func NewClientConn(conn net.Conn) *NAConn {
+//	return &NAConn{
 //		CryptoConn:  etls.NewConn(conn, nil),
 //		isClient:    true,
 //		isAnonymous: true,
 //	}
 //}
 
-// Remote returns the remote node ID of the NOConn.
-func (c *NOConn) Remote() proto.RawNodeID {
+// Remote returns the remote node ID of the NAConn.
+func (c *NAConn) Remote() proto.RawNodeID {
 	return c.remote
 }
 
 // Handshake does the initial handshaking according to the connection role.
-func (c *NOConn) Handshake() (err error) {
+func (c *NAConn) Handshake() (err error) {
 	if c.isClient {
 		return c.clientHandshake()
 	}
 	return c.serverHandshake()
 }
 
-func (c *NOConn) serverHandshake() (err error) {
+func (c *NAConn) serverHandshake() (err error) {
 	headerBuf := make([]byte, HeaderSize)
 	rCount, err := c.CryptoConn.Conn.Read(headerBuf)
 	if err != nil {
@@ -115,7 +115,7 @@ func (c *NOConn) serverHandshake() (err error) {
 	return
 }
 
-func (c *NOConn) clientHandshake() (err error) {
+func (c *NAConn) clientHandshake() (err error) {
 	writeBuf := make([]byte, HeaderSize)
 	copy(writeBuf, etls.MagicBytes[:])
 	if c.isAnonymous {
@@ -151,13 +151,13 @@ func (c *NOConn) clientHandshake() (err error) {
 	return
 }
 
-// Accept takes the ownership of conn and accepts it as a NOConn.
-func Accept(conn net.Conn) (*NOConn, error) {
-	noconn := NewServerConn(conn)
-	if err := noconn.Handshake(); err != nil {
+// Accept takes the ownership of conn and accepts it as a NAConn.
+func Accept(conn net.Conn) (*NAConn, error) {
+	naconn := NewServerConn(conn)
+	if err := naconn.Handshake(); err != nil {
 		return nil, err
 	}
-	return noconn, nil
+	return naconn, nil
 }
 
 // Dial connects to the node with remote node id.
@@ -201,17 +201,17 @@ func DialEx(remote proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 		return
 	}
 
-	noconn := &NOConn{
+	naconn := &NAConn{
 		CryptoConn:  etls.NewConn(iconn, cipher),
 		isAnonymous: isAnonymous,
 		isClient:    true,
 		remote:      *rawNodeID,
 	}
 
-	if err = noconn.Handshake(); err != nil {
+	if err = naconn.Handshake(); err != nil {
 		err = errors.Wrapf(err, "connect %s %s failed", rawNodeID.String(), nodeAddr)
 		return
 	}
 
-	return noconn, nil
+	return naconn, nil
 }

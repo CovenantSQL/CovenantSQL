@@ -88,9 +88,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 			reconnectErr := c.initClient(isAnonymous)
 			if reconnectErr != nil {
 				err = errors.Wrap(reconnectErr, "reconnect failed")
-				return
 			}
-			return c.client.Call(method, args, reply)
 		}
 		err = errors.Wrapf(err, "call %s failed", method)
 		return
@@ -116,4 +114,14 @@ func (c *PersistentCaller) Close() {
 	if c.client != nil {
 		_ = c.client.Close()
 	}
+}
+
+// Target returns the request target for logging purpose.
+func (c *PersistentCaller) Target() string {
+	return string(c.TargetID)
+}
+
+// New returns brand new persistent caller.
+func (c *PersistentCaller) New() PCaller {
+	return NewPersistentCaller(c.TargetID)
 }

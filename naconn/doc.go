@@ -14,21 +14,8 @@
  * limitations under the License.
  */
 
-package noconn
-
-import "github.com/CovenantSQL/CovenantSQL/proto"
-
-// Resolver defines the node ID resolver interface for node-oriented connection.
-type Resolver interface {
-	Resolve(id *proto.RawNodeID) (string, error)
-	ResolveEx(id *proto.RawNodeID) (*proto.Node, error)
-}
-
-var (
-	defaultResolver Resolver
-)
-
-// RegisterResolver registers the default resolver.
-func RegisterResolver(resolver Resolver) {
-	defaultResolver = resolver
-}
+// Package naconn provides node-oriented connection based on ETLS crypto connection.
+//
+// This package requires a node ID resolver to work like a traditional DNS resolver,
+// except that it resolves node IDs into IP addresses (and ports).
+package naconn

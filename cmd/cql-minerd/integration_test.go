@@ -44,6 +44,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -71,6 +72,7 @@ var (
 	benchMinerCount          int
 	benchBypassSignature     bool
 	benchEventualConsistency bool
+	benchMinerDirectRPC      bool
 	benchMinerConfigDir      string
 )
 
@@ -81,8 +83,18 @@ func init() {
 		"Benchmark bypassing signature.")
 	flag.BoolVar(&benchEventualConsistency, "bench-eventual-consistency", false,
 		"Benchmark with eventaul consistency.")
+	flag.BoolVar(&benchMinerDirectRPC, "bench-direct-rpc", false,
+		"Benchmark with with direct RPC protocol.")
 	flag.StringVar(&benchMinerConfigDir, "bench-miner-config-dir", "",
 		"Benchmark custome miner config directory.")
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if benchMinerDirectRPC {
+		naconn.RegisterResolver(rpc.NewDirectResolver())
+	}
+	os.Exit(m.Run())
 }
 
 func startNodes() {
@@ -703,6 +715,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 
 	var i int64
 	i = -1
+	db.SetMaxIdleConns(256)
 
 	b.Run(makeBenchName("INSERT"), func(b *testing.B) {
 		b.ResetTimer()
@@ -834,6 +847,7 @@ func benchMiner(b *testing.B, minerCount uint16) {
 			ResourceMeta: types.ResourceMeta{
 				Node:                   minerCount,
 				UseEventualConsistency: benchEventualConsistency,
+				IsolationLevel:         int(sql.LevelReadUncommitted),
 			},
 		}
 		// wait for chain service
@@ -854,6 +868,13 @@ func benchMiner(b *testing.B, minerCount uint16) {
 		defer os.Remove(dsnFile)
 	} else {
 		dsn = os.Getenv("DSN")
+	}
+
+	if benchMinerDirectRPC {
+		dsnCfg, err := client.ParseDSN(dsn)
+		So(err, ShouldBeNil)
+		dsnCfg.UseDirectRPC = true
+		dsn = dsnCfg.FormatDSN()
 	}
 
 	db, err := sql.Open("covenantsql", dsn)
@@ -942,8 +963,9 @@ func benchOutsideMinerWithTargetMinerList(
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				TargetMiners: targetMiners,
-				Node:         minerCount,
+				TargetMiners:   targetMiners,
+				Node:           minerCount,
+				IsolationLevel: int(sql.LevelReadUncommitted),
 			},
 			AdvancePayment: 1000000000,
 		}

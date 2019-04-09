@@ -21,13 +21,14 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )
 
 var rootHash = hash.Hash{}
 
-func startDBMS(server *rpc.Server, onCreateDB func()) (dbms *worker.DBMS, err error) {
+func startDBMS(server *mux.Server, direct *rpc.Server, onCreateDB func()) (dbms *worker.DBMS, err error) {
 	if conf.GConf.Miner == nil {
 		err = errors.New("invalid database config")
 		return
@@ -36,6 +37,7 @@ func startDBMS(server *rpc.Server, onCreateDB func()) (dbms *worker.DBMS, err er
 	cfg := &worker.DBMSConfig{
 		RootDir:          conf.GConf.Miner.RootDir,
 		Server:           server,
+		DirectServer:     direct,
 		MaxReqTimeGap:    conf.GConf.Miner.MaxReqTimeGap,
 		OnCreateDatabase: onCreateDB,
 	}

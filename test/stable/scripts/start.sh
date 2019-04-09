@@ -13,8 +13,6 @@ fi
 
 #Prepare
 cp -r ${RUNNING_DIR}/docker-compose.yml ${WORKING_DIR}
-cat /etc/hosts ${RUNNING_DIR}/hosts > newhosts
-sudo mv newhosts /etc/hosts
 cp -r ${RUNNING_DIR}/node_miner_0 /data
 cp -r ${RUNNING_DIR}/node_miner_1 /data
 cp -r ${RUNNING_DIR}/node_miner_2 /data
@@ -29,7 +27,7 @@ cd ${RUNNING_DIR}
 docker cp covenantsql_bp_1:/app/cql ${RUNNING_DIR}
 sleep 3s
 ${RUNNING_DIR}/cql create -config ${RUNNING_DIR}/node_c/config.yaml \
-    -wait-tx-confirm -no-password '{"node":2,"advancepayment": 2000000000}' | tee dsn.txt
+    -wait-tx-confirm -no-password '{"node":4,"advancepayment": 2000000000}' | tee dsn.txt
 dsn=$(cat dsn.txt)
 
 #Start

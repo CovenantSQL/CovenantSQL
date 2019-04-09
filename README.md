@@ -75,33 +75,33 @@ sql.Open("CovenantSQL", dbURI)
 CQL supports 2 kinds of consensus algorithm:
 
 1. DPoS (Delegated Proof-of-Stake) is applied in `Eventually consistency mode` database and also `Layer 1 (Global Consensus Layer)` in BlockProducer. CQL miners pack all SQL queries and its signatures by the client into blocks thus form a blockchain. We named the algorithm [`Xenomint`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/xenomint). 
-2. BFT-Raft (Byzantine Fault-Toleranted Raft)<sup>[bft-raft](#bft-raft)</sup> is applied in `Strong consistency mode` database. We named our implementation `Kayak`.  The CQL miner leader does a `Two-Phase Commit` with `Kayak` to support `Transaction`.<sup>[transaction](#transaction)</sup>
+2. BFT-Raft (Byzantine Fault-Toleranted Raft)<sup>[bft-raft](#bft-raft)</sup> is applied in `Strong consistency mode` database. We named our implementation [`Kayak`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/kayak).  The CQL miner leader does a `Two-Phase Commit` with `Kayak` to support `Transaction`.<sup>[transaction](#transaction)</sup>
 
 CQL database consistency mode and node count can be selected in datebase creation with command  `cql create '{"UseEventualConsistency": true, "Node": 3}'`
 
 ## Comparison
 
-|                          | Ethereum            | IBM Hyperledger Fabric   | Amazon QLDB   | CovenantSQL                                                  |
-| ------------------------ | ------------------- | ------------------------ | ------------- | ------------------------------------------------------------ |
-| Dev language             | Solidity            | Chaincode   (Go, NodeJS) | ?             | Python, Golang, Java, PHP, NodeJS, MatLab                    |
-| Dev Pattern              | Smart   Contract    | Chaincode                | SQL           | SQL                                                          |
-| Open Source              | Y                   | Y                        | N             | Y                                                            |
-| Nodes for HA             | 3                   | 15                       | 1             | 3                                                            |
-| Column Level ACL         | N                   | Y                        | ?             | Y                                                            |
-| Data Format              | File                | Key-value                | Documents     | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
-| Storage Encryption       | N                   | API                      | Y             | Y                                                            |
-| Data Desensitization     | N                   | N                        | N             | Y                                                            |
-| Multi-tenant             | DIY                 | DIY                      | N             | Y                                                            |
-| Throughput (1s delay)    | 15~10   tx/s        | 3500   tx/s              | ?             | 12000   tx/s                                                 |
-| Consistency Delay        | 2~6   min           | <   1 s                  | ?             | <   10 ms                                                    |
-| Secure for Open Internet | Y                   | N                        | Only   in AWS | Y                                                            |
-| Consensus                | PoW   + PoS(Casper) | CFT                      | ?             | DPoS (Eventually consistent mode),       BFT-Raft (Strong consistency mode) |
+|                              | Ethereum          | Hyperledger Fabric       | Amazon QLDB   | CovenantSQL                                                  |
+| ---------------------------- | ----------------- | ------------------------ | ------------- | ------------------------------------------------------------ |
+| **Dev language**             | Solidity          | Chaincode   (Go, NodeJS) | ?             | Python, Golang, Java, PHP, NodeJS, MatLab                    |
+| **Dev Pattern**              | Smart   Contract  | Chaincode                | SQL           | SQL                                                          |
+| **Open Source**              | Y                 | Y                        | N             | Y                                                            |
+| **Nodes for HA**             | 3                 | 15                       | ?             | 3                                                            |
+| **Column Level ACL**         | N                 | Y                        | ?             | Y                                                            |
+| **Data Format**              | File              | Key-value                | Documents     | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
+| **Storage Encryption**       | N                 | API                      | Y             | Y                                                            |
+| **Data Desensitization**     | N                 | N                        | N             | Y                                                            |
+| **Multi-tenant**             | DIY               | DIY                      | N             | Y                                                            |
+| **Throughput (1s delay)**    | 15~10 tx/s        | 3500 tx/s                | ?             | 12000 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong consistency) |
+| **Consistency Delay**        | 2~6 min           | < 1 s                    | ?             | < 10 ms                                                      |
+| **Secure for Open Internet** | Y                 | N                        | Only   in AWS | Y                                                            |
+| **Consensus**                | PoW + PoS(Casper) | CFT                      | ?             | DPoS (Eventually consistency)<br/>BFT-Raft (Strong consistency) |
 
 #### FootNotes
 
-- <a name="bft-raft">bft-raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
-- <a name="transaction">transaction</a>: Talking about `ACID`, CQL has full "Consistency, Isolation, Durability" and a limited `Atomicity` support. That is even under strong consistency mode, CQL transaction is only supported on the leader node. If you want to do "read `v`, `v++`, write `v` back" parallelly and atomically, then the only way is "read `v` from the leader, `v++`, write `v` back to leader"
-- <a name="fuse">fuse</a>: CQL has a [simple FUSE](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse) support adopted from CockroachDB. The performance is not very ideal and still has some issues. But it can pass fio test like `fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1   --name=Seqread --bs=128k --rw=read   --name=Seqwrite --bs=128k --rw=write   --name=4krandread --bs=4k --rw=randread   --name=4krandwrite --bs=4k --rw=randwrite`
+- <a name="bft-raft">BFT-Raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
+- <a name="transaction">Transaction</a>: Talking about `ACID`, CQL has full "Consistency, Isolation, Durability" and a limited `Atomicity` support. That is even under strong consistency mode, CQL transaction is only supported on the leader node. If you want to do "read `v`, `v++`, write `v` back" parallelly and atomically, then the only way is "read `v` from the leader, `v++`, write `v` back to leader"
+- <a name="fuse">FUSE</a>: CQL has a [simple FUSE](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse) support adopted from CockroachDB. The performance is not very ideal and still has some issues. But it can pass fio test like `fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite`
 
 ## Demos
 

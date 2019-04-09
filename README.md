@@ -92,10 +92,10 @@ CQL database consistency mode and node count can be selected in datebase creatio
 | **Storage Encryption**       | N                 | API                      | Y             | Y                                                            |
 | **Data Desensitization**     | N                 | N                        | N             | Y                                                            |
 | **Multi-tenant**             | DIY               | DIY                      | N             | Y                                                            |
-| **Throughput (1s delay)**    | 15~10 tx/s        | 3500 tx/s                | ?             | 12000 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong consistency) |
+| **Throughput (1s delay)**    | 15~10 tx/s        | 3500 tx/s                | ?             | 11065 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong Consistency) |
 | **Consistency Delay**        | 2~6 min           | < 1 s                    | ?             | < 10 ms                                                      |
 | **Secure for Open Internet** | Y                 | N                        | Only   in AWS | Y                                                            |
-| **Consensus**                | PoW + PoS(Casper) | CFT                      | ?             | DPoS (Eventually consistency)<br/>BFT-Raft (Strong consistency) |
+| **Consensus**                | PoW + PoS(Casper) | CFT                      | ?             | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
 
 #### FootNotes
 

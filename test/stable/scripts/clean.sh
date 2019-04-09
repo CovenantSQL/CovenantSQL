@@ -29,9 +29,9 @@ zip -r logs.zip logs
 
 cd $WORKING_DIR
 docker-compose down
+make docker_clean
 sudo git clean -dfx
 sudo rm -rf /data/node_miner_0
 sudo rm -rf /data/node_miner_1
 sudo rm -rf /data/node_miner_2
 sudo rm -rf /data/node_miner_3
-

@@ -19,7 +19,6 @@ nohup sar -uqrBWbdv -o ${LOG_DIR}/monitor_uqrBWbdv.log 5 2>&1 > ${LOG_DIR}/monit
 cp -r ${RUNNING_DIR}/docker-compose.yml ${WORKING_DIR}
 
 cd ${WORKING_DIR}
-make docker_clean
 make docker
 
 cd ${RUNNING_DIR}

@@ -62,7 +62,7 @@ func insertData(db *sql.DB, tableName string, dataCount int64, pool *grpool.Pool
 			)
 			if err != nil {
 				log.Errorf("Failed to insert data in database: %v %v\n", index, err)
-				errCount = atomic.AddInt32(&errCount, 1)
+				atomic.AddInt32(&errCount, 1)
 			} else {
 				atomic.StoreInt32(&errCount, 0)
 			}

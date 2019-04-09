@@ -42,7 +42,7 @@ We believe [On the next Internet, everyone should have a complete **Data Rights*
 **One Line Makes Data on Blockchain**
 
 ```go
-sql.Open("CovenantSQL", dbURI)
+sql.Open("cql", dbURI)
 ```
 
 

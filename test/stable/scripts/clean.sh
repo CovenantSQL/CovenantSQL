@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 if [ -z "$WORKING_DIR" ]; then
     WORKING_DIR=/home/ubuntu/gopath/src/github.com/CovenantSQL/CovenantSQL

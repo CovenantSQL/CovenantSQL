@@ -1,4 +1,5 @@
 #!/bin/bash
+set -xeuo pipefail
 
 export WORKING_DIR=/home/ubuntu/gopath/src/github.com/CovenantSQL/CovenantSQL
 export RUNNING_DIR=$(cd `dirname $0`; pwd)
@@ -9,5 +10,5 @@ if [[ ! -d "$LOG_DIR" ]]; then
     exit 1
 fi
 
-sh -x ./scripts/clean.sh
-sh -x ./scripts/start.sh
+./scripts/clean.sh
+./scripts/start.sh

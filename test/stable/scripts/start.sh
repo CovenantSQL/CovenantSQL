@@ -1,4 +1,5 @@
 #!/bin/bash
+set -xeuo pipefail
 
 if [ -z "$WORKING_DIR" ]; then
     WORKING_DIR=/home/ubuntu/gopath/src/github.com/CovenantSQL/CovenantSQL
@@ -12,7 +13,7 @@ fi
 
 #Prepare
 cp -r ${RUNNING_DIR}/docker-compose.yml ${WORKING_DIR}
-cat /etc/hosts ${RUNNING_DIR}/hosts newhosts
+cat /etc/hosts ${RUNNING_DIR}/hosts > newhosts
 sudo mv newhosts /etc/hosts
 cp -r ${RUNNING_DIR}/node_miner_0 /data
 cp -r ${RUNNING_DIR}/node_miner_1 /data

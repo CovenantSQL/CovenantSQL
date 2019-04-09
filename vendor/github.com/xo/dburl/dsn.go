@@ -393,15 +393,17 @@ func GenODBC(u *URL) (string, error) {
 		proto := strings.ToLower(u.Proto)
 		switch {
 		case strings.Contains(proto, "mysql"):
-			port = "3306"
+			q.Set("Port", "3306")
 		case strings.Contains(proto, "postgres"):
-			port = "5432"
-
+			q.Set("Port", "5432")
+		case strings.Contains(proto, "db2") || strings.Contains(proto, "ibm"):
+			q.Set("ServiceName", "50000")
 		default:
-			port = "1433"
+			q.Set("Port", "1433")
 		}
+	} else {
+		q.Set("Port", port)
 	}
-	q.Set("Port", port)
 	q.Set("Database", dbname)
 
 	// add user/pass

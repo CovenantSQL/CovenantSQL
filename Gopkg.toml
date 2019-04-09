@@ -50,7 +50,6 @@
 
 [[override]]
   name = "github.com/xo/usql"
-  source = "github.com/CovenantSQL/usql"
   branch = "master"
 
 [[override]]
@@ -93,3 +92,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/CovenantSQL/beacon"
+
+[[constraint]]
+  name = "github.com/ugorji/go"
+  version = "=1.1.2"

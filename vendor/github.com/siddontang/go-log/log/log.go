@@ -66,6 +66,11 @@ func Print(args ...interface{}) {
 	logger.Output(2, LevelTrace, fmt.Sprint(args...))
 }
 
+// Print records the log with trace level
+func PrintJson(body interface{}) {
+	logger.OutputJson(2, LevelTrace, body)
+}
+
 // Printf records the log with trace level
 func Printf(format string, args ...interface{}) {
 	logger.Output(2, LevelTrace, fmt.Sprintf(format, args...))
@@ -79,6 +84,11 @@ func Println(args ...interface{}) {
 // Debug records the log with debug level
 func Debug(args ...interface{}) {
 	logger.Output(2, LevelDebug, fmt.Sprint(args...))
+}
+
+// Debug records the log with debug level
+func DebugJson(body interface{}) {
+	logger.OutputJson(2, LevelDebug, body)
 }
 
 // Debugf records the log with debug level
@@ -96,6 +106,11 @@ func Error(args ...interface{}) {
 	logger.Output(2, LevelError, fmt.Sprint(args...))
 }
 
+// Error records the log with error level
+func ErrorJson(body interface{}) {
+	logger.OutputJson(2, LevelError, body)
+}
+
 // Errorf records the log with error level
 func Errorf(format string, args ...interface{}) {
 	logger.Output(2, LevelError, fmt.Sprintf(format, args...))
@@ -109,6 +124,11 @@ func Errorln(args ...interface{}) {
 // Info records the log with info level
 func Info(args ...interface{}) {
 	logger.Output(2, LevelInfo, fmt.Sprint(args...))
+}
+
+// Info records the log with info level by json format
+func InfoJson(body interface{}) {
+	logger.OutputJson(2, LevelInfo, body)
 }
 
 // Infof records the log with info level

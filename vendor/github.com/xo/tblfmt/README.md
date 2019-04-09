@@ -1,11 +1,12 @@
-# About
+# About [![GoDoc][godoc]][godoc-link] [![Build Status][travis-ci]][travis-ci-link]
 
-`tblfmt` provides a streaming, bufferred table encoder for result sets (ie,
-from a database).
+[godoc]: https://godoc.org/github.com/xo/tblfmt?status.svg (GoDoc)
+[travis-ci]: https://travis-ci.org/xo/tblfmt.svg?branch=master (Travis CI)
+[godoc-link]: https://godoc.org/github.com/xo/tblfmt
+[travis-ci-link]: https://travis-ci.org/xo/tblfmt
 
-Built mainly for use by [`usql`][usql].
-
-`tblfmt` produces tables like the following:
+`tblfmt` provides a streaming table encoders for result sets (ie, from a
+database), creating tables like the following:
 
 ```text
  author_id | name                  | z
@@ -33,10 +34,25 @@ $ go get -u github.com/xo/tblfmt
 
 ## Using
 
+`tblfmt` was designed for use by [usql][] and Go's native `database/sql` types,
+but will handle any type with the following interface:
+
+```go
+// ResultSet is the shared interface for a result set.
+type ResultSet interface {
+	Next() bool
+	Scan(...interface{}) error
+	Columns() ([]string, error)
+	Close() error
+	Err() error
+	NextResultSet() bool
+}
+```
+
 `tblfmt` can be used similar to the following:
 
 ```go
-// example/main.go
+// _example/main.go
 package main
 
 import (
@@ -44,7 +60,6 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
-
 	"github.com/xo/dburl"
 	"github.com/xo/tblfmt"
 )
@@ -60,12 +75,32 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer result.Close()
 
-	err = tblfmt.NewTableEncoder(result, tblfmt.WithWidths([]int{20, 20})).Encode(os.Stdout)
-	if err != nil {
+	enc, err := tblfmt.NewTableEncoder(result,
+		// force minimum column widths
+		tblfmt.WithWidths([]int{20, 20}),
+	)
+
+	if err = enc.EncodeAll(os.Stdout); err != nil {
 		log.Fatal(err)
 	}
 }
+```
+
+Which can produce output like the following:
+
+```text
+╔══════════════════════╦═══════════════════════════╦═══╗
+║ author_id            ║ name                      ║ z ║
+╠══════════════════════╬═══════════════════════════╬═══╣
+║                   14 ║ a	b	c	d  ║   ║
+║                   15 ║ aoeu                     ↵║   ║
+║                      ║ test                     ↵║   ║
+║                      ║                           ║   ║
+║                    2 ║ 袈	袈		袈 ║   ║
+╚══════════════════════╩═══════════════════════════╩═══╝
+(3 rows)
 ```
 
 Please see the [GoDoc listing][godoc] for the full API.

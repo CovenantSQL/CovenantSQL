@@ -81,21 +81,21 @@ CQL database consistency mode and node count can be selected in datebase creatio
 
 ## Comparison
 
-|                              | Ethereum          | Hyperledger Fabric       | Amazon QLDB   | CovenantSQL                                                  |
-| ---------------------------- | ----------------- | ------------------------ | ------------- | ------------------------------------------------------------ |
-| **Dev language**             | Solidity          | Chaincode   (Go, NodeJS) | ?             | Python, Golang, Java, PHP, NodeJS, MatLab                    |
-| **Dev Pattern**              | Smart   Contract  | Chaincode                | SQL           | SQL                                                          |
-| **Open Source**              | Y                 | Y                        | N             | Y                                                            |
-| **Nodes for HA**             | 3                 | 15                       | ?             | 3                                                            |
-| **Column Level ACL**         | N                 | Y                        | ?             | Y                                                            |
-| **Data Format**              | File              | Key-value                | Documents     | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
-| **Storage Encryption**       | N                 | API                      | Y             | Y                                                            |
-| **Data Desensitization**     | N                 | N                        | N             | Y                                                            |
-| **Multi-tenant**             | DIY               | DIY                      | N             | Y                                                            |
-| **Throughput (1s delay)**    | 15~10 tx/s        | 3500 tx/s                | ?             | 11065 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong Consistency) |
-| **Consistency Delay**        | 2~6 min           | < 1 s                    | ?             | < 10 ms                                                      |
-| **Secure for Open Internet** | Y                 | N                        | Only   in AWS | Y                                                            |
-| **Consensus**                | PoW + PoS(Casper) | CFT                      | ?             | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
+|                              | Ethereum          | Hyperledger Fabric     | Amazon QLDB | CovenantSQL                                                  |
+| ---------------------------- | ----------------- | ---------------------- | ----------- | ------------------------------------------------------------ |
+| **Dev language**             | Solidity, ewasm   | Chaincode (Go, NodeJS) | ?           | Python, Golang, Java, PHP, NodeJS, MatLab                    |
+| **Dev Pattern**              | Smart   Contract  | Chaincode              | SQL         | SQL                                                          |
+| **Open Source**              | Y                 | Y                      | N           | Y                                                            |
+| **Nodes for HA**             | 3                 | 15                     | ?           | 3                                                            |
+| **Column Level ACL**         | N                 | Y                      | ?           | Y                                                            |
+| **Data Format**              | File              | Key-value              | Document    | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
+| **Storage Encryption**       | N                 | API                    | Y           | Y                                                            |
+| **Data Desensitization**     | N                 | N                      | N           | Y                                                            |
+| **Multi-tenant**             | DIY               | DIY                    | N           | Y                                                            |
+| **Throughput (1s delay)**    | 15~10 tx/s        | 3500 tx/s              | ?           | 11065 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong Consistency) |
+| **Consistency Delay**        | 2~6 min           | < 1 s                  | ?           | < 10 ms                                                      |
+| **Secure for Open Internet** | Y                 | N                      | Only in AWS | Y                                                            |
+| **Consensus**                | PoW + PoS(Casper) | CFT                    | ?           | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
 
 #### FootNotes
 

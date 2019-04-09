@@ -6,7 +6,7 @@ services:
     container_name: covenantsql_bp_0
     restart: "no"
     ports:
-      - '11099:4661'
+      - '11099:11099'
       - '12099:4665'
     environment:
       COVENANT_ROLE: blockproducer
@@ -27,7 +27,7 @@ services:
     container_name: covenantsql_bp_1
     restart: "no"
     ports:
-      - '11100:4661'
+      - '11100:11100'
       - '12100:4665'
     environment:
       COVENANT_ROLE: blockproducer
@@ -48,7 +48,7 @@ services:
     container_name: covenantsql_bp_2
     restart: "no"
     ports:
-      - '11101:4661'
+      - '11101:11101'
       - '12101:4665'
     environment:
       COVENANT_ROLE: blockproducer

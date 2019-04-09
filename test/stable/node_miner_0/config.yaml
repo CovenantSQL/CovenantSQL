@@ -39,7 +39,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 0
-  Addr: 172.254.1.2:4661
+  Addr: bp0:11099
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Leader
 - ID: 00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35
@@ -48,7 +48,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 2305843009893772025
-  Addr: 172.254.1.3:4661
+  Addr: bp1:11100
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Follower
 - ID: 000000172580063ded88e010556b0aca2851265be8845b1ef397e8fce6ab5582
@@ -57,7 +57,7 @@ KnownNodes:
     b: 0
     c: 0
     d: 2305843012544226372
-  Addr: 172.254.1.4:4661
+  Addr: bp2:11101
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   Role: Follower
 - ID: 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade

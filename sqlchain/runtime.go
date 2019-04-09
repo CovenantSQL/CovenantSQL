@@ -88,13 +88,9 @@ type runtime struct {
 }
 
 func blockCacheTTLRequired(c *Config) (ttl int32) {
-	var billingRequiredTTL = int32(2 * c.UpdatePeriod)
 	ttl = c.BlockCacheTTL
-	if ttl < minBlockCacheTTL {
-		ttl = minBlockCacheTTL
-	}
-	if ttl < billingRequiredTTL {
-		ttl = billingRequiredTTL
+	if ttl < 0 {
+		ttl = 0
 	}
 	return
 }

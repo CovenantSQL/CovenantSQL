@@ -296,10 +296,17 @@ func TestMultiChain(t *testing.T) {
 						i, c.rt.getPeerInfoString())
 					continue
 				}
-				if node.block != nil {
-					t.Logf("checking block %v at height %d in peer %s",
-						node.block.BlockHash(), i, c.rt.getPeerInfoString())
+				block := node.load()
+				if block == nil {
+					var err error
+					if block, err = c.FetchBlock(node.height); err != nil || block == nil {
+						t.Errorf("failed to load block %v at height %d in peer %s: %v",
+							block.BlockHash(), i, c.rt.getPeerInfoString(), err)
+						continue
+					}
 				}
+				t.Logf("checking block %v at height %d in peer %s",
+					block.BlockHash(), i, c.rt.getPeerInfoString())
 			}
 		}(v.chain)
 	}

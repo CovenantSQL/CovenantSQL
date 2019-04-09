@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
-	rt "runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,10 +45,6 @@ import (
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 )
 
-const (
-	minBlockCacheTTL = int32(30)
-)
-
 var (
 	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
@@ -61,17 +56,7 @@ var (
 	leveldbInit sync.Once
 	blkDB       *leveldb.DB
 	txDB        *leveldb.DB
-
-	// Atomic counters for stats
-	cachedBlockCount int32
 )
-
-func trackBlock(b *types.Block) {
-	atomic.AddInt32(&cachedBlockCount, 1)
-	rt.SetFinalizer(b, func(_ *types.Block) {
-		atomic.AddInt32(&cachedBlockCount, -1)
-	})
-}
 
 // heightToKey converts a height in int32 to a key in bytes.
 func heightToKey(h int32) (key []byte) {
@@ -125,6 +110,9 @@ type Chain struct {
 	metaBlockIndex    []byte
 	metaResponseIndex []byte
 	metaAckIndex      []byte
+
+	// Atomic counters for stats
+	cachedBlockCount int32
 }
 
 // NewChain creates a new sql-chain struct.
@@ -257,7 +245,9 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 			id = nid
 		}
 
-		last = newBlockNode(chain.rt.getHeightFromTime(block.Timestamp()), block, parent)
+		// do not cache block in memory in reloading
+		last = newBlockNodeEx(
+			chain.rt.getHeightFromTime(block.Timestamp()), block.BlockHash(), nil, parent)
 		chain.bi.addBlock(last)
 	}
 	if err = blockIter.Error(); err != nil {
@@ -281,7 +271,6 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 	chain.rt.setHead(head)
 	chain.st.SetSeq(id)
-	chain.pruneBlockCache()
 
 	// Read queries and rebuild memory index
 	respIter := txDB.NewIterator(util.BytesPrefix(chain.metaResponseIndex), nil)
@@ -368,6 +357,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 		err = errors.Wrapf(err, "put %s", string(node.indexKey()))
 		return
 	}
+	atomic.AddInt32(&c.cachedBlockCount, 1)
 	c.rt.setHead(head)
 	c.bi.addBlock(node)
 
@@ -469,7 +459,6 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		QueryTxs:   make([]*types.QueryAsTx, len(qts)),
 		Acks:       c.ai.acks(c.rt.getHeightFromTime(now)),
 	}
-	trackBlock(block)
 	for i, v := range qts {
 		// TODO(leventeliu): maybe block waiting at a ready channel instead?
 		for !v.Ready() {
@@ -571,7 +560,6 @@ func (c *Chain) syncHead() {
 				); err != nil || resp.Block == nil {
 					ile.WithError(err).Debug("failed to fetch block from peer")
 				} else {
-					trackBlock(resp.Block)
 					select {
 					case c.blocks <- resp.Block:
 					case <-c.rt.ctx.Done():
@@ -700,7 +688,11 @@ func (c *Chain) processBlocks(ctx context.Context) {
 		select {
 		case h := <-c.heights:
 			// Trigger billing
-			if uint64(h)%c.updatePeriod == 0 {
+			index, total := c.rt.getIndexTotal()
+			period := int32(c.updatePeriod)
+			isBillingPeriod := (h%period == 0)
+			isMyTurnBilling := (h/period%total == index)
+			if isBillingPeriod && isMyTurnBilling {
 				ub, err := c.billing(h, c.rt.getHead().node)
 				if err != nil {
 					le.WithError(err).Error("billing failed")
@@ -792,12 +784,8 @@ func (c *Chain) Stop() (err error) {
 // FetchBlock fetches the block at specified height from local cache.
 func (c *Chain) FetchBlock(height int32) (b *types.Block, err error) {
 	if n := c.rt.getHead().node.ancestor(height); n != nil {
-		b, err = c.fetchBlockByIndexKey(n.indexKey())
-		if err != nil {
-			return
-		}
+		return c.fetchBlockByIndexKey(n.indexKey())
 	}
-
 	return
 }
 
@@ -834,7 +822,6 @@ func (c *Chain) fetchBlockByIndexKey(indexKey []byte) (b *types.Block, err error
 	}
 
 	b = &types.Block{}
-	trackBlock(b)
 	err = utils.DecodeMsgPack(v, b)
 	if err != nil {
 		err = errors.Wrapf(err, "fetch block %s", string(k))
@@ -961,28 +948,32 @@ func (c *Chain) remove(ack *types.SignedAckHeader) (err error) {
 
 func (c *Chain) pruneBlockCache() {
 	var (
-		head    = c.rt.getHead().node
-		lastCnt int32
+		head     = c.rt.getHead().node
+		nextTurn = c.rt.getNextTurn()
+		lastCnt  int32
 	)
 	if head == nil {
 		return
 	}
-	lastCnt = head.count - c.rt.blockCacheTTL
+	lastCnt = nextTurn - c.rt.blockCacheTTL
+	if h := c.rt.getLastBillingHeight(); h < lastCnt {
+		lastCnt = h // also keep cache for billing if possible
+	}
 	// Move to last count position
 	for ; head != nil && head.count > lastCnt; head = head.parent {
 	}
 	// Prune block references
-	for ; head != nil && head.block != nil; head = head.parent {
-		head.block = nil
+	for ; head != nil && head.clear(); head = head.parent {
+		atomic.AddInt32(&c.cachedBlockCount, -1)
 	}
 }
 
 func (c *Chain) stat() {
 	var (
-		ic = atomic.LoadInt32(&multiIndexCount)
-		rc = atomic.LoadInt32(&responseCount)
-		tc = atomic.LoadInt32(&ackCount)
-		bc = atomic.LoadInt32(&cachedBlockCount)
+		ic = atomic.LoadInt32(&c.ai.multiIndexCount)
+		rc = atomic.LoadInt32(&c.ai.responseCount)
+		tc = atomic.LoadInt32(&c.ai.ackCount)
+		bc = atomic.LoadInt32(&c.cachedBlockCount)
 	)
 	// Print chain stats
 	c.logEntry().WithFields(log.Fields{
@@ -1011,7 +1002,7 @@ func (c *Chain) billing(h int32, node *blockNode) (ub *types.UpdateBilling, err 
 	for iter = node; iter != nil && iter.height > h; iter = iter.parent {
 	}
 	for iter != nil && iter.height > minHeight {
-		var block = iter.block
+		var block = iter.load()
 		// Not cached, recover from storage
 		if block == nil {
 			if block, err = c.FetchBlock(iter.height); err != nil {

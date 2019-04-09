@@ -80,8 +80,8 @@ func TestAcceptFunc(t *testing.T) {
 		err = cli.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
 		So(err, ShouldNotBeNil)
 	})
-	Convey("Setup a single server with noconn accept func", t, func(c C) {
-		nodes, stop, err := setupEnvironment(1, AcceptNOConn)
+	Convey("Setup a single server with naconn accept func", t, func(c C) {
+		nodes, stop, err := setupEnvironment(1, AcceptNAConn)
 		So(err, ShouldBeNil)
 		defer stop()
 
@@ -92,7 +92,7 @@ func TestAcceptFunc(t *testing.T) {
 		err = cli.Call("Count.Add", &AddReq{Delta: 1}, &AddResp{})
 		So(err, ShouldBeNil)
 
-		// Call noconn server with raw TCP conn
+		// Call naconn server with raw TCP conn
 		rawconn, err := net.Dial("tcp", nodes[0].Addr)
 		So(err, ShouldBeNil)
 		rawcli := NewClient(rawconn)

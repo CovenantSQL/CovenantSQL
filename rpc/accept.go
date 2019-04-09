@@ -47,21 +47,21 @@ func NewAcceptCryptoConnFunc(handler etls.CipherHandler) AcceptConn {
 	}
 }
 
-// AcceptNOConn accepts connection as a noconn.NOConn.
+// AcceptNAConn accepts connection as a naconn.NAConn.
 //
 // Default accept function of RPC server, and also the only accept function for
-// the connections from a NOConnPool.
+// the connections from a NAConnPool.
 //
-// Corresponding dialer is noconn.Dial/noconn.DialEx.
-func AcceptNOConn(ctx context.Context, conn net.Conn) (net.Conn, error) {
-	noconn, err := Accept(conn)
+// Corresponding dialer is naconn.Dial/naconn.DialEx.
+func AcceptNAConn(ctx context.Context, conn net.Conn) (net.Conn, error) {
+	naconn, err := Accept(conn)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"local":  conn.LocalAddr(),
 			"remote": conn.RemoteAddr(),
-		}).WithError(err).Error("failed to accept NOConn")
+		}).WithError(err).Error("failed to accept NAConn")
 		_ = conn.Close()
 		return nil, err
 	}
-	return noconn, nil
+	return naconn, nil
 }

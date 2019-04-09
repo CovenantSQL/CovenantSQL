@@ -44,7 +44,7 @@ var (
 
 var FJ = filepath.Join
 
-// withTCPDialer overwrites the node-oriented dialer of rpc package, skips the noconn resolver
+// withTCPDialer overwrites the node-oriented dialer of rpc package, skips the naconn resolver
 // and implies a default resolving method: addr := string(remote node ID).
 func withTCPDialer() func() {
 	dial := rpc.Dial

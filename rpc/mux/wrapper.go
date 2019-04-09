@@ -82,12 +82,7 @@ func NewPersistentCaller(target proto.NodeID) *PersistentCaller {
 	}
 }
 
-// Target returns the request target for logging purpose.
-func (c *PersistentCaller) Target() string {
-	return string(c.TargetID)
-}
-
 // New returns brand new persistent caller.
-func (c *PersistentCaller) New() PCaller {
+func (c *PersistentCaller) New() rpc.PCaller {
 	return NewPersistentCaller(c.TargetID)
 }

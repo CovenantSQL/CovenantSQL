@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package noconn
+package naconn
 
 import (
 	"sync"

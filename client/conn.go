@@ -30,7 +30,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
@@ -87,15 +88,21 @@ func newConn(cfg *Config) (c *conn, err error) {
 	if cfg.Mirror != "" {
 		c.leader = &pconn{
 			parent:  c,
-			pCaller: rpc.NewRawCaller(cfg.Mirror),
+			pCaller: mux.NewRawCaller(cfg.Mirror),
 		}
 
 		// no ack workers required, mirror mode does not support ack worker
 	} else {
 		if cfg.UseLeader {
+			var caller rpc.PCaller
+			if cfg.UseDirectRPC {
+				caller = rpc.NewPersistentCaller(peers.Leader)
+			} else {
+				caller = mux.NewPersistentCaller(peers.Leader)
+			}
 			c.leader = &pconn{
 				parent:  c,
-				pCaller: rpc.NewPersistentCaller(peers.Leader),
+				pCaller: caller,
 			}
 		}
 
@@ -104,9 +111,15 @@ func newConn(cfg *Config) (c *conn, err error) {
 			for {
 				node := peers.Servers[randSource.Intn(len(peers.Servers))]
 				if node != peers.Leader {
+					var caller rpc.PCaller
+					if cfg.UseDirectRPC {
+						caller = rpc.NewPersistentCaller(node)
+					} else {
+						caller = mux.NewPersistentCaller(node)
+					}
 					c.follower = &pconn{
 						parent:  c,
-						pCaller: rpc.NewPersistentCaller(node),
+						pCaller: caller,
 					}
 					break
 				}

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package noconn
+package naconn
 
 import (
 	"fmt"
@@ -69,8 +69,8 @@ func (r *simpleResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 	return nil, fmt.Errorf("not found")
 }
 
-func TestNOConn(t *testing.T) {
-	Convey("Test simple NOConn", t, func(c C) {
+func TestNAConn(t *testing.T) {
+	Convey("Test simple NAConn", t, func(c C) {
 		l, err := net.Listen("tcp", "localhost:0")
 		So(err, ShouldBeNil)
 		defer func() { _ = l.Close() }()
@@ -100,11 +100,11 @@ func TestNOConn(t *testing.T) {
 				wg.Add(1)
 				go func(c C, conn net.Conn) {
 					defer wg.Done()
-					noconn, err := Accept(conn)
+					naconn, err := Accept(conn)
 					c.So(err, ShouldBeNil)
-					defer func() { _ = noconn.Close() }()
-					t.Logf("accept conn %s <- %s", noconn.LocalAddr(), noconn.RemoteAddr())
-					buffer, err := ioutil.ReadAll(noconn)
+					defer func() { _ = naconn.Close() }()
+					t.Logf("accept conn %s <- %s", naconn.LocalAddr(), naconn.RemoteAddr())
+					buffer, err := ioutil.ReadAll(naconn)
 					c.So(err, ShouldBeNil)
 					c.So(buffer, ShouldResemble, message[:])
 				}(c, conn)

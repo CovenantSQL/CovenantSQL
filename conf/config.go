@@ -112,13 +112,14 @@ type Config struct {
 	StartupSyncHoles bool `yaml:"StartupSyncHoles,omitempty"`
 	GenerateKeyPair  bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
-	WorkingRoot     string            `yaml:"WorkingRoot"`
-	PubKeyStoreFile string            `yaml:"PubKeyStoreFile"`
-	PrivateKeyFile  string            `yaml:"PrivateKeyFile"`
-	DHTFileName     string            `yaml:"DHTFileName"`
-	ListenAddr      string            `yaml:"ListenAddr"`
-	ThisNodeID      proto.NodeID      `yaml:"ThisNodeID"`
-	ValidDNSKeys    map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
+	WorkingRoot      string            `yaml:"WorkingRoot"`
+	PubKeyStoreFile  string            `yaml:"PubKeyStoreFile"`
+	PrivateKeyFile   string            `yaml:"PrivateKeyFile"`
+	DHTFileName      string            `yaml:"DHTFileName"`
+	ListenAddr       string            `yaml:"ListenAddr"`
+	ListenDirectAddr string            `yaml:"ListenDirectAddr",omitempty`
+	ThisNodeID       proto.NodeID      `yaml:"ThisNodeID"`
+	ValidDNSKeys     map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 	// Check By BP DHT.Ping
 	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
 

@@ -194,11 +194,12 @@ func InitKMS(PubKeyStoreFile string) {
 			}).Debug("set node addr")
 			SetNodeAddrCache(rawNodeID, n.Addr)
 			node := &proto.Node{
-				ID:        n.ID,
-				Addr:      n.Addr,
-				PublicKey: n.PublicKey,
-				Nonce:     n.Nonce,
-				Role:      n.Role,
+				ID:         n.ID,
+				Addr:       n.Addr,
+				DirectAddr: n.DirectAddr,
+				PublicKey:  n.PublicKey,
+				Nonce:      n.Nonce,
+				Role:       n.Role,
 			}
 			log.WithField("node", node).Debug("known node to set")
 			err := kms.SetNode(node)

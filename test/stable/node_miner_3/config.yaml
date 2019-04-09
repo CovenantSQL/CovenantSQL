@@ -7,7 +7,7 @@ ListenAddr: "172.254.1.8:4661"
 ThisNodeID: "00eda359cd2aa0920cdd37b083b896cb18cd26b3bd51744d1b4f127830f820f2"
 QPS: 1000
 ChainBusPeriod: 20s
-BillingBlockCount: 60
+BillingBlockCount: 10
 BPPeriod: 3s
 BPTick: 1s
 SQLChainPeriod: 3s

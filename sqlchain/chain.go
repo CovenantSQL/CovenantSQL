@@ -688,8 +688,10 @@ func (c *Chain) processBlocks(ctx context.Context) {
 		select {
 		case h := <-c.heights:
 			// Trigger billing
-			isBillingPeriod := (uint64(h)%c.updatePeriod == 0)
-			isMyTurnBilling := ((uint64(h)/c.updatePeriod)%uint64(c.rt.getTotal()) == 0)
+			index, total := c.rt.getIndexTotal()
+			period := int32(c.updatePeriod)
+			isBillingPeriod := (h%period == 0)
+			isMyTurnBilling := (h/period%total == index)
 			if isBillingPeriod && isMyTurnBilling {
 				ub, err := c.billing(h, c.rt.getHead().node)
 				if err != nil {
@@ -946,13 +948,14 @@ func (c *Chain) remove(ack *types.SignedAckHeader) (err error) {
 
 func (c *Chain) pruneBlockCache() {
 	var (
-		head    = c.rt.getHead().node
-		lastCnt int32
+		head     = c.rt.getHead().node
+		nextTurn = c.rt.getNextTurn()
+		lastCnt  int32
 	)
 	if head == nil {
 		return
 	}
-	lastCnt = head.count - c.rt.blockCacheTTL
+	lastCnt = nextTurn - c.rt.blockCacheTTL
 	if h := c.rt.getLastBillingHeight(); h < lastCnt {
 		lastCnt = h // also keep cache for billing if possible
 	}

@@ -28,22 +28,35 @@
 
 [中文简介](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README-zh.md)
 
-CovenantSQL is a GDPR-compliant SQL database running on Open Internet without central coordination:
+CovenantSQL(CQL) is a GDPR-compliant SQL database running on Open Internet without central coordination:
 
 - **GDPR-compliant**: Zero pain to be GDPR-compliant.
 - **SQL**: most SQL-92 support.
 - **Decentralize**: decentralize with our consensus algorithm DH-RPC & Kayak.
 - **Privacy**: access with granted permission and Encryption Pass.
-- **Immutable**: query history in CovenantSQL is immutable and trackable.
+- **Immutable**: query history in CQL is immutable and trackable.
+- **Permission**: grant permission with column level ACL and SQL pattern whitelist.
 
 We believe [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
-#### One Line Makes Data on Blockchain
+**One Line Makes Data on Blockchain**
+
 ```go
-sql.Open("CovenantSQL", dbURI)
+sql.Open("cql", dbURI)
 ```
 
-## 
+
+
+## What is CQL?
+
+- Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
+- Just like [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) is the decentralized file system, CQL is the decentralized database
+
+## How CQL works
+
+### 3 Layers Arch
+
+
 
 ![CovenantSQL 3 Layer design](logo/arch.png)
 
@@ -57,8 +70,46 @@ sql.Open("CovenantSQL", dbURI)
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
 
-## How it works
-[How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
+### Consensus Algorithm
+
+CQL supports 2 kinds of consensus algorithm:
+
+1. DPoS (Delegated Proof-of-Stake) is applied in `Eventually consistency mode` database and also `Layer 1 (Global Consensus Layer)` in BlockProducer. CQL miners pack all SQL queries and its signatures by the client into blocks thus form a blockchain. We named the algorithm [`Xenomint`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/xenomint). 
+2. BFT-Raft (Byzantine Fault-Toleranted Raft)<sup>[bft-raft](#bft-raft)</sup> is applied in `Strong consistency mode` database. We named our implementation [`Kayak`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/kayak).  The CQL miner leader does a `Two-Phase Commit` with `Kayak` to support `Transaction`.<sup>[transaction](#transaction)</sup>
+
+CQL database consistency mode and node count can be selected in datebase creation with command  `cql create '{"UseEventualConsistency": true, "Node": 3}'`
+
+## Comparison
+
+|                              | Ethereum          | Hyperledger Fabric     | Amazon QLDB | CovenantSQL                                                  |
+| ---------------------------- | ----------------- | ---------------------- | ----------- | ------------------------------------------------------------ |
+| **Dev language**             | Solidity, ewasm   | Chaincode (Go, NodeJS) | ?           | Python, Golang, Java, PHP, NodeJS, MatLab                    |
+| **Dev Pattern**              | Smart   Contract  | Chaincode              | SQL         | SQL                                                          |
+| **Open Source**              | Y                 | Y                      | N           | Y                                                            |
+| **Nodes for HA**             | 3                 | 15                     | ?           | 3                                                            |
+| **Column Level ACL**         | N                 | Y                      | ?           | Y                                                            |
+| **Data Format**              | File              | Key-value              | Document    | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
+| **Storage Encryption**       | N                 | API                    | Y           | Y                                                            |
+| **Data Desensitization**     | N                 | N                      | N           | Y                                                            |
+| **Multi-tenant**             | DIY               | DIY                    | N           | Y                                                            |
+| **Throughput (1s delay)**    | 15~10 tx/s        | 3500 tx/s              | ?           | 11065 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong Consistency) |
+| **Consistency Delay**        | 2~6 min           | < 1 s                  | ?           | < 10 ms                                                      |
+| **Secure for Open Internet** | Y                 | N                      | Only in AWS | Y                                                            |
+| **Consensus**                | PoW + PoS(Casper) | CFT                    | ?           | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
+
+#### FootNotes
+
+- <a name="bft-raft">BFT-Raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
+
+- <a name="transaction">Transaction</a>: Talking about `ACID`, CQL has full "Consistency, Isolation, Durability" and a limited `Atomicity` support. That is even under strong consistency mode, CQL transaction is only supported on the leader node. If you want to do "read `v`, `v++`, write `v` back" parallelly and atomically, then the only way is "read `v` from the leader, `v++`, write `v` back to leader"
+
+- <a name="fuse">FUSE</a>: CQL has a [simple FUSE](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse) support adopted from CockroachDB. The performance is not very ideal and still has some issues. But it can pass fio test like:
+
+  ```bash
+  fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
+  ```
+
+  
 
 ## Demos
 
@@ -67,8 +118,45 @@ sql.Open("CovenantSQL", dbURI)
 - [Weibo Bot @BlockPin](https://weibo.com/BlockPin)
 - [Markdown Editor with CovenantSQL sync](https://github.com/CovenantSQL/stackedit)
 - [Web Admin for CovenantSQL](https://github.com/CovenantSQL/adminer)
+- [How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
+
+## Use cases
+
+### Traditional App
+
+#### Privacy data
+
+If you are a developper of password management tools just like [1Password](https://1password.com/) or [LastPass](https://www.lastpass.com/). You can use CQL as the database to take benefits:
+
+1. Serverless: no need to deploy a server to store your user's password for sync which is the hot potato.
+2. Security: CQL handles all the encryption work. Decentralized data storage gives more confidence to your users.
+3. Regulation: CQL naturally comply with [GDPR](https://en.wikipedia.org/wiki/General_Data_Protection_Regulation).
+
+#### IoT storage
+
+CQL miners are deployed globally, IoT node can write to nearest CQL miner directly.
+
+1. Cheaper: Without passing all the traffic through a gateway, you can save a large bandwidth fee. And, CQL is a shared economic database which makes storage cheaper.
+2. Faster: CQL consensus protocol is designed for Internet where network latency is unavoidable.
+
+#### Open data service
+
+For example, you are the most detailed Bitcoin OHLC data maintainer. You can directly expose an online SQL interface to your customers to meet a wide range of query needs.
+
+1. CQL can limit specific SQL query statements to meet the needs while also balancing data security;
+2. CQL can record SQL query records on the blockchain, which is very convenient for customers to check their bills for long-tail customers and billing, like [this](https://explorer.dbhub.org/dbs/7a51191ae06afa22595b3904dc558d41057a279393b22650a95a3fc610e1e2df/requests/f466f7bf89d4dd1ece7849ef3cbe5c619c2e6e793c65b31966dbe4c7db0bb072)
+3. For customers with high performance requirements, Slave nodes can be deployed at the customer to meet the needs of customers with low latency queries while enabling almost real-time data updates.
+
+#### Secure storage
+
+Thanks to the CQL data history is immutable, CQL can be used as a storage for sensitive operational logs to prevent hacking and erasure access logs.
+
+### ĐApp
+
+Storing data on Bitcoin or Ethereum is quite expensive ($4305 / MB on Ethereum 2018-05-15). Programming is very complicated due to the lack of support for structured data storage. CQL gives you a low-cost structured SQL database and also provides more room for ĐApp to exchange data with real-world.
 
 ## Papers
+
 Our team members published:
 
 - [Thunder crystal: a novel crowdsourcing-based content distribution platform](https://dl.acm.org/citation.cfm?id=2736085)
@@ -81,6 +169,7 @@ that inspired us:
 - [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
     - [S/Kademlia: A practicable approach towards secure key-based routing](https://ieeexplore.ieee.org/document/4447808/)
 - [vSQL: Verifying arbitrary SQL queries over dynamic outsourced databases](https://ieeexplore.ieee.org/abstract/document/7958614/)
+
 
 ## Libs
 
@@ -112,9 +201,9 @@ CovenantSQL is still under construction and Testnet is already released, [have a
 - [Java](https://github.com/CovenantSQL/covenant-connector)
 - [NodeJS](https://github.com/CovenantSQL/covenantsql-proxy-js)
 - [Python](https://github.com/CovenantSQL/python-driver)
+- [Microsoft Excel (by community)](https://github.com/melancholiaforever/CQL_Excel)
 - Coding for more……
 
-Watch us or [![follow on Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs)](https://twitter.com/intent/follow?screen_name=CovenantLabs) for updates.
 
 ## TestNet
 

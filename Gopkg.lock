@@ -24,11 +24,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:990258f605348daec943e55cef08be4049f496a6fdd02e0e90dd8d2d5a8ea743"
+  digest = "1:b8201c4d972fe3856d4bb2f97e6c53a558d90849f145a55f1028bedfe1929103"
   name = "github.com/CovenantSQL/beacon"
   packages = ["ipv6"]
   pruneopts = "UT"
-  revision = "9947ddd83bc5f20a432f6f3142a14ccec6977daf"
+  revision = "9f84f37adc0c8ead41f8a1135bdedfd86403fb8b"
 
 [[projects]]
   branch = "develop"

@@ -302,6 +302,45 @@ func TestChain(t *testing.T) {
 			})
 		})
 
+		Convey("Multiple provide service", func() {
+			var (
+				nonce            pi.AccountNonce
+				t1, t2           pi.Transaction
+				loaded           bool
+				po1, po2         *types.ProviderProfile
+				bal1, bal2, bal3 uint64
+			)
+
+			// Create transaction for testing
+			bal1, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
+			So(loaded, ShouldBeTrue)
+			nonce, err = chain.nextNonce(addr1)
+			So(err, ShouldBeNil)
+			So(nonce, ShouldEqual, 1)
+			t1, err = newProvideService(nonce, priv1, addr1)
+			So(err, ShouldBeNil)
+			t2, err = newProvideService(nonce+1, priv1, addr1)
+			So(err, ShouldBeNil)
+			err = chain.storeTx(t1)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(chain.period).UTC())
+			So(err, ShouldBeNil)
+			bal2, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
+			So(loaded, ShouldBeTrue)
+			po1, loaded = chain.headBranch.preview.loadProviderObject(addr1)
+			So(loaded, ShouldBeTrue)
+			So(bal2-bal1, ShouldEqual, po1.Deposit)
+			err = chain.storeTx(t2)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(2 * chain.period).UTC())
+			So(err, ShouldBeNil)
+			bal3, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
+			So(bal3, ShouldEqual, bal2)
+			po2, loaded = chain.headBranch.preview.loadProviderObject(addr1)
+			So(po2, ShouldResemble, po1)
+			So(po2 == po1, ShouldBeFalse)
+		})
+
 		Convey("When transfer transactions are added", func() {
 			var (
 				nonce          pi.AccountNonce
@@ -336,7 +375,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// Create a sibling block from fork#0 and apply
-			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr2, priv2)
+			_, bl, err = f0.produceBlock(2, begin.Add(2 * chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			err = chain.pushBlock(bl)
@@ -357,7 +396,7 @@ func TestChain(t *testing.T) {
 			err = chain.produceBlock(begin.Add(3 * chain.period).UTC())
 			So(err, ShouldBeNil)
 			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period).UTC(), addr2, priv2)
+			f1, bl, err = f1.produceBlock(3, begin.Add(3 * chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			f1.preview.commit()
@@ -370,7 +409,7 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 				// Create a sibling block from fork#1 and apply
 				f1, bl, err = f1.produceBlock(
-					i, begin.Add(time.Duration(i)*chain.period).UTC(), addr2, priv2)
+					i, begin.Add(time.Duration(i) * chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
@@ -407,13 +446,13 @@ func TestChain(t *testing.T) {
 				f1.addTx(t2)
 				f1.addTx(t3)
 				f1.addTx(t4)
-				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period).UTC(), addr2, priv2)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8 * chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
-				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period).UTC(), addr2, priv2)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9 * chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()

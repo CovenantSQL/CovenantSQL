@@ -516,6 +516,17 @@ func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
 		return
 	}
 
+	// load previous provider object
+	po, loaded := s.loadProviderObject(sender)
+	if loaded {
+		// refund
+		if err = s.increaseAccountStableBalance(sender, po.Deposit); err != nil {
+			return
+		}
+
+		s.deleteProviderObject(sender)
+	}
+
 	// deposit
 	var (
 		minDeposit = conf.GConf.MinProviderDeposit

@@ -119,8 +119,10 @@ func TestChain(t *testing.T) {
 			},
 			Transactions: []pi.Transaction{
 				types.NewBaseAccount(&types.Account{
-					Address:      addr1,
-					TokenBalance: [5]uint64{1000, 1000, 1000, 1000, 1000},
+					Address: addr1,
+					TokenBalance: [5]uint64{
+						1000000, 1000000, 1000000, 1000000, 1000000,
+					},
 				}),
 			},
 		}
@@ -329,7 +331,7 @@ func TestChain(t *testing.T) {
 			So(loaded, ShouldBeTrue)
 			po1, loaded = chain.headBranch.preview.loadProviderObject(addr1)
 			So(loaded, ShouldBeTrue)
-			So(bal2-bal1, ShouldEqual, po1.Deposit)
+			So(bal1-bal2, ShouldEqual, po1.Deposit)
 			err = chain.storeTx(t2)
 			So(err, ShouldBeNil)
 			err = chain.produceBlock(begin.Add(2 * chain.period).UTC())
@@ -375,7 +377,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// Create a sibling block from fork#0 and apply
-			_, bl, err = f0.produceBlock(2, begin.Add(2 * chain.period).UTC(), addr2, priv2)
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			err = chain.pushBlock(bl)
@@ -396,7 +398,7 @@ func TestChain(t *testing.T) {
 			err = chain.produceBlock(begin.Add(3 * chain.period).UTC())
 			So(err, ShouldBeNil)
 			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(3, begin.Add(3 * chain.period).UTC(), addr2, priv2)
+			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			f1.preview.commit()
@@ -409,7 +411,7 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 				// Create a sibling block from fork#1 and apply
 				f1, bl, err = f1.produceBlock(
-					i, begin.Add(time.Duration(i) * chain.period).UTC(), addr2, priv2)
+					i, begin.Add(time.Duration(i)*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
@@ -446,13 +448,13 @@ func TestChain(t *testing.T) {
 				f1.addTx(t2)
 				f1.addTx(t3)
 				f1.addTx(t4)
-				f1, bl, err = f1.produceBlock(7, begin.Add(8 * chain.period).UTC(), addr2, priv2)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
-				f1, bl, err = f1.produceBlock(8, begin.Add(9 * chain.period).UTC(), addr2, priv2)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()

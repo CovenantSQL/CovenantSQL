@@ -18,28 +18,28 @@ group:
     nodes:
       - # miner10.250.100.2
         ip: 10.250.100.2/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.2/config.yaml -mem-profile '/scripts/mem2.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.2/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.3
         ip: 10.250.100.3/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.3/config.yaml -mem-profile '/scripts/mem3.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.3/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.4
         ip: 10.250.100.4/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.4/config.yaml -mem-profile '/scripts/mem4.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.4/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.5
         ip: 10.250.100.5/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.5/config.yaml -mem-profile '/scripts/mem5.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.5/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.6
         ip: 10.250.100.6/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.6/config.yaml -mem-profile '/scripts/mem6.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.6/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.7
         ip: 10.250.100.7/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.7/config.yaml -mem-profile '/scripts/mem7.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.7/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.8
         ip: 10.250.100.8/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.8/config.yaml -mem-profile '/scripts/mem8.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.8/config.yaml -metric-web 0.0.0.0:6060"
       - # miner10.250.100.9
         ip: 10.250.100.9/32
-        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.9/config.yaml -mem-profile '/scripts/mem9.pprof'"
+        cmd: "cd /scripts && ./bin/cql-minerd -config ./node_miner_10.250.100.9/config.yaml -metric-web 0.0.0.0:6060"
     rate: "1000mbit"
   -
     name: client

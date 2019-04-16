@@ -6,7 +6,7 @@ DHTFileName: "dht.db"
 ListenAddr: "10.250.1.3:4661"
 ThisNodeID: "00000381d46fd6cf7742d7fb94e2422033af989c0e348b5781b3219599a3af35"
 QPS: 1000
-BillingBlockCount: 3600
+BillingBlockCount: 30
 ChainBusPeriod: 1s
 BPPeriod: 3s
 BPTick: 1s

@@ -963,9 +963,10 @@ func benchOutsideMinerWithTargetMinerList(
 		// create
 		meta := client.ResourceMeta{
 			ResourceMeta: types.ResourceMeta{
-				TargetMiners:   targetMiners,
-				Node:           minerCount,
-				IsolationLevel: int(sql.LevelReadUncommitted),
+				TargetMiners:           targetMiners,
+				Node:                   minerCount,
+				UseEventualConsistency: benchEventualConsistency,
+				IsolationLevel:         int(sql.LevelReadUncommitted),
 			},
 			AdvancePayment: 1000000000,
 		}

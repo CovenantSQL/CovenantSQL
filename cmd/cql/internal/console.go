@@ -234,18 +234,8 @@ func usqlRegister() {
 	dburl.Register(dburl.Scheme{
 		Driver: "covenantsql",
 		Generator: func(url *dburl.URL) (string, error) {
-			dbID, err := dburl.GenOpaque(url)
-			if err != nil {
-				return "", err
-			}
-			cfg := client.NewConfig()
-			cfg.DatabaseID = dbID
-			return cfg.FormatDSN(), nil
+			return url.String(), nil
 		},
-		Proto:    0,
-		Opaque:   true,
-		Aliases:  []string{},
-		Override: "",
 	})
 }
 

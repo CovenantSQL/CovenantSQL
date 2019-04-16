@@ -53,7 +53,7 @@ func init() {
 func walletGen() {
 	//TODO if config has wallet, print and return
 
-	publicKey := getPublic()
+	publicKey := getPublicFromConfig()
 
 	keyHash, err := crypto.PubKeyHash(publicKey)
 	if err != nil {

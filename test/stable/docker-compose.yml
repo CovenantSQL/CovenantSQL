@@ -74,8 +74,8 @@ services:
       - '11112:6060'
     command:
       [
-        "-mem-profile",
-        "./node_miner_0/mem.pprof",
+        "-metric-web",
+        "0.0.0.0:6060",
         "-log-level",
         "debug",
       ]
@@ -107,8 +107,8 @@ services:
       - '11113:6060'
     command:
       [
-        "-mem-profile",
-        "./node_miner_1/mem.pprof",
+        "-metric-web",
+        "0.0.0.0:6060",
         "-log-level",
         "debug",
       ]
@@ -140,8 +140,8 @@ services:
       - '11114:6060'
     command:
       [
-        "-mem-profile",
-        "./node_miner_2/mem.pprof",
+        "-metric-web",
+        "0.0.0.0:6060",
         "-log-level",
         "debug",
       ]
@@ -173,8 +173,8 @@ services:
       - '11115:6060'
     command:
       [
-        "-mem-profile",
-        "./node_miner_3/mem.pprof",
+        "-metric-web",
+        "0.0.0.0:6060",
         "-log-level",
         "debug",
       ]

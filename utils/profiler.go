@@ -17,8 +17,6 @@
 package utils
 
 import (
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -45,9 +43,6 @@ func StartProfile(cpuprofile, memprofile string) error {
 	}
 
 	if memprofile != "" {
-		go func() {
-			http.ListenAndServe("0.0.0.0:6060", nil)
-		}()
 		f, err := os.Create(memprofile)
 		if err != nil {
 			log.WithField("file", memprofile).WithError(err).Error("failed to create memory profile file")

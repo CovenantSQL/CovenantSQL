@@ -40,13 +40,13 @@ build:
     - make clean
     - make use_all_cores
     - mkdir -p ${BIN_CACHE}
-    - cp bin/* ${BIN_CACHE}/
+    - cp -r bin/* ${BIN_CACHE}/
 
 unit-test:
   stage: test
   script: 
     - make clean
-    - cp ${BIN_CACHE}/* bin/
+    - cp -r ${BIN_CACHE}/* bin/
     - ./alltest.sh
 
 testnet-compatibility:
@@ -58,7 +58,7 @@ testnet-compatibility:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - cp ${BIN_CACHE}/* bin/
+    - cp -r ${BIN_CACHE}/* bin/
     - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
     - set -x
     - ./test/testnet_client/run.sh
@@ -73,7 +73,7 @@ old-client-compatibility:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - cp ${BIN_CACHE}/* bin/
+    - cp -r ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh client
 
 old-bp-compatibility:
@@ -86,7 +86,7 @@ old-bp-compatibility:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - cp ${BIN_CACHE}/* bin/
+    - cp -r ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh bp
 
 old-miner-compatibility:
@@ -99,7 +99,7 @@ old-miner-compatibility:
     - branch=$(git branch -rv |grep $commit | awk '{print $1}')
     - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
     - make clean
-    - cp ${BIN_CACHE}/* bin/
+    - cp -r ${BIN_CACHE}/* bin/
     - ./test/compatibility/specific_old.sh miner
 
 cleanup_cache:

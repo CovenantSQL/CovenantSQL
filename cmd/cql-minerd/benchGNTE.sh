@@ -46,8 +46,8 @@ main() {
     if [[ $# -gt 0 && $1 = "fast" ]]; then
         fast
     else
-        full
         full -bench-eventual-consistency
+        full
     fi
 }
 

@@ -8,7 +8,17 @@ declare flags=(
     "-run=^$"
 )
 
+clean() {
+    if [ -n "${TEST_WD}" ]; then
+        # Clean
+        sudo ${TEST_WD}/GNTE/scripts/cleanupDB.sh
+        bash -x ${TEST_WD}/GNTE/generate.sh ${delay_file}
+        sleep 5
+    fi
+}
+
 fast() {
+    clean
     echo "Fast benchmarking with flags: $@"
     go test        "${flags[@]}" "$pkg" "$@"                      | tee -a gnte.log
     go test        "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
@@ -26,6 +36,8 @@ full() {
             caseflags=("-cpu=$cpu" "${flags[@]}")
         fi
         for count in "${counts[@]}"; do
+            clean
+
             go test "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log
 
             ips=(2 3 4 5 6 7 8 9)
@@ -46,8 +58,8 @@ main() {
     if [[ $# -gt 0 && $1 = "fast" ]]; then
         fast
     else
-        full -bench-eventual-consistency
         full
+        full -bench-eventual-consistency
     fi
 }
 

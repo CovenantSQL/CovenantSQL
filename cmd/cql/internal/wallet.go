@@ -53,7 +53,7 @@ func init() {
 func walletGen() {
 	//TODO if config has wallet, print and return
 
-	publicKey := getPublic()
+	publicKey := getPublicFromConfig()
 
 	keyHash, err := crypto.PubKeyHash(publicKey)
 	if err != nil {
@@ -68,13 +68,13 @@ func walletGen() {
 }
 
 func runWallet(cmd *Command, args []string) {
-	configInit()
-
 	var err error
 	if tokenName == "" {
 		walletGen()
 		return
 	}
+
+	configInit()
 
 	if tokenName == "all" {
 		var stableCoinBalance, covenantCoinBalance uint64

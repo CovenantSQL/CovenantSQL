@@ -167,11 +167,11 @@ services:
     container_name: covenantsql_observer
     restart: always
     ports:
-      - '11108:80'
+      - '11108:4663'
     environment:
       COVENANT_ROLE: observer
       COVENANT_CONF: ./node_observer/config.yaml
-      COVENANTSQL_OBSERVER_ADDR: localhost:4663
+      COVENANTSQL_OBSERVER_ADDR: 0.0.0.0:4663
     volumes:
       - ./test/service/node_observer/:/app/node_observer/
     networks:

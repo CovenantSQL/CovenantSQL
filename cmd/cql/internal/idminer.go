@@ -59,9 +59,7 @@ func init() {
 }
 
 func runIDMiner(cmd *Command, args []string) {
-	configInit()
-
-	publicKey := getPublic()
+	publicKey := getPublicFromConfig()
 
 	if loop {
 		nonceLoop(publicKey)

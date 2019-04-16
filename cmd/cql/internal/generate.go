@@ -91,8 +91,7 @@ func runGenerate(cmd *Command, args []string) {
 	case "config":
 		configGen()
 	case "public":
-		configInit()
-		publicKey := getPublic()
+		publicKey := getPublicFromConfig()
 		fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
 	default:
 		cmd.Usage()

@@ -32,7 +32,7 @@ var (
 
 // CmdExplorer is cql explorer command.
 var CmdExplorer = &Command{
-	UsageLine: "cql explorer [-config file] [-tmp-path path] [-bg-log-level level] address",
+	UsageLine: "cql explorer [-config file] [-tmp-path path] [-bg-log-level level] listen_address",
 	Short:     "start a SQLChain explorer explorer",
 	Long: `
 Explorer command serves a SQLChain web explorer.
@@ -66,7 +66,7 @@ func startExplorerServer(explorerAddr string) func() {
 }
 
 func runExplorer(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 	bgServerInit()
 
 	if len(args) != 1 {

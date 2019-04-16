@@ -47,7 +47,7 @@ func init() {
 	CmdWallet.Run = runWallet
 
 	addCommonFlags(CmdWallet)
-	CmdWallet.Flag.StringVar(&tokenName, "balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, and etc.")
+	CmdWallet.Flag.StringVar(&tokenName, "balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
 }
 
 func walletGen() {
@@ -68,7 +68,7 @@ func walletGen() {
 }
 
 func runWallet(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 
 	var err error
 	if tokenName == "" {
@@ -76,7 +76,7 @@ func runWallet(cmd *Command, args []string) {
 		return
 	}
 
-	if tokenName == "all" {
+	if strings.ToLower(tokenName) == "all" {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
@@ -90,8 +90,8 @@ func runWallet(cmd *Command, args []string) {
 			return
 		}
 
-		ConsoleLog.Infof("Particle balance is: %d", stableCoinBalance)
-		ConsoleLog.Infof("Wave balance is: %d", covenantCoinBalance)
+		fmt.Printf("Particle balance is: %d", stableCoinBalance)
+		fmt.Printf("Wave balance is: %d", covenantCoinBalance)
 	} else {
 		var tokenBalance uint64
 		tokenType := types.FromString(tokenName)

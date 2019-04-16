@@ -31,7 +31,7 @@ var (
 
 // CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
-	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] [-mirror addr] address",
+	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] [-mirror addr] listen_address",
 	Short:     "start a SQLChain adapter",
 	Long: `
 Adapter command serves a SQLChain adapter
@@ -42,7 +42,7 @@ e.g.
 
 func init() {
 	CmdAdapter.Run = runAdapter
-	CmdAdapter.Flag.StringVar(&adapterUseMirrorAddr, "mirror", "", "mirror server for adapter to query")
+	CmdAdapter.Flag.StringVar(&adapterUseMirrorAddr, "mirror", "", "Mirror server for adapter to query")
 
 	addCommonFlags(CmdAdapter)
 	addBgServerFlag(CmdAdapter)
@@ -73,7 +73,7 @@ func startAdapterServer(adapterAddr string, adapterUseMirrorAddr string) func() 
 }
 
 func runAdapter(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 	bgServerInit()
 
 	if len(args) != 1 {

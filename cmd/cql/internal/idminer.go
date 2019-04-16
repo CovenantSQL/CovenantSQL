@@ -23,12 +23,13 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -54,12 +55,12 @@ func init() {
 	CmdIDMiner.Run = runIDMiner
 
 	addCommonFlags(CmdIDMiner)
-	CmdIDMiner.Flag.IntVar(&difficulty, "difficulty", 24, "difficulty for miner to mine nodes and generating nonce")
-	CmdIDMiner.Flag.BoolVar(&loop, "loop", false, "mining endless loop")
+	CmdIDMiner.Flag.IntVar(&difficulty, "difficulty", 24, "Difficulty for miner to mine nodes and generating nonce")
+	CmdIDMiner.Flag.BoolVar(&loop, "loop", false, "Keep mining until interrupted")
 }
 
 func runIDMiner(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 
 	publicKey := getPublic()
 

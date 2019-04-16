@@ -333,7 +333,7 @@ func run(u *user.User) (err error) {
 // runConsole runs a console for sql operation in command line.
 func runConsole(cmd *Command, args []string) {
 
-	configInit()
+	configInit(cmd)
 
 	usqlRegister()
 

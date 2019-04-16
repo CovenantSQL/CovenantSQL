@@ -47,7 +47,7 @@ func init() {
 }
 
 func runCreate(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 
 	if len(args) != 1 {
 		ConsoleLog.Error("Create command need database_meta_info string as params")
@@ -91,5 +91,5 @@ func runCreate(cmd *Command, args []string) {
 	}
 
 	ConsoleLog.Infof("the newly created database is: %#v", dsn)
-	fmt.Printf(dsn)
+	fmt.Println(dsn)
 }

@@ -18,10 +18,12 @@ clean() {
 }
 
 fast() {
-    clean
     echo "Fast benchmarking with flags: $@"
+    clean
     go test        "${flags[@]}" "$pkg" "$@"                      | tee -a gnte.log
+    clean
     go test        "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
+    clean
     go test -cpu=1 "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
 }
 

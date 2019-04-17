@@ -90,8 +90,8 @@ func runWallet(cmd *Command, args []string) {
 			return
 		}
 
-		fmt.Printf("Particle balance is: %d", stableCoinBalance)
-		fmt.Printf("Wave balance is: %d", covenantCoinBalance)
+		fmt.Printf("Particle balance is: %d\n", stableCoinBalance)
+		fmt.Printf("Wave balance is: %d\n", covenantCoinBalance)
 	} else {
 		var tokenBalance uint64
 		tokenType := types.FromString(tokenName)

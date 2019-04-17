@@ -25,12 +25,9 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-var (
-	msgPackHandle = &codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-)
+var msgPackHandle = &codec.MsgpackHandle{
+	WriteExt: true,
+}
 
 // RegisterInterfaceToMsgPack binds interface decode/encode to specified implementation.
 func RegisterInterfaceToMsgPack(intf, impl reflect.Type) (err error) {

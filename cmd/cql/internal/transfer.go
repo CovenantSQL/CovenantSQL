@@ -56,7 +56,7 @@ type tranToken struct {
 }
 
 func runTransfer(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 
 	if len(args) != 1 {
 		ConsoleLog.Error("Transfer command need target user and token amount in json string as param")

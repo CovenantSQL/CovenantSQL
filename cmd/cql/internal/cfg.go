@@ -24,6 +24,9 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh/terminal"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -32,33 +35,53 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 // These are general flags used by console and other commands.
 var (
-	configFile string
-	password   string
-	noPassword bool
+	configFile      string
+	password        string
+	noPassword      bool
+	consoleLogLevel string // foreground console log level
 
 	waitTxConfirmation bool // wait for transaction confirmation before exiting
 	// Shard chain explorer/adapter stuff
 	tmpPath    string // background observer and explorer block and log file path
 	bgLogLevel string // background log level
+	help       bool   // show sub command help message
 )
 
 func addCommonFlags(cmd *Command) {
-	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file for covenantsql (Usually no need to set, default is enough.)")
+	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
+		"Config file for covenantsql (Usually no need to set, default is enough.)")
 
-	// Undocumented, unstable debugging flags.
-	cmd.Flag.StringVar(&password, "password", "", "Master key password for covenantsql (NOT SAFE, for debug or script only)")
-	cmd.Flag.BoolVar(&noPassword, "no-password", false, "Use empty password for master key")
+	// debugging flags.
+	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "error",
+		"Console log level: trace debug info warning error fatal panic")
+	cmd.Flag.StringVar(&password, "password", "",
+		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
+	cmd.Flag.BoolVar(&noPassword, "no-password", false,
+		"Use empty password for master key")
 	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
+	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
 }
 
-func configInit() {
+func configInit(cmd *Command) {
+	if help {
+		_, _ = fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
+		_, _ = fmt.Fprintf(os.Stderr, cmd.Long)
+		_, _ = fmt.Fprintf(os.Stderr, "\nParams:\n")
+		cmd.Flag.PrintDefaults()
+		Exit()
+	}
+
+	if lvl, err := logrus.ParseLevel(consoleLogLevel); err != nil {
+		ConsoleLog.SetLevel(logrus.ErrorLevel)
+	} else {
+		ConsoleLog.SetLevel(lvl)
+	}
+
 	configFile = utils.HomeDirExpand(configFile)
 
 	if password == "" {
@@ -100,8 +123,10 @@ func wait(txHash hash.Hash) (err error) {
 }
 
 func addBgServerFlag(cmd *Command) {
-	cmd.Flag.StringVar(&tmpPath, "tmp-path", "", "Background service temp file path, use os.TempDir for default")
-	cmd.Flag.StringVar(&bgLogLevel, "bg-log-level", "", "Background service log level")
+	cmd.Flag.StringVar(&tmpPath, "tmp-path", "",
+		"Background service temp file path, use \"dirname `mktemp -u`\" to check it out")
+	cmd.Flag.StringVar(&bgLogLevel, "bg-log-level", "info",
+		"Background service log level: trace debug info warning error fatal panic")
 }
 
 func bgServerInit() {

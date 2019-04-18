@@ -99,10 +99,14 @@ builddate := $(shell date +%Y%m%d%H%M%S)
 unamestr := $(shell uname)
 
 ifeq ($(unamestr),Linux)
-platform := linux
+	platform := linux
 endif
 
-version := $(branch)-$(GIT_COMMIT)-$(builddate)
+ifdef CQLVERSION
+	version := $(CQLVERSION)-$(builddate)
+else
+	version := $(branch)-$(GIT_COMMIT)-$(builddate)
+endif
 
 tags := $(platform) sqlite_omit_load_extension
 testtags := $(tags) testbinary

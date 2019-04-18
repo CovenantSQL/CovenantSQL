@@ -31,12 +31,12 @@ var (
 
 // CmdMirror is cql mirror command.
 var CmdMirror = &Command{
-	UsageLine: "cql mirror [-config file] [-tmp-path path] [-bg-log-level level] dsn/dbid address",
+	UsageLine: "cql mirror [-config file] [-tmp-path path] [-bg-log-level level] dsn listen_address",
 	Short:     "start a SQLChain database mirror",
 	Long: `
 Mirror command subscribes database updates and serves a read-only database mirror.
 e.g.
-    cql mirror database_id 127.0.0.1:9389
+    cql mirror dsn 127.0.0.1:9389
 `,
 }
 
@@ -66,11 +66,11 @@ func startMirrorServer(mirrorDatabase string, mirrorAddr string) func() {
 }
 
 func runMirror(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 	bgServerInit()
 
 	if len(args) != 2 {
-		ConsoleLog.Error("Mirror command need database_id/dsn and listen address as parameters")
+		ConsoleLog.Error("Missing args, run `cql help mirror` for help")
 		SetExitStatus(1)
 		return
 	}

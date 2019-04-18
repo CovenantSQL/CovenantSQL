@@ -22,7 +22,7 @@ import (
 
 // CmdDrop is cql drop command entity.
 var CmdDrop = &Command{
-	UsageLine: "cql drop [-config file] [-wait-tx-confirm] dsn/dbid",
+	UsageLine: "cql drop [-config file] [-wait-tx-confirm] dsn",
 	Short:     "drop a database by dsn or database id",
 	Long: `
 Drop command can drop a database by DSN or database id
@@ -43,7 +43,7 @@ func init() {
 }
 
 func runDrop(cmd *Command, args []string) {
-	configInit()
+	configInit(cmd)
 
 	if len(args) != 1 {
 		ConsoleLog.Error("Drop command need CovenantSQL dsn or database_id string as param")

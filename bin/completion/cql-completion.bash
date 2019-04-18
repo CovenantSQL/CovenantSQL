@@ -87,7 +87,7 @@ _cql_help_version()
 
 _cql()
 {
-	COMPREPLY=()
+    COMPREPLY=()
 
     local word="${COMP_WORDS[COMP_CWORD]}"
     local prev="${COMP_WORDS[COMP_CWORD-1]}"

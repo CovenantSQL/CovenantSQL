@@ -59,7 +59,7 @@ func EncryptAndSign(inputPublicKey *asymmetric.PublicKey, inData []byte) ([]byte
 }
 
 // DecryptAndCheck (inputPrivateKey, inData) MAIN PROCEDURE:
-//	1. Decrypt the inData
+//  1. Decrypt the inData
 //  2. Verify the HMAC.
 func DecryptAndCheck(inputPrivateKey *asymmetric.PrivateKey, inData []byte) ([]byte, error) {
 	return ec.Decrypt((*ec.PrivateKey)(inputPrivateKey), inData)

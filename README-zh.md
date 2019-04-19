@@ -37,9 +37,6 @@ CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR �
 
 我们坚信 [在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
-## 使用文档
-
-https://developers.covenantsql.io/docs/zh-CN/quickstart
 
 **一行代码让数据上链**
 
@@ -51,6 +48,33 @@ sql.Open("cql", dbURI)
 
 - [Amazon QLDB](https://aws.amazon.com/qldb/)的开源版
 - 如果 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, 那么 CQL 就是去中心化的数据库
+
+## 快速开始
+#### MacOS 平台
+
+- 🍺 Homebrew 用户可以直接在命令行：
+
+    ```bash
+    brew install cql
+    ```
+
+- 非 Homebrew，可以执行：
+
+    ```bash
+    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.osx-amd64.tar.gz" | \
+     tar xzv -C /usr/local/bin/ --strip-components=1'
+    ```
+
+#### Linux 平台
+
+- 在命令行中执行：
+
+    ```bash
+    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.linux-amd64.tar.gz" | \
+    tar xzv -C /usr/local/bin/ --strip-components=1'
+    ```
+
+#### 继续请参见：[📚文档站](https://developers.covenantsql.io/docs/zh-CN/quickstart)
 
 ## CQL 如何工作
 

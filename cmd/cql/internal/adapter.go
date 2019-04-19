@@ -31,8 +31,8 @@ var (
 
 // CmdAdapter is cql adapter command entity.
 var CmdAdapter = &Command{
-	UsageLine: "cql adapter [-config file] [-tmp-path path] [-bg-log-level level] [-mirror addr] listen_address",
-	Short:     "start a SQLChain adapter",
+	UsageLine: "cql adapter [common params] [-tmp-path path] [-bg-log-level level] [-mirror addr] listen_address",
+	Short:     "start a SQLChain adapter server",
 	Long: `
 Adapter command serves a SQLChain adapter
 e.g.

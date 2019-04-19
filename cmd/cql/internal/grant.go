@@ -26,7 +26,7 @@ import (
 
 // CmdGrant is cql grant command entity.
 var CmdGrant = &Command{
-	UsageLine: "cql grant [-config file] [-wait-tx-confirm] permission_meta_json",
+	UsageLine: "cql grant [common params] [-wait-tx-confirm] permission_meta_json",
 	Short:     "grant a user's permissions on specific sqlchain",
 	Long: `
 Grant command can give a user some specific permissions on your database

@@ -29,7 +29,7 @@ import (
 
 // CmdTransfer is cql transfer command entity.
 var CmdTransfer = &Command{
-	UsageLine: "cql transfer [-config file] [-wait-tx-confirm] meta_json",
+	UsageLine: "cql transfer [common params] [-wait-tx-confirm] meta_json",
 	Short:     "transfer token to target account",
 	Long: `
 Transfer command can transfer your token to the target account.

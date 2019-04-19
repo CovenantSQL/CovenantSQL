@@ -52,7 +52,7 @@ var (
 
 // CmdRPC is cql rpc command entity.
 var CmdRPC = &Command{
-	UsageLine: "cql rpc [-config file] [-wait-tx-confirm] -name rpc_name -endpoint rpc_endpoint -req rpc_request",
+	UsageLine: "cql rpc [common params] [-wait-tx-confirm] -name rpc_name -endpoint rpc_endpoint -req rpc_request",
 	Short:     "make a rpc request",
 	Long: `
 Rpc command make a RPC request to server

@@ -39,6 +39,10 @@ var (
 
 func init() {
 	ConsoleLog = logrus.New()
+	ConsoleLog.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp:       true,
+		DisableLevelTruncation: true,
+	})
 }
 
 // A Command is an implementation of a cql command
@@ -85,8 +89,8 @@ func (c *Command) Name() string {
 
 // Usage print base usage help info.
 func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'cql help %s' for details.\n", c.LongName())
+	fmt.Fprintf(os.Stdout, "usage: %s\n", c.UsageLine)
+	fmt.Fprintf(os.Stdout, "Run 'cql help %s' for details.\n", c.LongName())
 	os.Exit(2)
 }
 

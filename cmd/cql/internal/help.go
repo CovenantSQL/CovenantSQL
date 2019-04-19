@@ -69,7 +69,11 @@ func runVersion(cmd *Command, args []string) {
 }
 
 func runHelp(cmd *Command, args []string) {
-	if len(args) != 1 {
+	if l := len(args); l != 1 {
+		if l > 1 {
+			// Don't support multiple commands
+			SetExitStatus(2)
+		}
 		MainUsage()
 	}
 
@@ -78,9 +82,9 @@ func runHelp(cmd *Command, args []string) {
 		if cmd.Name() != cmdName {
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-		fmt.Fprintf(os.Stderr, cmd.Long)
-		fmt.Fprintf(os.Stderr, "\nParams:\n")
+		fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
+		fmt.Fprintf(os.Stdout, cmd.Long)
+		fmt.Fprintf(os.Stdout, "\nParams:\n")
 		cmd.Flag.PrintDefaults()
 		return
 	}
@@ -96,7 +100,7 @@ func MainUsage() {
 
 Usage:
 
-    cql <command> [-params] [arguments]
+    cql <command> [params] [arguments]
 
 The commands are:
 
@@ -118,6 +122,6 @@ Use "cql help <command>" for more information about a command.
 	}
 	helpMsg += helpTail
 
-	fmt.Fprintf(os.Stderr, helpMsg)
+	fmt.Fprintf(os.Stdout, helpMsg)
 	Exit()
 }

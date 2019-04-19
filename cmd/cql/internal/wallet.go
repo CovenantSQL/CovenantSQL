@@ -31,7 +31,7 @@ var (
 
 // CmdWallet is cql wallet command entity.
 var CmdWallet = &Command{
-	UsageLine: "cql wallet [-config file] [-balance token_name]",
+	UsageLine: "cql wallet [common params] [-balance type]",
 	Short:     "get the wallet address and the balance of current account",
 	Long: `
 Wallet command can get CovenantSQL wallet address and the token balance of current account
@@ -110,6 +110,6 @@ func runWallet(cmd *Command, args []string) {
 			SetExitStatus(1)
 			return
 		}
-		ConsoleLog.Infof("%s balance is: %d", tokenType.String(), tokenBalance)
+		fmt.Printf("%s balance is: %d\n", tokenType, tokenBalance)
 	}
 }

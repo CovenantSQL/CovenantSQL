@@ -30,6 +30,7 @@
 
 CovenantSQL(CQL) is a GDPR-compliant SQL database running on Open Internet without central coordination:
 
+- **ServerLess**: Free, High Availabile, Auto Sync Database for Serverless App
 - **GDPR-compliant**: Zero pain to be GDPR-compliant.
 - **SQL**: most SQL-92 support.
 - **Decentralize**: decentralize with our consensus algorithm DH-RPC & Kayak.
@@ -45,12 +46,38 @@ We believe [On the next Internet, everyone should have a complete **Data Rights*
 sql.Open("cql", dbURI)
 ```
 
-
-
 ## What is CQL?
 
 - Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
 - Just like [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) is the decentralized file system, CQL is the decentralized database
+
+## Quick Start
+
+#### MacOS
+
+- 🍺 Homebrew users can just run:
+
+    ```bash
+    brew install cql
+    ```
+
+- non-Homebrew users can run:
+    
+    ```bash
+    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.osx-amd64.tar.gz" | \
+     tar xzv -C /usr/local/bin/ --strip-components=1'
+    ```
+
+#### Linux
+
+- Just run：
+
+    ```bash
+    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.linux-amd64.tar.gz" | \
+    tar xzv -C /usr/local/bin/ --strip-components=1'
+    ```
+
+#### For More: [📚Docs Site](https://developers.covenantsql.io/docs/en/quickstart)
 
 ## How CQL works
 
@@ -77,7 +104,7 @@ CQL supports 2 kinds of consensus algorithm:
 1. DPoS (Delegated Proof-of-Stake) is applied in `Eventually consistency mode` database and also `Layer 1 (Global Consensus Layer)` in BlockProducer. CQL miners pack all SQL queries and its signatures by the client into blocks thus form a blockchain. We named the algorithm [`Xenomint`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/xenomint). 
 2. BFT-Raft (Byzantine Fault-Toleranted Raft)<sup>[bft-raft](#bft-raft)</sup> is applied in `Strong consistency mode` database. We named our implementation [`Kayak`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/kayak).  The CQL miner leader does a `Two-Phase Commit` with `Kayak` to support `Transaction`.<sup>[transaction](#transaction)</sup>
 
-CQL database consistency mode and node count can be selected in datebase creation with command  `cql create '{"UseEventualConsistency": true, "Node": 3}'`
+CQL database consistency mode and node count can be selected in database creation with command  `cql create '{"UseEventualConsistency": true, "Node": 3}'`
 
 ## Comparison
 

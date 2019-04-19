@@ -31,15 +31,15 @@ type InitService struct {
 
 // ResourceMeta defines single database resource meta.
 type ResourceMeta struct {
-	TargetMiners           []proto.AccountAddress // designated miners
-	Node                   uint16                 // reserved node count
-	Space                  uint64                 // reserved storage space in bytes
-	Memory                 uint64                 // reserved memory in bytes
-	LoadAvgPerCPU          float64                // max loadAvg15 per CPU
-	EncryptionKey          string                 // encryption key for database instance
-	UseEventualConsistency bool                   // use eventual consistency replication if enabled
-	ConsistencyLevel       float64                // customized strong consistency level
-	IsolationLevel         int                    // customized isolation level
+	TargetMiners           []proto.AccountAddress `json:"target-miners,omitempty"`        // designated miners
+	Node                   uint16                 `json:"node,omitempty"`                 // reserved node count
+	Space                  uint64                 `json:"space,omitempty"`                // reserved storage space in bytes
+	Memory                 uint64                 `json:"memory",omitempty`               // reserved memory in bytes
+	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu"`               // max loadAvg15 per CPU
+	EncryptionKey          string                 `json:"encrypt-key,omitempty"`          // encryption key for database instance
+	UseEventualConsistency bool                   `json:"enentual-consistency,omitempty"` // use eventual consistency replication if enabled
+	ConsistencyLevel       float64                `json:"consistency-level,omitempty"`    // customized strong consistency level
+	IsolationLevel         int                    `json:"isolation-level,omitempty"`      // customized isolation level
 }
 
 // ServiceInstance defines single instance to be initialized.

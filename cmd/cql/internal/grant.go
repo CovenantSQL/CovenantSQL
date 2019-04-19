@@ -31,11 +31,11 @@ var CmdGrant = &Command{
 	Long: `
 Grant command can give a user some specific permissions on your database
 e.g.
-    cql grant '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql grant '{"chain": "your_chain_addr", "user": "user_addr", "perm": "perm_struct"}'
 
 Since CovenantSQL is blockchain database, you may want get confirm of permission update.
 e.g.
-    cql grant -wait-tx-confirm '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql grant -wait-tx-confirm '{"chain": "your_chain_addr", "user": "user_addr", "perm": "perm_struct"}'
 `,
 }
 

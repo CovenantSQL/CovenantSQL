@@ -31,11 +31,23 @@ var CmdCreate = &Command{
 	Long: `
 Create CovenantSQL database by database meta info JSON string, meta info must include node count.
 e.g.
-    cql create '{"node":2}'
+    cql create '{"node": 2}'
+
+A complete introduction of db_meta_json fields：
+
+    target-miners          []string // List of target miner addresses
+    node                   int      // Target node number
+    space                  int      // Minimum disk space requirement, 0 for none
+    memory                 int      // Minimum memory requirement, 0 for none
+    load-avg-per-cpu       float    // Minimum idle CPU requirement, 0 for none
+    encrypt-key            string   // Encryption key for persistence data
+    eventual-consistency   bool     // Use eventual consistency to sync among miner nodes
+    consistency-level      float    // Consistency level, node*consistency_level is the node number to perform strong consistency
+    isolation-level        int      // Isolation level in a single node
 
 Since CovenantSQL is blockchain database, you may want get confirm of creation.
 e.g.
-    cql create -wait-tx-confirm '{"node":2}'
+    cql create -wait-tx-confirm '{"node": 2}'
 `,
 }
 

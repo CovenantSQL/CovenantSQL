@@ -37,7 +37,7 @@ type ResourceMeta struct {
 	Memory                 uint64                 `json:"memory",omitempty`               // reserved memory in bytes
 	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu"`               // max loadAvg15 per CPU
 	EncryptionKey          string                 `json:"encrypt-key,omitempty"`          // encryption key for database instance
-	UseEventualConsistency bool                   `json:"enentual-consistency,omitempty"` // use eventual consistency replication if enabled
+	UseEventualConsistency bool                   `json:"eventual-consistency,omitempty"` // use eventual consistency replication if enabled
 	ConsistencyLevel       float64                `json:"consistency-level,omitempty"`    // customized strong consistency level
 	IsolationLevel         int                    `json:"isolation-level,omitempty"`      // customized isolation level
 }

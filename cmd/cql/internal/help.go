@@ -59,7 +59,7 @@ func PrintVersion(printLog bool) string {
 		name, Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 
 	if printLog {
-		ConsoleLog.Infof("cql build: %s\n", version)
+		fmt.Println("cql build:", version)
 	}
 
 	return version
@@ -86,6 +86,7 @@ func runHelp(cmd *Command, args []string) {
 		fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
 		fmt.Fprintf(os.Stdout, cmd.Long)
 		fmt.Fprintf(os.Stdout, "\nParams:\n")
+		cmd.Flag.SetOutput(os.Stdout)
 		cmd.Flag.PrintDefaults()
 		return
 	}

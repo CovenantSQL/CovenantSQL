@@ -35,11 +35,11 @@ var CmdTransfer = &Command{
 Transfer command can transfer your token to the target account.
 Command argument is JSON meta info of a token transaction.
 e.g.
-    cql transfer '{"addr":"your_account_addr","amount":"100 Particle"}'
+    cql transfer '{"addr": "43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40", "amount": "100 Particle"}'
 
 Since CovenantSQL is blockchain database, you may want get confirm of permission update.
 e.g.
-    cql transfer -wait-tx-confirm '{"addr":"your_account_addr","amount":"100 Particle"}'
+    cql transfer -wait-tx-confirm '{"addr": "43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40", "amount": "100 Particle"}'
 `,
 }
 

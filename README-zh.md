@@ -28,12 +28,12 @@
 
 CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR 合规与去中心化等特点。
 
-
-- **GDPR 合规**: 无痛 GDPR 合规
+- **ServerLess 支持**: 为小程序、浏览器插件提供免部署维护，自动同步、高可用的数据库
 - **SQL 接口**: 支持 SQL-92 标准
 - **去中心化**: 基于共识算法 DH-RPC & Kayak 实现的去中心化
 - **不可篡改**: CQL 中的 Query 历史是不可篡改且可追溯的
-- **隐私**:  使用列级 ACL 和 SQL 白名单模式授予权限
+- **隐私**: 使用列级 ACL 和 SQL 白名单模式授予权限
+- **权限**：列级别的权限限制，可以设定 SQL 白名单
 
 我们坚信 [在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 

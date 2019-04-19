@@ -30,6 +30,7 @@
 
 CovenantSQL(CQL) is a GDPR-compliant SQL database running on Open Internet without central coordination:
 
+- **ServerLess**: Free, High Availabile, Auto Sync Database for Serverless App
 - **GDPR-compliant**: Zero pain to be GDPR-compliant.
 - **SQL**: most SQL-92 support.
 - **Decentralize**: decentralize with our consensus algorithm DH-RPC & Kayak.

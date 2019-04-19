@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"runtime"
@@ -105,23 +106,30 @@ Usage:
 The commands are:
 
 `
+	helpCommon := `
+The common params for commands (except help and version) are:
+
+`
+
 	helpTail := `
 Use "cql help <command>" for more information about a command.
 `
 
-	helpMsg := helpHead
+	output := bytes.NewBuffer(nil)
+	output.WriteString(helpHead)
 	for _, cmd := range CqlCommands {
 		if cmd.Name() == "help" {
 			continue
 		}
-		cmdName := cmd.Name()
-		for len(cmdName) < 10 {
-			cmdName += " "
-		}
-		helpMsg += "\t" + cmdName + "\t" + cmd.Short + "\n"
+		fmt.Fprintf(output, "\t%-10s\t%s\n", cmd.Name(), cmd.Short)
 	}
-	helpMsg += helpTail
 
-	fmt.Fprintf(os.Stdout, helpMsg)
+	addCommonFlags(CmdHelp)
+	fmt.Fprint(output, helpCommon)
+	CmdHelp.Flag.SetOutput(output)
+	CmdHelp.Flag.PrintDefaults()
+
+	fmt.Fprint(output, helpTail)
+	fmt.Fprintf(os.Stdout, output.String())
 	Exit()
 }

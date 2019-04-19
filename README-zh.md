@@ -37,15 +37,20 @@ CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR �
 
 我们坚信 [在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
 
+## 使用文档
+
+https://developers.covenantsql.io/docs/zh-CN/quickstart
 
 **一行代码让数据上链**
+
 ```go
 sql.Open("cql", dbURI)
 ```
+
 ## CQL 是什么?
 
 - [Amazon QLDB](https://aws.amazon.com/qldb/)的开源版
-- 比如 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, CQL 就是去中心化的数据库
+- 如果 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, 那么 CQL 就是去中心化的数据库
 
 ## CQL 如何工作
 
@@ -69,43 +74,43 @@ sql.Open("cql", dbURI)
 
 CQL 支持两种共识算法：
 
-1. DPoS (委任权益证明) 应用在数据库的 `最终一致性` 和矿工所在的`第一层 (全局共识层)` ，CQL 的矿工在客户端将所有SQL查询及其签名打包成块，从而形成整个区块链，我们把这个算法命名为 [`Xenomint`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/xenomint)
+1. DPoS (委任权益证明) 应用在数据库的 `最终一致性` 和 Block Producer 所在的 `第一层 (全局共识层)` ，CQL 的矿工在客户端将所有SQL查询及其签名打包成块，从而形成整个区块链，我们把这个算法命名为 [`Xenomint`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/xenomint)
 2. BFT-Raft (拜占庭容错算法)<sup>[bft-raft](#bft-raft)</sup> 应用于数据库的 `强一致性`。我们把这个实现命名为 [`Kayak`](https://github.com/CovenantSQL/CovenantSQL/tree/develop/kayak).  矿工 leader 会基于 `Kayak` 做 `两阶段提交` 来支持 `Transaction`.<sup>[transaction](#transaction)</sup>
 
-在创建数据库的时候可以用命令行  `cql create '{"UseEventualConsistency": true, "Node": 3}'` 来计算 CQL 数据库的一致性节点
+可以用命令行  `cql create '{"UseEventualConsistency": true, "Node": 3}'` 来创建 `最终一致性` CQL 数据库
 
 
 ## 项目对比
 
-|                              | 以太坊            | Hyperledger Fabric     | 亚马逊 QLDB | CovenantSQL                                                  |
+|                              | 以太坊            | Hyperledger Fabric     | AWS QLDB | CovenantSQL                                                  |
 | ---------------------------- | ----------------- | ---------------------- | ----------- | ------------------------------------------------------------ |
 | **开发语言**                  | Solidity, ewasm   | Chaincode (Go, NodeJS) | ?           | Python, Golang, Java, PHP, NodeJS, MatLab                    |
 | **开发模式**                  | Smart   Contract  | Chaincode              | SQL         | SQL                                                          |
 | **是否开源**                  | Y                 | Y                      | N           | Y                                                            |
 | **高可用节点**                | 3                 | 15                     | ?           | 3                                                            |
-| **ACL 列查询**                | N                 | Y                      | ?           | Y                                                            |
+| **列级别 ACL**                | N                 | Y                      | ?           | Y                                                            |
 | **数据格式**                  | File              | Key-value              | Document    | File<sup>[fuse](#fuse)</sup>, Key-value, Structured     |
 | **存储加密**                  | N                 | API                    | Y           | Y                                                            |
 | **数据脱敏**                  | N                 | N                      | N           | Y                                                            |
-| **多个用户**                  | DIY               | DIY                    | N           | Y                                                            |
+| **多租户**                  | DIY               | DIY                    | N           | Y                                                            |
 | **吞吐量（1秒延迟）**          | 15~10 tx/s        | 3500 tx/s              | ?           | 11065 tx/s (Eventually Consistency)<br/>1866 tx/s (Strong Consistency) |
 | **一致性延迟**                | 2~6 min           | < 1 s                  | ?           | < 10 ms                                                      |
 | **开放网络上的安全性**         | Y                 | N                      | Only in AWS | Y                                                            |
 | **共识机制**                  | PoW + PoS(Casper) | CFT                    | ?           | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
 
 #### 注释：
-- <a name="bft-raft">BFT-Raft</a>: 一个 CQL leader 想要离线需要矿工来决定是否等待 leader 上线，以保证数据的完整性，或者提拔 follwers 以保证数据可用性，这部分仍在迭代中，欢迎任何建议。
+- <a name="bft-raft">BFT-Raft</a>: 在一个 CQL leader 离线的情况下，有两种可能的选择：等待 leader 上线，以保证数据的完整性，或者提拔 follwers 以保证服务可用性；目前是需要一定的人工介入来进行策略选择，这部分仍在迭代中，欢迎任何建议。
 
-- <a name="transaction">Transaction</a>: 说到 `ACID`，CQL 具有完整的“一致性，隔离性，耐用性”和有限的 `Atomicity` 支持。即使在强一致性的模式下，CQL 交易只支持 leader 节点。如果你想要 "读取 `v`, `v++`, 并行写回 `v` ", 仅有的办法是 "从 leader 读取 `v` , `v++`, 从 leader 写回 `v`"
+- <a name="transaction">事务 (Transaction)</a>: 说到 `ACID`，CQL 具有完整的 "一致性，隔离性，持久化" 和特定的 `Atomicity` 支持。即使在强一致性的模式下，CQL 事务只支持在 leader 节点上执行。如果你想要并发执行事务："读取 `v`, `v++`, 写回 `v` ", 仅有的办法是："从 leader 读取 `v` , `v++`, 从 leader 写回 `v`"
 
-- <a name="fuse">FUSE</a>: CQL 有一个 [保险丝](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse)，从 CockroachDB 获取支持. 这个性能不是很理想，仍然存在一些问题。但它可以通过fio测试，如：
+- <a name="fuse">FUSE</a>: CQL 有一个从 CockroachDB 移植过来的 [FUSE 客户端](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse)，目前性能不是很理想，仍然存在一些小问题。但它可以通过如下的 fio 测试：
 
   ```bash
   fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
   ```
 
 
-## 样本
+## Demos
 
 - 去中心化论坛：[CovenantForum](https://demo.covenantsql.io/forum/)
 - 推特上链：[Twitter Bot @iBlockPin](https://twitter.com/iblockpin)
@@ -120,17 +125,15 @@ CQL 支持两种共识算法：
 
 #### 数据隐私
 
-如果你是一个使用密码管理工具的开发者，比如 [1Password](https://1password.com/) or [LastPass](https://www.lastpass.com/). 你可以使用 CQL 作为一个数据库并有以下优点：
+如果你是一个使用密码管理工具的开发者，比如 [1Password](https://1password.com/) or [LastPass](https://www.lastpass.com/). 你可以使用 CQL 作为数据库并有以下优点：
 
 1. 无服务器: 不需要部署服务器来存储用户密码，以进行同步，这是一个烫手山芋。
 2. 安全: CQL 可以保证所有的加密工作，去中心化的数据存储给予用户更多信心。
 3. 合规: CQL 天然符合 [GDPR](https://en.wikipedia.org/wiki/General_Data_Protection_Regulation) 标准。
 
-
-
 #### 物联网存储
 
-CQL 矿工全球化部署，物联网节点可以写入最近的矿工。 IoT node can write to nearest CQL miner directly.
+CQL 矿工全球化部署，IoT 节点可以写入最近的矿工。 
 
 1. 实惠: 不需要通过网关传输流量，你可以节省大量的带宽费用。同时，SQL 具有共享经济的特性，以此让存储更实惠。
 2. 更快: CQL 共识协议是基于互联网而设计，网络延迟不可避免。
@@ -151,10 +154,10 @@ CQL 矿工全球化部署，物联网节点可以写入最近的矿工。 IoT no
 
 ### 去中心化应用（ĐApp）
 
-在比特币或以太坊这种传统公链上存储数据非常昂贵（2018-05-15 以太坊上为4305美元/ MB），而且由于缺乏结构化数据的支持，代码实现非常复杂。但 CQL 可以给你一个结构化且低成本的 SQL 数据库，并为 ĐApp 提供了与真实世界交换数据的空间。
+在比特币或以太坊这种传统公链上存储数据非常昂贵（2018-05-15 以太坊上为 $4305 / MB），而且由于缺乏结构化数据的支持，代码实现非常复杂。但 CQL 可以给你一个结构化且低成本的 SQL 数据库，并为 ĐApp 提供了与真实世界交换数据的空间。
 
 
-## 文章
+## 相关论文
 团队成员发表过的论文
 
 - [迅雷水晶：一种新颖的基于众筹的内容分发平台](https://dl.acm.org/citation.cfm?id=2736085)
@@ -170,7 +173,7 @@ CQL 矿工全球化部署，物联网节点可以写入最近的矿工。 IoT no
 - [vSQL: 验证动态外包数据库上的任意SQL查询](https://ieeexplore.ieee.org/abstract/document/7958614/)
 
 
-## Libs
+## 相关库
 
 ### 网络栈
 

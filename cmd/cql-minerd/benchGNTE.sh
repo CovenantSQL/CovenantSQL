@@ -35,13 +35,14 @@ full() {
     echo "Full benchmarking with flags: $@"
     local cpus=("" 4 1) counts=(1 2 4 8)
     local cpu count caseflags
-    for cpu in "${cpus[@]}"; do
-        if [[ -z $cpu ]]; then
-            caseflags=("${flags[@]}")
-        else
-            caseflags=("-cpu=$cpu" "${flags[@]}")
-        fi
-        for count in "${counts[@]}"; do
+    for count in "${counts[@]}"; do
+        for cpu in "${cpus[@]}"; do
+            if [[ -z $cpu ]]; then
+                caseflags=("${flags[@]}")
+            else
+                caseflags=("-cpu=$cpu" "${flags[@]}")
+            fi
+
             clean
 
             go test "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log

@@ -12,7 +12,11 @@ clean() {
     if [ -n "${TEST_WD}" ]; then
         # Clean
         sudo ${TEST_WD}/GNTE/scripts/cleanupDB.sh
-        bash -x ${TEST_WD}/GNTE/generate.sh ${delay_file}
+        if [[ ${delay_file} == "eventual" ]]; then
+            bash -x ${TEST_WD}/GNTE/generate.sh ./scripts/gnte_200ms.yaml
+        else
+            bash -x ${TEST_WD}/GNTE/generate.sh ${delay_file}
+        fi
         sleep 5
     fi
 }
@@ -57,11 +61,14 @@ full() {
 main() {
     rm -f gnte.log
     touch gnte.log
-    if [[ $# -gt 0 && $1 = "fast" ]]; then
+    if [[ $# -gt 0 && $1 == "fast" ]]; then
         fast
     else
-        full
-        full -bench-eventual-consistency
+        if [[ ${delay_file} == "eventual" ]]; then
+            full -bench-eventual-consistency
+        else
+            full
+        fi
     fi
 }
 

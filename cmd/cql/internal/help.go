@@ -59,7 +59,7 @@ func PrintVersion(printLog bool) string {
 		name, Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 
 	if printLog {
-		fmt.Println("cql build:", version)
+		ConsoleLog.Debugf("cql build: %s\n", version)
 	}
 
 	return version

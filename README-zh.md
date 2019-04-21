@@ -18,12 +18,10 @@
     <a href="https://godoc.org/github.com/CovenantSQL/CovenantSQL">
         <img src="https://img.shields.io/badge/godoc-reference-blue.svg"
             alt="GoDoc"></a>
-    <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs">
-        <img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs"
-            alt="follow on Twitter"></a>
-    <a href="https://gitter.im/CovenantSQL/CovenantSQL?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
-        <img src="https://badges.gitter.im/CovenantSQL/CovenantSQL.svg"
-            alt="Join the chat at https://gitter.im/CovenantSQL/CovenantSQL"></a>
+    <a href="https://formulae.brew.sh/formula/cql">
+        <img src="https://img.shields.io/homebrew/v/cql.svg?color=blue&label=brew%20install%20cql"
+            alt="homebrew"></a>
+
 </p>
 
 CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR 合规与去中心化等特点。

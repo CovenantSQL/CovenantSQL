@@ -112,6 +112,10 @@ func (d *service) parseAccountAddress(account string) (addr proto.AccountAddress
 	return
 }
 
+func (d *service) genKeyPair(rw http.ResponseWriter, r *http.Request) {
+
+}
+
 func (d *service) applyToken(rw http.ResponseWriter, r *http.Request) {
 	// get args
 	var (
@@ -428,6 +432,7 @@ func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error
 
 	v1Router := router.PathPrefix("/v1").Subrouter()
 	v1Router.Use(jsonContentType)
+	v1Router.HandleFunc("/token_apply", service.genKeyPair).Methods("GET")
 	v1Router.HandleFunc("/apply_token", service.applyToken).Methods("POST")
 	v1Router.HandleFunc("/account_balance", service.getBalance).Methods("GET", "POST")
 	v1Router.HandleFunc("/db_balance", service.getDBBalance).Methods("GET", "POST")

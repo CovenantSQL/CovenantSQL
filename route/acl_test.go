@@ -60,7 +60,7 @@ func TestIsPermitted(t *testing.T) {
 	})
 
 	Convey("string RemoteFunc", t, func() {
-		for i := DHTPing; i <= MCCQueryTxState; i++ {
+		for i := DHTPing; i < MaxRPCOffset; i++ {
 			So(fmt.Sprintf("%s", RemoteFunc(i)), ShouldContainSubstring, ".")
 		}
 		So(fmt.Sprintf("%s", RemoteFunc(9999)), ShouldContainSubstring, "Unknown")

@@ -21,8 +21,9 @@
     <a href="https://formulae.brew.sh/formula/cql">
         <img src="https://img.shields.io/homebrew/v/cql.svg?color=blue&label=brew%20install%20cql"
             alt="homebrew"></a>
-
 </p>
+
+[English Overview](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README.md)
 
 CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR 合规与去中心化等特点。
 

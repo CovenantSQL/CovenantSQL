@@ -12,7 +12,7 @@ clean() {
     if [ -n "${TEST_WD}" ]; then
         # Clean
         sudo ${TEST_WD}/GNTE/scripts/cleanupDB.sh
-        if [[ ${delay_file} == "eventual" ]]; then
+        if [[ ${delay_file} =~ "eventual" ]]; then
             bash -x ${TEST_WD}/GNTE/generate.sh ./scripts/gnte_200ms.yaml
         else
             bash -x ${TEST_WD}/GNTE/generate.sh ${delay_file}
@@ -65,7 +65,7 @@ main() {
     if [[ $# -gt 0 && $1 == "fast" ]]; then
         fast
     else
-        if [[ ${delay_file} == "eventual" ]]; then
+        if [[ ${delay_file} =~ "eventual" ]]; then
             full -bench-eventual-consistency
         else
             full

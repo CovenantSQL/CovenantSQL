@@ -16,18 +16,16 @@
 
 package client
 
-type execResult struct {
-	requestReceipt
-	affectedRows int64
-	lastInsertID int64
+import "github.com/CovenantSQL/CovenantSQL/crypto/hash"
+
+type Receipt interface {
+	RequestHash() hash.Hash
 }
 
-// LastInsertId return last inserted ID.
-func (r *execResult) LastInsertId() (int64, error) {
-	return r.lastInsertID, nil
+type requestReceipt struct {
+	requestHash hash.Hash
 }
 
-// RowsAffected return how many rows affected.
-func (r *execResult) RowsAffected() (int64, error) {
-	return r.affectedRows, nil
+func (r *requestReceipt) RequestHash() hash.Hash {
+	return r.requestHash
 }

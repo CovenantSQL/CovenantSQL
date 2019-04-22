@@ -277,12 +277,18 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
 
-	var affectedRows, lastInsertID int64
+	var (
+		rows                       *rows
+		affectedRows, lastInsertID int64
+	)
 	if affectedRows, lastInsertID, _, err = c.addQuery(ctx, types.WriteQuery, sq); err != nil {
 		return
 	}
 
 	result = &execResult{
+		requestReceipt: requestReceipt{
+			requestHash: rows.RequestHash(),
+		},
 		affectedRows: affectedRows,
 		lastInsertID: lastInsertID,
 	}

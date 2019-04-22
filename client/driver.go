@@ -100,9 +100,19 @@ func (d *covenantSQLDriver) Open(dsn string) (conn driver.Conn, err error) {
 
 // ResourceMeta defines new database resources requirement descriptions.
 type ResourceMeta struct {
-	types.ResourceMeta
-	GasPrice       uint64
-	AdvancePayment uint64
+	// copied fields from types.ResourceMeta
+	TargetMiners           []proto.AccountAddress `json:"target-miners,omitempty"`        // designated miners
+	Node                   uint16                 `json:"node,omitempty"`                 // reserved node count
+	Space                  uint64                 `json:"space,omitempty"`                // reserved storage space in bytes
+	Memory                 uint64                 `json:"memory",omitempty`               // reserved memory in bytes
+	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu"`               // max loadAvg15 per CPU
+	EncryptionKey          string                 `json:"encrypt-key,omitempty"`          // encryption key for database instance
+	UseEventualConsistency bool                   `json:"eventual-consistency,omitempty"` // use eventual consistency replication if enabled
+	ConsistencyLevel       float64                `json:"consistency-level,omitempty"`    // customized strong consistency level
+	IsolationLevel         int                    `json:"isolation-level,omitempty"`      // customized isolation level
+
+	GasPrice       uint64 `json:"gas-price"`       // customized gas price
+	AdvancePayment uint64 `json:"advance-payment"` // customized advance payment
 }
 
 func defaultInit() (err error) {
@@ -186,8 +196,18 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 
 	req.TTL = 1
 	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
-		Owner:          clientAddr,
-		ResourceMeta:   meta.ResourceMeta,
+		Owner: clientAddr,
+		ResourceMeta: types.ResourceMeta{
+			TargetMiners:           meta.TargetMiners,
+			Node:                   meta.Node,
+			Space:                  meta.Space,
+			Memory:                 meta.Memory,
+			LoadAvgPerCPU:          meta.LoadAvgPerCPU,
+			EncryptionKey:          meta.EncryptionKey,
+			UseEventualConsistency: meta.UseEventualConsistency,
+			ConsistencyLevel:       meta.ConsistencyLevel,
+			IsolationLevel:         meta.IsolationLevel,
+		},
 		GasPrice:       meta.GasPrice,
 		AdvancePayment: meta.AdvancePayment,
 		TokenType:      types.Particle,
@@ -198,6 +218,8 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 		err = errors.Wrap(err, "sign request failed")
 		return
 	}
+
+	log.Debugf("req: %v", req)
 
 	if err = requestBP(route.MCCAddTx, req, resp); err != nil {
 		err = errors.Wrap(err, "call create database transaction failed")

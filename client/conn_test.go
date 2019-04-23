@@ -44,22 +44,23 @@ func TestConn(t *testing.T) {
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 
-		ctx, val := WithReceipt(context.Background())
-		rec, ok := GetReceipt(val)
+		ctx := WithReceipt(context.Background())
+		rec, ok := GetReceipt(ctx)
 		So(ok, ShouldBeFalse)
 		So(rec, ShouldBeNil)
 
 		_, err = db.ExecContext(ctx, "create table test (test int)")
 		So(err, ShouldBeNil)
-		rec, ok = GetReceipt(val)
+		rec, ok = GetReceipt(ctx)
 		So(ok, ShouldBeTrue)
 		So(rec, ShouldNotBeNil)
 
 		_, err = db.ExecContext(ctx, "insert into test values (1)")
 		So(err, ShouldBeNil)
-		rec, ok = GetReceipt(val)
+		rec2, ok := GetReceipt(ctx)
 		So(ok, ShouldBeTrue)
-		So(rec, ShouldNotBeNil)
+		So(rec2, ShouldNotBeNil)
+		So(rec, ShouldNotEqual, rec2) // receipt should be reset
 
 		// test with query
 		var rows *sql.Rows
@@ -68,7 +69,7 @@ func TestConn(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(rows, ShouldNotBeNil)
 		So(rows.Next(), ShouldBeTrue)
-		rec, ok = GetReceipt(val)
+		rec, ok = GetReceipt(ctx)
 		So(ok, ShouldBeTrue)
 		So(rec, ShouldNotBeNil)
 

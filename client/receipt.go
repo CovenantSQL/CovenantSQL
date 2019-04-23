@@ -38,14 +38,22 @@ type Receipt struct {
 // Note that this context is safe for concurrent queries, but the value may be reset in another
 // goroutines. So if you want to make use of Receipt in several goroutines, you should call this
 // method to get separated child context in each goroutine.
-func WithReceipt(ctx context.Context) (context.Context, *atomic.Value) {
+func WithReceipt(ctx context.Context) context.Context {
 	var value atomic.Value
 	value.Store((*Receipt)(nil))
-	return context.WithValue(ctx, &ctxReceiptKey, &value), &value
+	return context.WithValue(ctx, &ctxReceiptKey, &value)
 }
 
-// GetReceipt tries to get *Receipt from value.
-func GetReceipt(value *atomic.Value) (rec *Receipt, ok bool) {
+// GetReceipt tries to get *Receipt from context.
+func GetReceipt(ctx context.Context) (rec *Receipt, ok bool) {
+	vali := ctx.Value(&ctxReceiptKey)
+	if vali == nil {
+		return
+	}
+	value, ok := vali.(*atomic.Value)
+	if !ok {
+		return
+	}
 	reci := value.Load()
 	rec, ok = reci.(*Receipt)
 	if rec == nil {

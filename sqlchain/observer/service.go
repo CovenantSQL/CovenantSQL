@@ -469,12 +469,7 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Signed
 	return
 }
 
-func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *types.Request, err error) {
-	var (
-		blockHeight int32
-		dataOffset  int32
-	)
-
+func (s *Service) getIndexOfRequest(dbID proto.DatabaseID, h *hash.Hash) (blockHeight, dataOffset int32, err error) {
 	err = s.db.Writer().QueryRow(getRequestByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
@@ -483,6 +478,18 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *type
 		}
 
 		err = errors.Wrapf(err, "query request failed: %s, %s", dbID, h.String())
+		return
+	}
+	return
+}
+
+func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *types.Request, err error) {
+	var (
+		blockHeight int32
+		dataOffset  int32
+	)
+
+	if blockHeight, dataOffset, err = s.getIndexOfRequest(dbID, h); err != nil {
 		return
 	}
 

@@ -460,13 +460,23 @@ func TestFullProcess(t *testing.T) {
 		err = client.WaitDBCreation(ctx3, dsn2)
 		So(err, ShouldBeNil)
 
-		_, err = db2.Exec("CREATE TABLE test (test int)")
+		recCtx := client.WithReceipt(context.Background())
+		_, err = db2.ExecContext(recCtx, "CREATE TABLE test (test int)")
 		So(err, ShouldBeNil)
+		rec, ok := client.GetReceipt(recCtx)
+		So(ok, ShouldBeTrue)
+		reqHash1 := rec.RequestHash
 
-		_, err = db2.Exec("INSERT INTO test VALUES(?)", 4)
+		_, err = db2.ExecContext(recCtx, "INSERT INTO test VALUES(?)", 4)
 		So(err, ShouldBeNil)
+		rec, ok = client.GetReceipt(recCtx)
+		So(ok, ShouldBeTrue)
+		reqHash2 := rec.RequestHash
 
-		row2 := db2.QueryRow("SELECT * FROM test LIMIT 1")
+		row2 := db2.QueryRowContext(recCtx, "SELECT * FROM test LIMIT 1")
+		rec, ok = client.GetReceipt(recCtx)
+		So(ok, ShouldBeTrue)
+		reqHash3 := rec.RequestHash
 
 		var result2 int
 		err = row2.Scan(&result2)
@@ -549,6 +559,14 @@ func TestFullProcess(t *testing.T) {
 			byHeightBlockResult = ensureSuccess(res.Interface())
 			break
 		}
+
+		// get block by request
+		res, err = getJSON("v3/block-by-request/%v/%v", dbID, reqHash1)
+		So(err, ShouldBeNil)
+		res, err = getJSON("v3/block-by-request/%v/%v", dbID, reqHash2)
+		So(err, ShouldBeNil)
+		res, err = getJSON("v3/block-by-request/%v/%v", dbID, reqHash3)
+		So(err, ShouldBeNil)
 
 		// test get block by hash
 		res, err = getJSON("v3/block/%v/%v?size=1000", dbID, blockHash)

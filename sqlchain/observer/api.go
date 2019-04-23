@@ -19,7 +19,6 @@ package observer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/rakyll/statik/fs"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -348,6 +348,44 @@ func (a *explorerAPI) GetBlockByHeightV3(rw http.ResponseWriter, r *http.Request
 	op := newPaginationFromReq(r)
 
 	sendResponse(200, true, "", a.formatBlockV3(count, height, block, op), rw)
+}
+
+func (a *explorerAPI) GetBlockByRequest(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	dbID, err := a.getDBID(vars)
+	if err != nil {
+		sendResponse(400, false, err, nil, rw)
+		return
+	}
+
+	requestHash, err := a.getHash(vars)
+	if err != nil {
+		sendResponse(400, false, err, nil, rw)
+		return
+	}
+
+	blockHeight, _, err := a.service.getIndexOfRequest(dbID, requestHash)
+	if err != nil {
+		if errors.Cause(err) == ErrNotFound {
+			sendResponse(400, false, err, nil, rw)
+		} else {
+			sendResponse(500, false, err, nil, rw)
+		}
+		return
+	}
+
+	_, block, err := a.service.getBlockByHeight(dbID, blockHeight)
+	if err != nil {
+		if errors.Cause(err) == ErrNotFound {
+			sendResponse(400, false, err, nil, rw)
+		} else {
+			sendResponse(500, false, err, nil, rw)
+		}
+		return
+	}
+
+	sendResponse(200, true, "", a.formatBlock(blockHeight, block), rw)
 }
 
 func (a *explorerAPI) GetHighestBlock(rw http.ResponseWriter, r *http.Request) {
@@ -706,6 +744,7 @@ func startAPI(service *Service, listenAddr string, version string) (server *http
 	v3Router := apiRouter.PathPrefix("/v3").Subrouter()
 	v3Router.HandleFunc("/response/{db}/{hash}", api.GetResponse).Methods("GET")
 	v3Router.HandleFunc("/block/{db}/{hash}", api.GetBlockV3).Methods("GET")
+	v3Router.HandleFunc("/block-by-request/{db}/{hash}", api.GetBlockByRequest).Methods("GET")
 	v3Router.HandleFunc("/count/{db}/{count:[0-9]+}", api.GetBlockByCountV3).Methods("GET")
 	v3Router.HandleFunc("/height/{db}/{height:[0-9]+}", api.GetBlockByHeightV3).Methods("GET")
 	v3Router.HandleFunc("/head/{db}", api.GetHighestBlockV3).Methods("GET")

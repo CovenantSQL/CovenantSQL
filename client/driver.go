@@ -105,7 +105,7 @@ type ResourceMeta struct {
 	Node                   uint16                 `json:"node,omitempty"`                 // reserved node count
 	Space                  uint64                 `json:"space,omitempty"`                // reserved storage space in bytes
 	Memory                 uint64                 `json:"memory",omitempty`               // reserved memory in bytes
-	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu"`               // max loadAvg15 per CPU
+	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu",omitempty`     // max loadAvg15 per CPU
 	EncryptionKey          string                 `json:"encrypt-key,omitempty"`          // encryption key for database instance
 	UseEventualConsistency bool                   `json:"eventual-consistency,omitempty"` // use eventual consistency replication if enabled
 	ConsistencyLevel       float64                `json:"consistency-level,omitempty"`    // customized strong consistency level

@@ -29,7 +29,8 @@ var CmdCreate = &Command{
 	UsageLine: "cql create [common params] [-wait-tx-confirm] db_meta_json",
 	Short:     "create a database",
 	Long: `
-Create CovenantSQL database by database meta info JSON string, meta info must include node count.
+Create creates a CovenantSQL database by database meta info JSON string. The meta info must include
+node count.
 e.g.
     cql create '{"node": 2}'
 
@@ -45,7 +46,8 @@ A complete introduction of db_meta_json fields：
     consistency-level      float    // Consistency level, node*consistency_level is the node number to perform strong consistency
     isolation-level        int      // Isolation level in a single node
 
-Since CovenantSQL is blockchain database, you may want get confirm of creation.
+Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
+confirmation before the creation takes effect.
 e.g.
     cql create -wait-tx-confirm '{"node": 2}'
 `,

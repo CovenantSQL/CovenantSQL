@@ -55,7 +55,7 @@ var CmdRPC = &Command{
 	UsageLine: "cql rpc [common params] [-wait-tx-confirm] -name rpc_name -endpoint rpc_endpoint -req rpc_request",
 	Short:     "make a rpc request",
 	Long: `
-Rpc command make a RPC request to server
+RPC makes a RPC request to the target endpoint.
 e.g.
     cql rpc -name 'MCC.QuerySQLChainProfile' \
             -endpoint 000000fd2c8f68d54d55d97d0ad06c6c0d91104e4e51a7247f3629cc2a0127cf \

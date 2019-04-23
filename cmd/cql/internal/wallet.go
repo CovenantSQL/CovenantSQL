@@ -34,7 +34,7 @@ var CmdWallet = &Command{
 	UsageLine: "cql wallet [common params] [-balance type]",
 	Short:     "get the wallet address and the balance of current account",
 	Long: `
-Wallet command can get CovenantSQL wallet address and the token balance of current account
+Wallet gets the CovenantSQL wallet address and the token balances of the current account.
 e.g.
     cql wallet
 

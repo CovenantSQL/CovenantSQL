@@ -42,7 +42,8 @@ var CmdIDMiner = &Command{
 	UsageLine: "cql idminer [common params] [-difficulty number] [-loop [true]]",
 	Short:     "calculate nonce and node id for config.yaml file",
 	Long: `
-IDMiner command can calculate legal node id and it's nonce. Default 24 difficulty and no endless loop.
+IDMiner calculates legal node id and it's nonce. Default parameters are difficulty of 24 and
+no endless loop.
 e.g.
     cql idminer -difficulty 24
 

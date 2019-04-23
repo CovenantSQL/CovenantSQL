@@ -26,16 +26,17 @@ import (
 
 // CmdGrant is cql grant command entity.
 var CmdGrant = &Command{
-	UsageLine: "cql grant [-config file] [-wait-tx-confirm] permission_meta_json",
+	UsageLine: "cql grant [common params] [-wait-tx-confirm] permission_meta_json",
 	Short:     "grant a user's permissions on specific sqlchain",
 	Long: `
-Grant command can give a user some specific permissions on your database
+Grant grants specific permissions for the target user.
 e.g.
-    cql grant '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql grant '{"chain": "your_chain_addr", "user": "user_addr", "perm": "perm_struct"}'
 
-Since CovenantSQL is blockchain database, you may want get confirm of permission update.
+Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
+confirmation before the permission takes effect.
 e.g.
-    cql grant -wait-tx-confirm '{"chain":"your_chain_addr","user":"user_addr","perm":"perm_struct"}'
+    cql grant -wait-tx-confirm '{"chain": "your_chain_addr", "user": "user_addr", "perm": "perm_struct"}'
 `,
 }
 

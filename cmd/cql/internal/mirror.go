@@ -31,10 +31,10 @@ var (
 
 // CmdMirror is cql mirror command.
 var CmdMirror = &Command{
-	UsageLine: "cql mirror [-config file] [-tmp-path path] [-bg-log-level level] dsn listen_address",
-	Short:     "start a SQLChain database mirror",
+	UsageLine: "cql mirror [common params] [-tmp-path path] [-bg-log-level level] dsn listen_address",
+	Short:     "start a SQLChain database mirror server",
 	Long: `
-Mirror command subscribes database updates and serves a read-only database mirror.
+Mirror subscribes database updates and serves a read-only database mirror.
 e.g.
     cql mirror dsn 127.0.0.1:9389
 `,

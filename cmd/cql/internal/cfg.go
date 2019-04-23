@@ -56,7 +56,7 @@ func addCommonFlags(cmd *Command) {
 		"Config file for covenantsql (Usually no need to set, default is enough.)")
 
 	// debugging flags.
-	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "error",
+	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
 		"Console log level: trace debug info warning error fatal panic")
 	cmd.Flag.StringVar(&password, "password", "",
 		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
@@ -69,15 +69,15 @@ func addCommonFlags(cmd *Command) {
 
 func configInit(cmd *Command) {
 	if help {
-		_, _ = fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-		_, _ = fmt.Fprintf(os.Stderr, cmd.Long)
-		_, _ = fmt.Fprintf(os.Stderr, "\nParams:\n")
+		_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
+		_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
+		_, _ = fmt.Fprintf(os.Stdout, "\nParams:\n")
 		cmd.Flag.PrintDefaults()
 		Exit()
 	}
 
 	if lvl, err := logrus.ParseLevel(consoleLogLevel); err != nil {
-		ConsoleLog.SetLevel(logrus.ErrorLevel)
+		ConsoleLog.SetLevel(log.InfoLevel)
 	} else {
 		ConsoleLog.SetLevel(lvl)
 	}

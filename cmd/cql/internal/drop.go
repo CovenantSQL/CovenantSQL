@@ -22,16 +22,17 @@ import (
 
 // CmdDrop is cql drop command entity.
 var CmdDrop = &Command{
-	UsageLine: "cql drop [-config file] [-wait-tx-confirm] dsn",
+	UsageLine: "cql drop [common params] [-wait-tx-confirm] dsn",
 	Short:     "drop a database by dsn or database id",
 	Long: `
-Drop command can drop a database by DSN or database id
+Drop drops a CovenantSQL database by DSN or database ID.
 e.g.
-    cql drop covenantsql://the_dsn_of_your_database
+    cql drop covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c
 
-Since CovenantSQL is blockchain database, you may want get confirm of drop operation.
+Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
+confirmation before the drop operation takes effect.
 e.g.
-    cql drop -wait-tx-confirm covenantsql://the_dsn_of_your_database
+    cql drop -wait-tx-confirm covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c
 `,
 }
 

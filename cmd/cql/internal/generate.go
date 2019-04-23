@@ -36,10 +36,10 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [-config file] config/public",
+	UsageLine: "cql generate [common params] config | public",
 	Short:     "generate config related file or keys",
 	Long: `
-Generate command can generate private.key and config.yaml for CovenantSQL.
+Generate generates private.key and config.yaml for CovenantSQL.
 e.g.
     cql generate config
 `,

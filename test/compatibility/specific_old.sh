@@ -51,7 +51,7 @@ sleep 20
 
 ${CLIENTBIN} wallet -config node_c/config.yaml -balance all -no-password
 
-${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm -no-password '{"node":2}' | tee dsn.txt
+${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm -no-password '{"node":2}' | tail -n1 | tee dsn.txt
 
 #get dsn
 dsn=$(cat dsn.txt)

@@ -32,8 +32,12 @@ type Receipt struct {
 	RequestHash hash.Hash
 }
 
-// WithReceipt returns a context and a pointer pointed to a atomic value, where a *Receipt will be
-// attached to once the request succeeds.
+// WithReceipt returns a context who holds a *atomic.Value. A *Receipt will be set to this value
+// after the query succeeds.
+//
+// Note that this context is safe for concurrent queries, but the value may be reset in another
+// goroutines. So if you want to make use of Receipt in several goroutines, you should call this
+// method to get separated child context in each goroutine.
 func WithReceipt(ctx context.Context) (context.Context, *atomic.Value) {
 	var value atomic.Value
 	value.Store((*Receipt)(nil))

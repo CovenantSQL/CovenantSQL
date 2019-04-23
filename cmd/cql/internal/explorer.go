@@ -32,10 +32,10 @@ var (
 
 // CmdExplorer is cql explorer command.
 var CmdExplorer = &Command{
-	UsageLine: "cql explorer [-config file] [-tmp-path path] [-bg-log-level level] listen_address",
-	Short:     "start a SQLChain explorer explorer",
+	UsageLine: "cql explorer [common params] [-tmp-path path] [-bg-log-level level] listen_address",
+	Short:     "start a SQLChain explorer server",
 	Long: `
-Explorer command serves a SQLChain web explorer.
+Explorer serves a SQLChain web explorer.
 e.g.
     cql explorer 127.0.0.1:8546
 `,

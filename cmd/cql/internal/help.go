@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"runtime"
@@ -58,7 +59,7 @@ func PrintVersion(printLog bool) string {
 		name, Version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 
 	if printLog {
-		ConsoleLog.Infof("cql build: %s\n", version)
+		ConsoleLog.Debugf("cql build: %s\n", version)
 	}
 
 	return version
@@ -69,7 +70,11 @@ func runVersion(cmd *Command, args []string) {
 }
 
 func runHelp(cmd *Command, args []string) {
-	if len(args) != 1 {
+	if l := len(args); l != 1 {
+		if l > 1 {
+			// Don't support multiple commands
+			SetExitStatus(2)
+		}
 		MainUsage()
 	}
 
@@ -78,9 +83,10 @@ func runHelp(cmd *Command, args []string) {
 		if cmd.Name() != cmdName {
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "usage: %s\n", cmd.UsageLine)
-		fmt.Fprintf(os.Stderr, cmd.Long)
-		fmt.Fprintf(os.Stderr, "\nParams:\n")
+		fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
+		fmt.Fprintf(os.Stdout, cmd.Long)
+		fmt.Fprintf(os.Stdout, "\nParams:\n")
+		cmd.Flag.SetOutput(os.Stdout)
 		cmd.Flag.PrintDefaults()
 		return
 	}
@@ -96,28 +102,35 @@ func MainUsage() {
 
 Usage:
 
-    cql <command> [-params] [arguments]
+    cql <command> [params] [arguments]
 
 The commands are:
 
 `
+	helpCommon := `
+The common params for commands (except help and version) are:
+
+`
+
 	helpTail := `
 Use "cql help <command>" for more information about a command.
 `
 
-	helpMsg := helpHead
+	output := bytes.NewBuffer(nil)
+	output.WriteString(helpHead)
 	for _, cmd := range CqlCommands {
 		if cmd.Name() == "help" {
 			continue
 		}
-		cmdName := cmd.Name()
-		for len(cmdName) < 10 {
-			cmdName += " "
-		}
-		helpMsg += "\t" + cmdName + "\t" + cmd.Short + "\n"
+		fmt.Fprintf(output, "\t%-10s\t%s\n", cmd.Name(), cmd.Short)
 	}
-	helpMsg += helpTail
 
-	fmt.Fprintf(os.Stderr, helpMsg)
+	addCommonFlags(CmdHelp)
+	fmt.Fprint(output, helpCommon)
+	CmdHelp.Flag.SetOutput(output)
+	CmdHelp.Flag.PrintDefaults()
+
+	fmt.Fprint(output, helpTail)
+	fmt.Fprintf(os.Stdout, output.String())
 	Exit()
 }

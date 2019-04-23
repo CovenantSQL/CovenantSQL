@@ -25,7 +25,6 @@ import (
 )
 
 type rows struct {
-	requestReceipt
 	columns []string
 	types   []string
 	data    []types.ResponseRow
@@ -33,9 +32,6 @@ type rows struct {
 
 func newRows(res *types.Response) *rows {
 	return &rows{
-		requestReceipt: requestReceipt{
-			requestHash: res.Header.RequestHash,
-		},
 		columns: res.Payload.Columns,
 		types:   res.Payload.DeclTypes,
 		data:    res.Payload.Rows,

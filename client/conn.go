@@ -277,22 +277,15 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	// TODO(xq262144): make use of the ctx argument
 	sq := convertQuery(query, args)
 
-	var (
-		rows                       *rows
-		affectedRows, lastInsertID int64
-	)
+	var affectedRows, lastInsertID int64
 	if affectedRows, lastInsertID, _, err = c.addQuery(ctx, types.WriteQuery, sq); err != nil {
 		return
 	}
 
 	result = &execResult{
-		requestReceipt: requestReceipt{
-			requestHash: rows.RequestHash(),
-		},
 		affectedRows: affectedRows,
 		lastInsertID: lastInsertID,
 	}
-
 	return
 }
 
@@ -433,6 +426,13 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 
 	if err = req.Sign(c.privKey); err != nil {
 		return
+	}
+
+	// set receipt if key exists in context
+	if val := ctx.Value(&ctxReceiptKey); val != nil {
+		val.(*atomic.Value).Store(&Receipt{
+			RequestHash: req.Header.Hash(),
+		})
 	}
 
 	var response types.Response

@@ -17,7 +17,6 @@
 package client
 
 type execResult struct {
-	requestReceipt
 	affectedRows int64
 	lastInsertID int64
 }

@@ -16,16 +16,36 @@
 
 package client
 
-import "github.com/CovenantSQL/CovenantSQL/crypto/hash"
+import (
+	"context"
+	"sync/atomic"
 
-type Receipt interface {
-	RequestHash() hash.Hash
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+)
+
+var (
+	ctxReceiptKey = "_cql_receipt"
+)
+
+// Receipt defines a receipt of CovenantSQL query request.
+type Receipt struct {
+	RequestHash hash.Hash
 }
 
-type requestReceipt struct {
-	requestHash hash.Hash
+// WithReceipt returns a context and a pointer pointed to a atomic value, where a *Receipt will be
+// attached to once the request succeeds.
+func WithReceipt(ctx context.Context) (context.Context, *atomic.Value) {
+	var value atomic.Value
+	value.Store((*Receipt)(nil))
+	return context.WithValue(ctx, &ctxReceiptKey, &value), &value
 }
 
-func (r *requestReceipt) RequestHash() hash.Hash {
-	return r.requestHash
+// GetReceipt tries to get *Receipt from value.
+func GetReceipt(value *atomic.Value) (rec *Receipt, ok bool) {
+	reci := value.Load()
+	rec, ok = reci.(*Receipt)
+	if rec == nil {
+		ok = false
+	}
+	return
 }

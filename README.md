@@ -1,6 +1,6 @@
 <p align="center">
     <img src="logo/covenantsql_horizontal.png"
-        height="130">
+        width="760">
 </p>
 <p align="center">
     <a href="https://goreportcard.com/report/github.com/CovenantSQL/CovenantSQL">

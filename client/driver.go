@@ -219,8 +219,6 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 		return
 	}
 
-	log.Debugf("req: %v", req)
-
 	if err = requestBP(route.MCCAddTx, req, resp); err != nil {
 		err = errors.Wrap(err, "call create database transaction failed")
 		return

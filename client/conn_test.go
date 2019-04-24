@@ -17,6 +17,7 @@
 package client
 
 import (
+	"context"
 	"database/sql"
 	"sync"
 	"testing"
@@ -29,8 +30,11 @@ import (
 func TestConn(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	Convey("test connection", t, func() {
-		var stopTestService func()
-		var err error
+		var (
+			stopTestService func()
+			ok              bool
+			err             error
+		)
 		stopTestService, _, err = startTestService()
 		So(err, ShouldBeNil)
 		defer stopTestService()
@@ -40,18 +44,35 @@ func TestConn(t *testing.T) {
 		So(db, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 
-		_, err = db.Exec("create table test (test int)")
+		ctx := WithReceipt(context.Background())
+		rec, ok := GetReceipt(ctx)
+		So(ok, ShouldBeFalse)
+		So(rec, ShouldBeNil)
+
+		_, err = db.ExecContext(ctx, "create table test (test int)")
 		So(err, ShouldBeNil)
-		_, err = db.Exec("insert into test values (1)")
+		rec, ok = GetReceipt(ctx)
+		So(ok, ShouldBeTrue)
+		So(rec, ShouldNotBeNil)
+
+		_, err = db.ExecContext(ctx, "insert into test values (1)")
 		So(err, ShouldBeNil)
+		rec2, ok := GetReceipt(ctx)
+		So(ok, ShouldBeTrue)
+		So(rec2, ShouldNotBeNil)
+		So(rec, ShouldNotEqual, rec2) // receipt should be reset
 
 		// test with query
 		var rows *sql.Rows
 		var result int
-		rows, err = db.Query("select * from test")
+		rows, err = db.QueryContext(ctx, "select * from test")
 		So(err, ShouldBeNil)
 		So(rows, ShouldNotBeNil)
 		So(rows.Next(), ShouldBeTrue)
+		rec, ok = GetReceipt(ctx)
+		So(ok, ShouldBeTrue)
+		So(rec, ShouldNotBeNil)
+
 		err = rows.Scan(&result)
 		So(err, ShouldBeNil)
 		So(result, ShouldEqual, 1)

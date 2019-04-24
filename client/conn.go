@@ -286,7 +286,6 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		affectedRows: affectedRows,
 		lastInsertID: lastInsertID,
 	}
-
 	return
 }
 
@@ -427,6 +426,13 @@ func (c *conn) sendQuery(ctx context.Context, queryType types.QueryType, queries
 
 	if err = req.Sign(c.privKey); err != nil {
 		return
+	}
+
+	// set receipt if key exists in context
+	if val := ctx.Value(&ctxReceiptKey); val != nil {
+		val.(*atomic.Value).Store(&Receipt{
+			RequestHash: req.Header.Hash(),
+		})
 	}
 
 	var response types.Response

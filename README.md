@@ -25,7 +25,7 @@
 
 [中文简介](https://github.com/CovenantSQL/CovenantSQL/blob/develop/README-zh.md)
 
-CovenantSQL(CQL) is a decentralized, GDPR-compliant, trusted, SQL database with blockchain features:
+CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with Blockchain features:
 
 - **ServerLess**: Free, High Availabile, Auto Sync Database Service for Serverless App
 - **GDPR-compliant**: Zero pain to be GDPR-compliant.

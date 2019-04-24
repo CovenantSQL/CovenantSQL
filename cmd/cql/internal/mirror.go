@@ -66,14 +66,14 @@ func startMirrorServer(mirrorDatabase string, mirrorAddr string) func() {
 }
 
 func runMirror(cmd *Command, args []string) {
-	configInit(cmd)
-	bgServerInit()
-
 	if len(args) != 2 {
 		ConsoleLog.Error("Missing args, run `cql help mirror` for help")
 		SetExitStatus(1)
-		return
+		help = true
 	}
+
+	configInit(cmd)
+	bgServerInit()
 
 	dsn := args[0]
 	mirrorAddr = args[1]

@@ -72,6 +72,7 @@ func configInit(cmd *Command) {
 		_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
 		_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
 		_, _ = fmt.Fprintf(os.Stdout, "\nParams:\n")
+		cmd.Flag.SetOutput(os.Stdout)
 		cmd.Flag.PrintDefaults()
 		Exit()
 	}

@@ -79,15 +79,15 @@ func runHelp(cmd *Command, args []string) {
 	}
 
 	cmdName := args[0]
-	for _, cmd := range CqlCommands {
-		if cmd.Name() != cmdName {
+	for _, command := range CqlCommands {
+		if command.Name() != cmdName {
 			continue
 		}
-		fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
-		fmt.Fprintf(os.Stdout, cmd.Long)
+		fmt.Fprintf(os.Stdout, "usage: %s\n", command.UsageLine)
+		fmt.Fprintf(os.Stdout, command.Long)
 		fmt.Fprintf(os.Stdout, "\nParams:\n")
-		cmd.Flag.SetOutput(os.Stdout)
-		cmd.Flag.PrintDefaults()
+		command.Flag.SetOutput(os.Stdout)
+		command.Flag.PrintDefaults()
 		return
 	}
 

@@ -44,13 +44,14 @@ func init() {
 }
 
 func runDrop(cmd *Command, args []string) {
-	configInit(cmd)
-
 	if len(args) != 1 {
 		ConsoleLog.Error("Drop command need CovenantSQL dsn or database_id string as param")
 		SetExitStatus(1)
-		return
+		help = true
 	}
+
+	configInit(cmd)
+
 	dsn := args[0]
 
 	// drop database

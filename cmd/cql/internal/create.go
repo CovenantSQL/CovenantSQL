@@ -61,13 +61,13 @@ func init() {
 }
 
 func runCreate(cmd *Command, args []string) {
-	configInit(cmd)
-
 	if len(args) != 1 {
 		ConsoleLog.Error("Create command need database_meta_info string as params")
 		SetExitStatus(1)
-		return
+		help = true
 	}
+
+	configInit(cmd)
 	metaStr := args[0]
 	// create database
 	// parse instance requirement

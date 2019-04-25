@@ -25,8 +25,12 @@ import (
 )
 
 func (r *Runtime) getCaller(id proto.NodeID) Caller {
-	var caller Caller = rpc.NewPersistentCaller(id)
-	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
+	pcaller := rpc.NewPersistentCaller(id)
+	caller := pcaller
+	rawCaller, loaded := r.callerMap.LoadOrStore(id, caller)
+	if loaded {
+		pcaller.Close()
+	}
 	return rawCaller.(Caller)
 }
 

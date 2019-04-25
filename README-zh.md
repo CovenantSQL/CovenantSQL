@@ -123,6 +123,7 @@ CQL 支持两种共识算法：
 
 强一致性，2个miner，aws c5.2xlarge 8核心cpu下的性能测试图：
 ![CovenantSQL bench](logo/bench.png)
+如图所见，前5个小时对数据库的并发压力逐渐增大，当不再增长时，维持并发压力，持续测试100小时。
 
 #### 注释：
 - <a name="bft-raft">BFT-Raft</a>: 在一个 CQL leader 离线的情况下，有两种可能的选择：等待 leader 上线，以保证数据的完整性，或者提拔 follwers 以保证服务可用性；目前是需要一定的人工介入来进行策略选择，这部分仍在迭代中，欢迎任何建议。

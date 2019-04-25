@@ -121,6 +121,9 @@ CQL 支持两种共识算法：
 | **开放网络上的安全性**         | Y                 | N                      | Only in AWS | Y                                                            |
 | **共识机制**                  | PoW + PoS(Casper) | CFT                    | ?           | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
 
+强一致性，2个miner，aws c5.2xlarge 8核心cpu下的性能测试图：
+![CovenantSQL bench](logo/bench.png)
+
 #### 注释：
 - <a name="bft-raft">BFT-Raft</a>: 在一个 CQL leader 离线的情况下，有两种可能的选择：等待 leader 上线，以保证数据的完整性，或者提拔 follwers 以保证服务可用性；目前是需要一定的人工介入来进行策略选择，这部分仍在迭代中，欢迎任何建议。
 

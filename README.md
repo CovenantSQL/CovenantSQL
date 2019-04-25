@@ -121,6 +121,10 @@ CQL database consistency mode and node count can be selected in database creatio
 | **Secure for Open Internet** | Y                 | N                      | Only in AWS | Y                                                            |
 | **Consensus**                | PoW + PoS(Casper) | CFT                    | ?           | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
 
+Strong consistency bench result (2 miners, 8 core aws c5.2xlarge):
+![CovenantSQL bench](logo/bench.png)
+
+
 #### FootNotes
 
 - <a name="bft-raft">BFT-Raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  

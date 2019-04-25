@@ -74,7 +74,7 @@ sql.Open("cql", dbURI)
     tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
-#### For More: [📚Docs Site](https://developers.covenantsql.io/docs/en/quickstart)
+#### To continue: [Docs](https://developers.covenantsql.io/docs/en/quickstart)
 
 ## How CQL works
 

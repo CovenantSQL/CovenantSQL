@@ -123,6 +123,7 @@ CQL database consistency mode and node count can be selected in database creatio
 
 Strong consistency bench result (2 miners, 8 core aws c5.2xlarge):
 ![CovenantSQL bench](logo/bench.png)
+
 As you can see, the concurrency pressure on the database increased gradually in the first 5 hours. When it no longer increased, the concurrent pressure was maintained and the bench was continued for 100 hours.
 
 #### FootNotes

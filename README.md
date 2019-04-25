@@ -121,11 +121,6 @@ CQL database consistency mode and node count can be selected in database creatio
 | **Secure for Open Internet** | Y                 | N                      | Only in AWS | Y                                                            |
 | **Consensus**                | PoW + PoS(Casper) | CFT                    | ?           | DPoS (Eventually Consistency)<br/>BFT-Raft (Strong Consistency) |
 
-Strong consistency bench result (2 miners, 8 core aws c5.2xlarge):
-![CovenantSQL bench](logo/bench.png)
-
-As you can see, the concurrency pressure on the database increased gradually in the first 5 hours. When it no longer increased, the concurrent pressure was maintained and the bench was continued for 100 hours.
-
 #### FootNotes
 
 - <a name="bft-raft">BFT-Raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
@@ -138,7 +133,12 @@ As you can see, the concurrency pressure on the database increased gradually in 
   fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
   ```
 
-  
+## Performance 
+
+Strong consistency bench result (2 miners, 8 core aws c5.2xlarge):
+![CovenantSQL bench](logo/bench.png)
+
+As you can see, the concurrency pressure on the database increased gradually in the first 5 hours. When it no longer increased, the concurrent pressure was maintained and the bench was continued for 100 hours.
 
 ## Demos
 

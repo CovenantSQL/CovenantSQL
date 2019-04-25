@@ -123,6 +123,7 @@ CQL 支持两种共识算法：
 
 强一致性，2个miner，aws c5.2xlarge 8核心cpu下的性能测试图：
 ![CovenantSQL bench](logo/bench.png)
+
 如图所见，前5个小时对数据库的并发压力逐渐增大，当不再增长时，维持并发压力，持续测试100小时。
 
 #### 注释：

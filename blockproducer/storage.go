@@ -111,7 +111,6 @@ var (
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__tx_type__timestamp" ON "indexed_transactions" ("tx_type", "timestamp" DESC);`,
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__address__timestamp" ON "indexed_transactions" ("address", "timestamp" DESC);`,
 
-
 		`CREATE TABLE IF NOT EXISTS "indexed_shardChains" (
 	"account" 	TEXT,
 	"address" 	TEXT,

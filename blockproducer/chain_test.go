@@ -214,6 +214,7 @@ func TestChain(t *testing.T) {
 				_, loaded = chain.immutable.loadOrStoreProviderObject(addr1, &types.ProviderProfile{})
 				So(loaded, ShouldBeFalse)
 				_, loaded = chain.immutable.loadOrStoreSQLChainObject(dbid1, &types.SQLChainProfile{
+					ID:     dbid1,
 					Miners: []*types.MinerInfo{{Address: addr2}},
 					Users:  []*types.SQLChainUser{{Address: addr1, Permission: &types.UserPermission{Role: types.Admin}}},
 				})
@@ -223,6 +224,9 @@ func TestChain(t *testing.T) {
 					TokenBalance: [types.SupportTokenNumber]uint64{100, 100, 100, 100, 100},
 				})
 				So(loaded, ShouldBeFalse)
+
+				sps := chain.immutable.compileChanges(nil)
+				_ = store(chain.storage, sps, nil)
 				chain.immutable.commit()
 
 				err = rpcService.QuerySQLChainProfile(
@@ -332,7 +336,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			// Create a sibling block from fork#0 and apply
-			_, bl, err = f0.produceBlock(2, begin.Add(2 * chain.period).UTC(), addr2, priv2)
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			err = chain.pushBlock(bl)
@@ -353,7 +357,7 @@ func TestChain(t *testing.T) {
 			err = chain.produceBlock(begin.Add(3 * chain.period).UTC())
 			So(err, ShouldBeNil)
 			// Create a sibling block from fork#1 and apply
-			f1, bl, err = f1.produceBlock(3, begin.Add(3 * chain.period).UTC(), addr2, priv2)
+			f1, bl, err = f1.produceBlock(3, begin.Add(3*chain.period).UTC(), addr2, priv2)
 			So(err, ShouldBeNil)
 			So(bl, ShouldNotBeNil)
 			f1.preview.commit()
@@ -366,7 +370,7 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 				// Create a sibling block from fork#1 and apply
 				f1, bl, err = f1.produceBlock(
-					i, begin.Add(time.Duration(i) * chain.period).UTC(), addr2, priv2)
+					i, begin.Add(time.Duration(i)*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
@@ -403,13 +407,13 @@ func TestChain(t *testing.T) {
 				f1.addTx(t2)
 				f1.addTx(t3)
 				f1.addTx(t4)
-				f1, bl, err = f1.produceBlock(7, begin.Add(8 * chain.period).UTC(), addr2, priv2)
+				f1, bl, err = f1.produceBlock(7, begin.Add(8*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()
 				err = chain.pushBlock(bl)
 				So(err, ShouldBeNil)
-				f1, bl, err = f1.produceBlock(8, begin.Add(9 * chain.period).UTC(), addr2, priv2)
+				f1, bl, err = f1.produceBlock(8, begin.Add(9*chain.period).UTC(), addr2, priv2)
 				So(err, ShouldBeNil)
 				So(bl, ShouldNotBeNil)
 				f1.preview.commit()

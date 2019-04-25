@@ -60,14 +60,14 @@ func addCommonFlags(cmd *Command) {
 		"Console log level: trace debug info warning error fatal panic")
 	cmd.Flag.StringVar(&password, "password", "",
 		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
-	cmd.Flag.BoolVar(&noPassword, "no-password", false,
+	cmd.Flag.BoolVar(&noPassword, "no-password", true,
 		"Use empty password for master key")
 	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
 }
 
-func configInit(cmd *Command) {
+func commonFlagsInit(cmd *Command) {
 	if help {
 		_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
 		_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
@@ -82,6 +82,10 @@ func configInit(cmd *Command) {
 	} else {
 		ConsoleLog.SetLevel(lvl)
 	}
+}
+
+func configInit(cmd *Command) {
+	commonFlagsInit(cmd)
 
 	configFile = utils.HomeDirExpand(configFile)
 

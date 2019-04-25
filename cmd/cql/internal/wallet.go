@@ -50,7 +50,7 @@ func init() {
 	CmdWallet.Flag.StringVar(&tokenName, "balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
 }
 
-func walletGen() {
+func walletGen() string {
 	//TODO if config has wallet, print and return
 
 	publicKey := getPublicFromConfig()
@@ -59,10 +59,10 @@ func walletGen() {
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
-		return
+		return ""
 	}
 
-	fmt.Printf("wallet address: %s\n", keyHash.String())
+	return keyHash.String()
 
 	//TODO store in config.yaml
 }
@@ -72,7 +72,7 @@ func runWallet(cmd *Command, args []string) {
 
 	var err error
 	if tokenName == "" {
-		walletGen()
+		fmt.Printf("wallet address: %s\n", walletGen())
 		return
 	}
 

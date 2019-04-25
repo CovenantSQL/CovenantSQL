@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -36,12 +37,17 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params] config | public",
-	Short:     "generate config related file or keys",
+	UsageLine: "cql generate [common params]",
+	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
+You can input a passphrase for local encrypt your private key file by set -no-password=false
 e.g.
-    cql generate config
+    cql generate
+
+or input a passphrase by
+
+    cql generate -no-password=false
 `,
 }
 
@@ -80,27 +86,8 @@ func askDeletePath(path string) {
 }
 
 func runGenerate(cmd *Command, args []string) {
-	if len(args) != 1 {
-		ConsoleLog.Error("Generate command need specific type as params")
-		SetExitStatus(1)
-		return
-	}
-	genType := args[0]
+	commonFlagsInit(cmd)
 
-	switch genType {
-	case "config":
-		configGen()
-	case "public":
-		publicKey := getPublicFromConfig()
-		fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
-	default:
-		cmd.Usage()
-		SetExitStatus(1)
-		return
-	}
-}
-
-func configGen() {
 	workingRoot := utils.HomeDirExpand(configFile)
 	if workingRoot == "" {
 		ConsoleLog.Error("config directory is required for generate config")
@@ -124,8 +111,7 @@ func configGen() {
 		return
 	}
 
-	fmt.Println("Generating key pair...")
-
+	fmt.Println("Generating private key...")
 	if password == "" {
 		password = readMasterKey(noPassword)
 	}
@@ -142,12 +128,17 @@ func configGen() {
 		SetExitStatus(1)
 		return
 	}
+	fmt.Println("Generated private key.")
 
-	fmt.Printf("Private key file: %s\n", privateKeyFile)
-	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
 	publicKey := privateKey.PubKey()
+	keyHash, err := crypto.PubKeyHash(publicKey)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("unexpected error")
+		SetExitStatus(1)
+		return
+	}
 
-	fmt.Println("Generated key pair.")
+	walletAddr := keyHash.String()
 
 	fmt.Println("Generating nonce...")
 	nonce := nonceGen(publicKey)
@@ -159,6 +150,7 @@ func configGen() {
 	testnetConfig := testnet.GetTestNetConfig()
 	// Add client config
 	testnetConfig.PrivateKeyFile = privateKeyFileName
+	testnetConfig.WalletAddress = walletAddr
 	testnetConfig.ThisNodeID = cliNodeID
 	if testnetConfig.KnownNodes == nil {
 		testnetConfig.KnownNodes = make([]proto.Node, 0, 1)
@@ -178,7 +170,8 @@ func configGen() {
 		SetExitStatus(1)
 		return
 	}
-	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), out, 0644)
+	configFilePath := path.Join(workingRoot, "config.yaml")
+	err = ioutil.WriteFile(configFilePath, out, 0644)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
@@ -186,4 +179,13 @@ func configGen() {
 	}
 	fmt.Println("Generated config.")
 
+	fmt.Printf("\nConfig file:      %s\n", configFilePath)
+	fmt.Printf("Private key file: %s\n", privateKeyFile)
+	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
+
+	fmt.Printf("\nAny further command could costs PTC.\nYou can get some free PTC from: https://testnet.covenansql.io/wallet/%s\n", walletAddr)
+
+	if password != "" {
+		fmt.Println("Your private key had been encrypted by a passphrase, add -no-password=false in any further command")
+	}
 }

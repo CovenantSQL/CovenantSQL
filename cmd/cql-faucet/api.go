@@ -48,6 +48,9 @@ const (
 	argDatabase  = "db"
 	argTx        = "tx"
 	argNodeCount = "node_count"
+	argPassword  = "password"
+	argKey       = "key"
+	argAmount    = "amount"
 )
 
 var (
@@ -113,7 +116,185 @@ func (d *service) parseAccountAddress(account string) (addr proto.AccountAddress
 }
 
 func (d *service) genKeyPair(rw http.ResponseWriter, r *http.Request) {
+	password := r.FormValue(argPassword)
 
+	if password == "" {
+		sendResponse(http.StatusBadRequest, false,
+			"non-empty password is required for key generation", nil, rw)
+		return
+	}
+
+	// gen key pair
+	privKey, pubKey, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	keyBytes, err := kms.EncodePrivateKey(privKey, []byte(password))
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	account, err := crypto.PubKeyHash(pubKey)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	// save to faucet database
+	err = d.p.savePrivateKey(account.String(), keyBytes)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		argAccount: account,
+		argKey:     string(keyBytes),
+	}, rw)
+}
+
+func (d *service) uploadKeyPair(rw http.ResponseWriter, r *http.Request) {
+	privateKeyBytes := r.FormValue(argKey)
+	password := r.FormValue(argPassword)
+
+	if privateKeyBytes == "" || password == "" {
+		sendResponse(http.StatusBadRequest, false, "private key and password is required", nil, rw)
+		return
+	}
+
+	// parse private key
+	privateKey, err := kms.DecodePrivateKey([]byte(privateKeyBytes), []byte(password))
+	if err != nil {
+		// key with empty password
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	account, err := crypto.PubKeyHash(privateKey.PubKey())
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	err = d.p.savePrivateKey(account.String(), []byte(privateKeyBytes))
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, nil, rw)
+}
+
+func (d *service) deleteKeyPair(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+	password := r.FormValue(argPassword)
+
+	if account == "" || password == "" {
+		sendResponse(http.StatusBadRequest, false, "account and password is required", nil, rw)
+		return
+	}
+
+	_, err := d.p.getPrivateKey(account, password)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	err = d.p.deletePrivateKey(account)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, nil, rw)
+}
+
+func (d *service) topUp(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+	password := r.FormValue(argPassword)
+	db := r.FormValue(argDatabase)
+	amountStr := r.FormValue(argAmount)
+
+	if account == "" || password == "" || db == "" {
+		sendResponse(http.StatusBadRequest, false,
+			"account, password and database is required", nil, rw)
+		return
+	}
+
+	var (
+		amount uint64
+		err    error
+	)
+
+	if amountStr != "" {
+		amount, err = strconv.ParseUint(amountStr, 10, 64)
+		if err != nil {
+			sendResponse(http.StatusBadRequest, false, err, nil, rw)
+			return
+		}
+	} else {
+		amount = uint64(d.p.tokenAmount)
+	}
+
+	dbID := proto.DatabaseID(db)
+	dbAccount, err := dbID.AccountAddress()
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	privateKey, err := d.p.getPrivateKey(account, password)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	accountAddr, err := d.parseAccountAddress(account)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = accountAddr
+
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	tx := types.NewTransfer(&types.TransferHeader{
+		Sender:    accountAddr,
+		Receiver:  dbAccount,
+		Amount:    amount,
+		TokenType: types.Particle,
+		Nonce:     nonceResp.Nonce,
+	})
+
+	err = tx.Sign(privateKey)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = tx
+	err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		"tx":     tx.Hash().String(),
+		"amount": amount,
+	}, rw)
 }
 
 func (d *service) applyToken(rw http.ResponseWriter, r *http.Request) {
@@ -432,8 +613,11 @@ func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error
 
 	v1Router := router.PathPrefix("/v1").Subrouter()
 	v1Router.Use(jsonContentType)
-	v1Router.HandleFunc("/token_apply", service.genKeyPair).Methods("GET")
+	v1Router.HandleFunc("/apply_keypair", service.genKeyPair).Methods("POST")
+	v1Router.HandleFunc("/upload_keypair", service.uploadKeyPair).Methods("POST")
+	v1Router.HandleFunc("/delete_keypair", service.deleteKeyPair).Methods("POST")
 	v1Router.HandleFunc("/apply_token", service.applyToken).Methods("POST")
+	v1Router.HandleFunc("/db_topup", service.topUp).Methods("POST")
 	v1Router.HandleFunc("/account_balance", service.getBalance).Methods("GET", "POST")
 	v1Router.HandleFunc("/db_balance", service.getDBBalance).Methods("GET", "POST")
 	v1Router.HandleFunc("/create_database", service.createDB).Methods("POST")

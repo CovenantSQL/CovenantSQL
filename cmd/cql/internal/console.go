@@ -18,6 +18,7 @@
 package internal
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"database/sql/driver"
@@ -41,6 +42,7 @@ import (
 	"github.com/xo/usql/text"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -322,6 +324,56 @@ func run(u *user.User) (err error) {
 
 // runConsole runs a console for sql operation in command line.
 func runConsole(cmd *Command, args []string) {
+	configFile = utils.HomeDirExpand(configFile)
+
+	var err error
+	// load config
+	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
+		ConsoleLog.WithError(err).Error("load config file failed")
+		SetExitStatus(1)
+		ExitIfErrors()
+	}
+
+	if dsn == "" {
+		dsnArray := loadDSN()
+		if len(dsnArray) > 0 {
+			//Print dsn list
+			fmt.Printf("Found local stored dsn list: \n")
+			for i := 0; i < len(dsnArray); i++ {
+				fmt.Printf("%v: %v\n", i, dsnArray[i])
+			}
+			fmt.Println("Which would you like to connect? (press Enter for default 0):")
+
+			//Read from terminal
+			reader := bufio.NewReader(os.Stdin)
+			t, err := reader.ReadString('\n')
+			t = strings.Trim(t, "\n")
+			if err != nil {
+				ConsoleLog.WithError(err).Error("unexpected error")
+				SetExitStatus(1)
+				Exit()
+			}
+
+			var choice int
+			if t == "" {
+				choice = 0
+			} else {
+				choice, err = strconv.Atoi(t)
+				if err != nil || choice >= len(dsnArray) || choice < 0 {
+					ConsoleLog.Error("Invalid choice number")
+					SetExitStatus(1)
+					Exit()
+				}
+			}
+
+			//Set dsn
+			dsn = dsnArray[choice]
+		} else {
+			ConsoleLog.Error("Nether local dsn storage exists nor -dsn param set")
+			SetExitStatus(1)
+			help = true
+		}
+	}
 
 	configInit(cmd)
 
@@ -365,7 +417,7 @@ func runConsole(cmd *Command, args []string) {
 	}
 
 	// run
-	err := run(curUser)
+	err = run(curUser)
 	ExitIfErrors()
 	if err != nil && err != io.EOF && err != rline.ErrInterrupt {
 		ConsoleLog.WithError(err).Error("run cli error")

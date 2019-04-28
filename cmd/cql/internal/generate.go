@@ -26,18 +26,19 @@ import (
 	"path/filepath"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params]",
+	UsageLine: "cql generate [common params] [-private existing_private_key]",
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
@@ -51,8 +52,11 @@ or input a passphrase by
 `,
 }
 
+var privateKeyParam string
+
 func init() {
 	CmdGenerate.Run = runGenerate
+	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -99,7 +103,34 @@ func runGenerate(cmd *Command, args []string) {
 		workingRoot = filepath.Dir(workingRoot)
 	}
 
-	var err error
+	privateKeyFileName := "private.key"
+	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
+
+	var (
+		privateKey *asymmetric.PrivateKey
+		err        error
+	)
+
+	// detect customized private key
+	if privateKeyParam != "" {
+		var oldPassword string
+
+		if password == "" {
+			fmt.Println("Please enter the password of the existing private key")
+			oldPassword = readMasterKey(noPassword)
+		} else {
+			oldPassword = password
+		}
+
+		privateKey, err = kms.LoadPrivateKey(privateKeyParam, []byte(oldPassword))
+
+		if err != nil {
+			ConsoleLog.WithError(err).Error("load specified private key failed")
+			SetExitStatus(1)
+			return
+		}
+	}
+
 	var fileinfo os.FileInfo
 	if fileinfo, err = os.Stat(workingRoot); err == nil {
 		if fileinfo.IsDir() {
@@ -123,15 +154,6 @@ func runGenerate(cmd *Command, args []string) {
 		}
 	}
 
-	if err != nil && !os.IsNotExist(err) {
-		ConsoleLog.WithError(err).Error("unexpected error")
-		SetExitStatus(1)
-		return
-	}
-
-	privateKeyFileName := "private.key"
-	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
-
 	err = os.Mkdir(workingRoot, 0755)
 	if err != nil && !os.IsExist(err) {
 		ConsoleLog.WithError(err).Error("unexpected error")
@@ -141,14 +163,17 @@ func runGenerate(cmd *Command, args []string) {
 
 	fmt.Println("Generating private key...")
 	if password == "" {
+		fmt.Println("Please enter password for new private key")
 		password = readMasterKey(noPassword)
 	}
 
-	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
-	if err != nil {
-		ConsoleLog.WithError(err).Error("generate key pair failed")
-		SetExitStatus(1)
-		return
+	if privateKeyParam == "" {
+		privateKey, _, err = asymmetric.GenSecp256k1KeyPair()
+		if err != nil {
+			ConsoleLog.WithError(err).Error("generate key pair failed")
+			SetExitStatus(1)
+			return
+		}
 	}
 
 	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(password)); err != nil {

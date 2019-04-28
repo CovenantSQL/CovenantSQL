@@ -18,7 +18,6 @@ package internal
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"os"
 	"strings"
@@ -163,7 +162,7 @@ func runCreate(cmd *Command, args []string) {
 	}
 
 	ConsoleLog.Infof("the newly created database is: %#v", dsn)
-	fmt.Println(dsn)
+	storeOneDSN(dsn)
 }
 
 func printLoading(loadingMax int) func() {

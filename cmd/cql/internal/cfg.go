@@ -20,8 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -197,4 +200,33 @@ func getPublicFromConfig() *asymmetric.PublicKey {
 		ExitIfErrors()
 	}
 	return privateKey.PubKey()
+}
+
+func storeDSN(dsnArray []string) {
+	dsnFilePath := path.Join(conf.GConf.WorkingRoot, ".dsn")
+	dsns := strings.Join(dsnArray, "\n")
+	err := ioutil.WriteFile(dsnFilePath, []byte(dsns), 0644)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("Store dsn file failed")
+		return
+	}
+	fmt.Printf("DSN local list cache is stored in %v.\n", dsnFilePath)
+}
+
+func loadDSN() []string {
+	dsnFilePath := path.Join(conf.GConf.WorkingRoot, ".dsn")
+	dsns, err := ioutil.ReadFile(dsnFilePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			ConsoleLog.WithError(err).Error("Load dsn file failed")
+		}
+		return nil
+	}
+	return strings.Split(string(dsns), "\n")
+}
+
+func storeOneDSN(dsn string) {
+	dsnArray := loadDSN()
+	dsnArray = append(dsnArray, dsn)
+	storeDSN(dsnArray)
 }

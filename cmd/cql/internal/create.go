@@ -20,7 +20,11 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"strings"
+	"time"
+
+	"gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -37,7 +41,7 @@ var CmdCreate = &Command{
 Create creates a CovenantSQL database by database meta info JSON string. The meta info must include
 node count.
 e.g.
-    cql create '{"node": 2}'
+    cql create  -node 2
 
 A complete introduction of db_meta params fields：
 
@@ -68,19 +72,23 @@ func init() {
 	addCreateFlags(CmdCreate)
 }
 
+// List is a list of strings for flag usage.
 type List struct {
 	Values []string
 }
 
+// String is a function in List struct for flag usage.
 func (l *List) String() string {
 	return strings.Join(l.Values, ",")
 }
 
+// Set is a function in List struct for flag usage.
 func (l *List) Set(raw string) error {
 	l.Values = strings.Split(raw, ",")
 	return nil
 }
 
+// Get is a function in List struct for flag usage.
 func (l *List) Get() interface{} { return List(*l) }
 
 var targetMiners List
@@ -139,7 +147,11 @@ func runCreate(cmd *Command, args []string) {
 	ConsoleLog.Info("Create database requested")
 
 	if waitTxConfirmation {
+		cancelLoading := printLoading(int(waitTxConfirmationMaxDuration / time.Second))
+		defer cancelLoading()
+
 		wait(txHash)
+
 		var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 		defer cancel()
 		err = client.WaitDBCreation(ctx, dsn)
@@ -152,4 +164,23 @@ func runCreate(cmd *Command, args []string) {
 
 	ConsoleLog.Infof("the newly created database is: %#v", dsn)
 	fmt.Println(dsn)
+}
+
+func printLoading(loadingMax int) func() {
+	var ctxLoading, cancelLoading = context.WithCancel(context.Background())
+	go func(ctx context.Context) {
+		bar := pb.StartNew(loadingMax)
+		bar.Output = os.Stderr
+		for {
+			select {
+			case <-ctx.Done():
+				bar.Finish()
+				return
+			default:
+				bar.Increment()
+				time.Sleep(time.Second)
+			}
+		}
+	}(ctxLoading)
+	return cancelLoading
 }

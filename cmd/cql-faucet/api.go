@@ -185,7 +185,9 @@ func (d *service) uploadKeyPair(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(http.StatusOK, true, nil, nil, rw)
+	sendResponse(http.StatusOK, true, map[string]interface{}{
+		argAccount: account,
+	}, nil, rw)
 }
 
 func (d *service) deleteKeyPair(rw http.ResponseWriter, r *http.Request) {

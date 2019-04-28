@@ -96,8 +96,8 @@ type Runtime struct {
 	// log wait timeout to startFetch missing logs.
 	logWaitTimeout time.Duration
 	// channel for awaiting commits.
-	commitCh chan *commitReq
-	waitLogMap   sync.Map // map[uint64]*waitItem
+	commitCh   chan *commitReq
+	waitLogMap sync.Map // map[uint64]*waitItem
 
 	/// Sub-routines management.
 	started uint32
@@ -118,10 +118,11 @@ type commitReq struct {
 
 // commitResult defines the commit operation result.
 type commitResult struct {
-	index  uint64
-	result interface{}
-	err    error
-	rpc    *rpcTracker
+	index      uint64
+	result     interface{}
+	err        error
+	storageErr error
+	rpc        *rpcTracker
 }
 
 type commitFuture struct {
@@ -421,11 +422,14 @@ func (r *Runtime) followerApply(l *kt.Log, checkPrepare bool) (err error) {
 
 	tm := timer.NewTimer()
 
+	var storageErr error
+
 	defer func() {
 		log.
 			WithFields(log.Fields{
-				"t": l.Type.String(),
-				"i": l.Index,
+				"t":  l.Type.String(),
+				"i":  l.Index,
+				"se": storageErr,
 			}).
 			WithFields(tm.ToLogFields()).
 			WithError(err).
@@ -450,7 +454,7 @@ func (r *Runtime) followerApply(l *kt.Log, checkPrepare bool) (err error) {
 	case kt.LogRollback:
 		err = r.followerRollback(ctx, tm, l)
 	case kt.LogCommit:
-		err = r.followerCommit(ctx, tm, l)
+		storageErr, err = r.followerCommit(ctx, tm, l)
 	}
 
 	if err == nil {

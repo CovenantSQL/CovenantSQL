@@ -191,7 +191,7 @@ func (r *Runtime) followerRollback(ctx context.Context, tm *timer.Timer, l *kt.L
 	return
 }
 
-func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log) (err error) {
+func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log) (storageErr error, err error) {
 	var (
 		prepareLog *kt.Log
 		lastCommit uint64
@@ -218,6 +218,14 @@ func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log
 	cResult, err = r.followerCommitResult(ctx, tm, l, prepareLog, lastCommit).Get(ctx)
 	if cResult != nil {
 		err = cResult.err
+	}
+
+	if err != nil {
+		return
+	}
+
+	if cResult != nil {
+		storageErr = cResult.storageErr
 	}
 
 	r.markPrepareFinished(ctx, prepareLog.Index)

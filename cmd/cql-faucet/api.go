@@ -219,6 +219,37 @@ func (d *service) deleteKeyPair(rw http.ResponseWriter, r *http.Request) {
 	sendResponse(http.StatusOK, true, nil, nil, rw)
 }
 
+func (d *service) downloadKeyPair(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+	password := r.FormValue(argPassword)
+
+	if !regexAccount.MatchString(account) {
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
+		return
+	}
+
+	if account == "" || password == "" {
+		sendResponse(http.StatusBadRequest, false, "account and password is required", nil, rw)
+		return
+	}
+
+	privateKey, err := d.p.getPrivateKey(account, password)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	privateKeyBytes, err := kms.EncodePrivateKey(privateKey, []byte(password))
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		argKey: string(privateKeyBytes),
+	}, rw)
+}
+
 func (d *service) topUp(rw http.ResponseWriter, r *http.Request) {
 	account := r.FormValue(argAccount)
 	password := r.FormValue(argPassword)
@@ -701,6 +732,7 @@ func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error
 	v2Router.HandleFunc("/keypair/apply", service.genKeyPair).Methods("POST")
 	v2Router.HandleFunc("/keypair/upload", service.uploadKeyPair).Methods("POST")
 	v2Router.HandleFunc("/keypair/delete", service.deleteKeyPair).Methods("POST")
+	v2Router.HandleFunc("/keypair/download", service.downloadKeyPair).Methods("GET", "POST")
 
 	server = &http.Server{
 		Addr:         listenAddr,

@@ -18,6 +18,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 	"strings"
@@ -161,8 +162,9 @@ func runCreate(cmd *Command, args []string) {
 		}
 	}
 
-	ConsoleLog.Infof("the newly created database is: %#v", dsn)
+	fmt.Printf("\nThe newly created database is: %#v\n", dsn)
 	storeOneDSN(dsn)
+	fmt.Printf("The connecting string beginning with 'covenant://' could used as a dsn for `cql console`\n or any command, and website like https://web.covenantsql.io\n")
 }
 
 func printLoading(loadingMax int) func() {

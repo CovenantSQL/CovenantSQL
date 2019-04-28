@@ -210,7 +210,6 @@ func storeDSN(dsnArray []string) {
 		ConsoleLog.WithError(err).Error("Store dsn file failed")
 		return
 	}
-	fmt.Printf("DSN local list cache is stored in %v.\n", dsnFilePath)
 }
 
 func loadDSN() []string {

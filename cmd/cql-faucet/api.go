@@ -691,7 +691,7 @@ func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error
 
 	v2Router := router.PathPrefix("/v2").Subrouter()
 	v2Router.Use(jsonContentType)
-	v2Router.HandleFunc("/database", service.accountDatabaseList).Methods("GET")
+	v2Router.HandleFunc("/database", service.accountDatabaseList).Methods("GET", "POST")
 	v2Router.HandleFunc("/database/balance", service.getDBBalance).Methods("GET", "POST")
 	v2Router.HandleFunc("/database/create", service.createDB).Methods("POST")
 	v2Router.HandleFunc("/database/topup", service.topUp).Methods("POST")

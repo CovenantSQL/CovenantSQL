@@ -416,6 +416,23 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 	return
 }
 
+func loadBlock(st xi.Storage, hash hash.Hash) (block *types.BPBlock, err error) {
+	var (
+		enc []byte
+		dec = &types.BPBlock{}
+	)
+	if err = st.Reader().QueryRow(
+		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, hash.String(),
+	).Scan(&enc); err != nil {
+		return
+	}
+	if err = utils.DecodeMsgPack(enc, dec); err != nil {
+		return
+	}
+	block = dec
+	return
+}
+
 func loadBlocks(
 	st xi.Storage, irreHash hash.Hash) (lastIrre *blockNode, heads []*blockNode, err error,
 ) {
@@ -471,7 +488,7 @@ func loadBlocks(
 				err = ErrMultipleGenesis
 				return
 			}
-			bn = newBlockNode(0, dec, nil)
+			bn = newNonCacheBlockNode(0, dec, nil)
 			index[bh] = bn
 			headsIndex[bh] = bn
 			log.WithFields(log.Fields{
@@ -487,7 +504,7 @@ func loadBlocks(
 			err = errors.Wrapf(ErrParentNotFound, "parent %s not found", ph.Short(4))
 			return
 		}
-		bn = newBlockNode(height, dec, pn)
+		bn = newNonCacheBlockNode(height, dec, pn)
 		index[bh] = bn
 		if _, ok = headsIndex[ph]; ok {
 			delete(headsIndex, ph)

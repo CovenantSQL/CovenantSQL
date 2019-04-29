@@ -34,9 +34,12 @@ package consistent
 
 import (
 	"errors"
+	"expvar"
 	"sort"
 	"strconv"
 	"sync"
+
+	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -62,6 +65,14 @@ var (
 	// ErrKeyNotFound is the error returned when no key in circle
 	ErrKeyNotFound = errors.New("node key not found")
 )
+
+const (
+	mwKeyDHTNodeCount = "service:DHT:NodeCount"
+)
+
+func init() {
+	expvar.Publish(mwKeyDHTNodeCount, mw.NewGauge("1M1d"))
+}
 
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
@@ -180,7 +191,6 @@ func (c *Consistent) add(node proto.Node) (err error) {
 		log.WithField("node", node).WithError(err).Error("set node info failed")
 		return
 	}
-
 	c.AddCache(node)
 	return
 }
@@ -195,6 +205,7 @@ func (c *Consistent) AddCache(node proto.Node) {
 	}
 	c.updateSortedHashes()
 	c.count++
+	expvar.Get(mwKeyDHTNodeCount).(mw.Metric).Add(float64(c.count))
 	return
 }
 

@@ -34,15 +34,6 @@ CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR �
 - **隐私**: 使用列级 ACL 和 SQL 白名单模式授予权限
 - **权限**：列级别的权限限制，可以设定 SQL 白名单
 
-我们坚信 [在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
-
-
-**一行代码让数据上链**
-
-```go
-sql.Open("cql", dbURI)
-```
-
 ## CQL 是什么?
 
 - [Amazon QLDB](https://aws.amazon.com/qldb/)的开源版
@@ -73,14 +64,14 @@ sql.Open("cql", dbURI)
     tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
-#### 继续请参见：[📚文档站](https://developers.covenantsql.io/docs/zh-CN/quickstart)
+#### 继续请参见：[测试网快速开始](https://developers.covenantsql.io/docs/zh-CN/quickstart)
 
 ## CQL 如何工作
 
 ### 3 层架构
 
 
-![CovenantSQL 3 Layer design](logo/arch.png)
+![CovenantSQL 3 Layer design](https://cdn.jsdelivr.net/gh/CovenantSQL/docs@b7143254adb804dff0e3bc1f2f6ab11ad9cd44f5/website/static/img/2layers.svg)
 
 - 第一层: **全局共识层**(主链，架构图中的中间环):
     - 整个网络中只有一个主链。

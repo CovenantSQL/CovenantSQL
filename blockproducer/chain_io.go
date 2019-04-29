@@ -21,7 +21,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -29,20 +28,7 @@ import (
 
 // loadBlock loads a BPBlock from chain storage.
 func (c *Chain) loadBlock(h hash.Hash) (b *types.BPBlock, err error) {
-	var (
-		enc []byte
-		out = &types.BPBlock{}
-	)
-	if err = c.storage.Reader().QueryRow(
-		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, h.String(),
-	).Scan(&enc); err != nil {
-		return
-	}
-	if err = utils.DecodeMsgPack(enc, out); err != nil {
-		return
-	}
-	b = out
-	return
+	return loadBlock(c.storage, h)
 }
 
 func (c *Chain) fetchLastIrreversibleBlock() (

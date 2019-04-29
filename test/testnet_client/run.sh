@@ -15,6 +15,9 @@ cd ${TEST_WD}
 
 echo -ne "y\n" | ${BIN}/cql generate -no-password config
 
+#label myself
+sed 's/0.0.0.0:15151/testnet_compatibility/g' ~/.cql/config.yaml > ~/.cql/config.yaml
+
 #get wallet addr
 ${BIN}/cql wallet -no-password | tee wallet.txt
 wallet=$(awk '{print $3}' wallet.txt)

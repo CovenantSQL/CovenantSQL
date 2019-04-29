@@ -189,16 +189,10 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	}
 
 	// Check genesis block
-	var irreBlocks = lastIrre.fetchNodeList(0)
-	if persistedGenesis := irreBlocks[0]; persistedGenesis == nil ||
+	if persistedGenesis := lastIrre.ancestorByCount(0); persistedGenesis == nil ||
 		!persistedGenesis.hash.IsEqual(cfg.Genesis.BlockHash()) {
 		err = ErrGenesisHashNotMatch
 		return
-	}
-
-	// Add blocks to LRU list
-	for _, v := range irreBlocks {
-		cache.Add(v.count, v)
 	}
 
 	// Rebuild branches
@@ -210,6 +204,22 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 			"head_count": v.count,
 		}).Debug("checking head")
 		if v.hasAncestor(lastIrre) {
+			// Load any reversible blocks from storage for branch rebuilding
+			reversibles := v.fetchNodeList(lastIrre.count + 1)
+			for _, r := range reversibles {
+				if r.load() != nil {
+					continue
+				}
+				var block *types.BPBlock
+				if block, ierr = loadBlock(st, r.hash); ierr != nil {
+					err = errors.Wrapf(
+						ierr, "failed to load block %s from database", r.hash.Short(4))
+					return
+				}
+				// Store block object
+				r.block.Store(block)
+			}
+
 			var br *branch
 			if br, ierr = newBranch(lastIrre, v, immutable, txPool); ierr != nil {
 				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))

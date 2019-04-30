@@ -57,8 +57,8 @@ func init() {
 }
 
 func runTransfer(cmd *Command, args []string) {
-	if len(args) != 1 {
-		ConsoleLog.Error("Transfer command need target user and token amount in json string as param")
+	if len(args) > 0 || addr == "" || tokenType == "" {
+		ConsoleLog.Error("Transfer command need target account address and token type as param")
 		SetExitStatus(1)
 		help = true
 	}

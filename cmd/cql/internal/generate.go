@@ -57,14 +57,14 @@ func init() {
 	addCommonFlags(CmdGenerate)
 }
 
-func askDeletePath(path string) {
-	if fileinfo, err := os.Stat(path); err == nil {
-		if !fileinfo.IsDir() {
-			path = filepath.Dir(path)
+func askDeleteFile(file string) {
+	if fileinfo, err := os.Stat(file); err == nil {
+		if fileinfo.IsDir() {
+			return
 		}
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Printf("\"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
-			path)
+			file)
 		t, err := reader.ReadString('\n')
 		t = strings.Trim(t, "\n")
 		if err != nil {
@@ -73,7 +73,7 @@ func askDeletePath(path string) {
 			Exit()
 		}
 		if strings.EqualFold(t, "y") || strings.EqualFold(t, "yes") {
-			err = os.RemoveAll(path)
+			err = os.Remove(file)
 			if err != nil {
 				ConsoleLog.WithError(err).Error("unexpected error")
 				SetExitStatus(1)
@@ -99,13 +99,41 @@ func runGenerate(cmd *Command, args []string) {
 		workingRoot = filepath.Dir(workingRoot)
 	}
 
-	askDeletePath(workingRoot)
+	var err error
+	var fileinfo os.FileInfo
+	if fileinfo, err = os.Stat(workingRoot); err == nil {
+		if fileinfo.IsDir() {
+			err = filepath.Walk(workingRoot, func(filepath string, f os.FileInfo, err error) error {
+				if f == nil {
+					return err
+				}
+				if f.IsDir() {
+					return nil
+				}
+				if strings.Contains(f.Name(), "config.yaml") ||
+					strings.Contains(f.Name(), "private.key") ||
+					strings.Contains(f.Name(), "public.keystore") ||
+					strings.Contains(f.Name(), ".dsn") {
+					askDeleteFile(filepath)
+				}
+				return nil
+			})
+		} else {
+			askDeleteFile(workingRoot)
+		}
+	}
+
+	if err != nil {
+		ConsoleLog.WithError(err).Error("unexpected error")
+		SetExitStatus(1)
+		return
+	}
 
 	privateKeyFileName := "private.key"
 	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
 
-	err := os.Mkdir(workingRoot, 0755)
-	if err != nil {
+	err = os.Mkdir(workingRoot, 0755)
+	if err != nil && !os.IsExist(err) {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
 		return
@@ -183,7 +211,11 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Printf("Private key file: %s\n", privateKeyFile)
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
 
-	fmt.Printf("\nAny further command could costs PTC.\nYou can get some free PTC from: https://testnet.covenansql.io/wallet/%s\n", walletAddr)
+	fmt.Printf(`
+Any further command could costs PTC.
+You can get some free PTC from:
+	https://testnet.covenantsql.io/wallet/`)
+	fmt.Println(walletAddr)
 
 	if password != "" {
 		fmt.Println("Your private key had been encrypted by a passphrase, add -no-password=false in any further command")

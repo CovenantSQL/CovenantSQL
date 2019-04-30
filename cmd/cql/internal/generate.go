@@ -123,7 +123,7 @@ func runGenerate(cmd *Command, args []string) {
 		}
 	}
 
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
 		return

@@ -51,9 +51,9 @@ func init() {
 
 	addCommonFlags(CmdTransfer)
 	addWaitFlag(CmdTransfer)
-	CmdWallet.Flag.StringVar(&addr, "address", "", "Address of an account to transfer token.")
-	CmdWallet.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer.")
-	CmdWallet.Flag.StringVar(&tokenType, "type", "", "Token type to transfer.")
+	CmdTransfer.Flag.StringVar(&addr, "address", "", "Address of an account to transfer token.")
+	CmdTransfer.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer.")
+	CmdTransfer.Flag.StringVar(&tokenType, "type", "", "Token type to transfer.")
 }
 
 func runTransfer(cmd *Command, args []string) {

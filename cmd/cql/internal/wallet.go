@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
@@ -31,15 +32,14 @@ var (
 
 // CmdWallet is cql wallet command entity.
 var CmdWallet = &Command{
-	UsageLine: "cql wallet [common params] [-balance type]",
+	UsageLine: "cql wallet [common params] [-token type]",
 	Short:     "get the wallet address and the balance of current account",
 	Long: `
 Wallet gets the CovenantSQL wallet address and the token balances of the current account.
 e.g.
     cql wallet
 
-    cql wallet -balance Particle
-    cql wallet -balance all
+    cql wallet -token Particle
 `,
 }
 
@@ -47,7 +47,7 @@ func init() {
 	CmdWallet.Run = runWallet
 
 	addCommonFlags(CmdWallet)
-	CmdWallet.Flag.StringVar(&tokenName, "balance", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
+	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
 }
 
 func walletGen() string {
@@ -70,25 +70,25 @@ func walletGen() string {
 func runWallet(cmd *Command, args []string) {
 	configInit(cmd)
 
-	var err error
-	if tokenName == "" {
-		fmt.Printf("wallet address: %s\n", walletGen())
-		return
+	if conf.GConf.WalletAddress != "" {
+		fmt.Printf("\n\nwallet address: %s\n", conf.GConf.WalletAddress)
+	} else {
+		fmt.Printf("\n\nwallet address: %s\n", walletGen())
 	}
 
-	if strings.ToLower(tokenName) == "all" {
+	var err error
+	if strings.ToLower(tokenName) == "" {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
 			ConsoleLog.WithError(err).Error("get Particle balance failed")
 			SetExitStatus(1)
-			return
 		}
 		if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
 			ConsoleLog.WithError(err).Error("get Wave balance failed")
 			SetExitStatus(1)
-			return
 		}
+		ExitIfErrors()
 
 		fmt.Printf("Particle balance is: %d\n", stableCoinBalance)
 		fmt.Printf("Wave balance is: %d\n", covenantCoinBalance)

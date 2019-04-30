@@ -81,12 +81,23 @@ func runWallet(cmd *Command, args []string) {
 		var stableCoinBalance, covenantCoinBalance uint64
 
 		if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
-			ConsoleLog.WithError(err).Error("get Particle balance failed")
-			SetExitStatus(1)
+			if strings.Contains(err.Error(), "no such token balance") {
+				fmt.Println("Your account is not created in the TestNet, please apply tokens from our faucet first.")
+				SetExitStatus(1)
+			} else {
+				ConsoleLog.WithError(err).Error("get Particle balance failed")
+				SetExitStatus(1)
+			}
 		}
+		ExitIfErrors()
 		if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
-			ConsoleLog.WithError(err).Error("get Wave balance failed")
-			SetExitStatus(1)
+			if strings.Contains(err.Error(), "no such token balance") {
+				fmt.Println("Your account is not created in the TestNet, please apply tokens from our faucet first.")
+				SetExitStatus(1)
+			} else {
+				ConsoleLog.WithError(err).Error("get Wave balance failed")
+				SetExitStatus(1)
+			}
 		}
 		ExitIfErrors()
 
@@ -106,9 +117,13 @@ func runWallet(cmd *Command, args []string) {
 			return
 		}
 		if tokenBalance, err = client.GetTokenBalance(tokenType); err != nil {
-			ConsoleLog.WithError(err).Error("get token balance failed")
-			SetExitStatus(1)
-			return
+			if strings.Contains(err.Error(), "no such token balance") {
+				fmt.Println("Your account is not created in the TestNet, please apply tokens from our faucet first.")
+			} else {
+				ConsoleLog.WithError(err).Error("get token balance failed")
+				SetExitStatus(1)
+				return
+			}
 		}
 		fmt.Printf("%s balance is: %d\n", tokenType, tokenBalance)
 	}

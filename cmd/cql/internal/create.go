@@ -99,6 +99,7 @@ func runCreate(cmd *Command, args []string) {
 		ConsoleLog.Error("create params should set by sepecific param name like -node")
 		SetExitStatus(1)
 		help = true
+		commonFlagsInit(cmd)
 	}
 
 	for _, miner := range targetMiners.Values {

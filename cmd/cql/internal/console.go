@@ -372,7 +372,7 @@ func runConsole(cmd *Command, args []string) {
 			//Set dsn
 			dsn = dsnArray[choice]
 		} else {
-			ConsoleLog.Error("nether local dsn storage exists nor a dsn string present")
+			ConsoleLog.Error("neither local dsn storage exists nor a dsn string present")
 			SetExitStatus(1)
 			help = true
 		}

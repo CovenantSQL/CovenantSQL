@@ -636,6 +636,14 @@
   revision = "b4a75ba826a64a70990f11a225237acd6ef35c9f"
 
 [[projects]]
+  digest = "1:d219400f09c151f0ada918bab650ef46f7ebdb1ff4fea923fdcb839481ec7ec1"
+  name = "gopkg.in/cheggaaa/pb.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f907f6f5dd81f77c2bbc1cde92e4c5a04720cb11"
+  version = "v1.0.28"
+
+[[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -701,6 +709,7 @@
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
+    "gopkg.in/cheggaaa/pb.v1",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"

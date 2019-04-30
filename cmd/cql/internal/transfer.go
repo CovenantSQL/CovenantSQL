@@ -74,7 +74,7 @@ func runTransfer(cmd *Command, args []string) {
 
 	targetAccountHash, err := hash.NewHashFromStr(addr)
 	if err != nil {
-		ConsoleLog.WithError(err).Error("Target account address is not valid")
+		ConsoleLog.WithError(err).Error("target account address is not valid")
 		SetExitStatus(1)
 		return
 	}

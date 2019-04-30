@@ -139,7 +139,7 @@ func runCreate(cmd *Command, args []string) {
 
 	txHash, dsn, err := client.Create(meta)
 	if err != nil {
-		ConsoleLog.WithError(err).Error("Create database failed")
+		ConsoleLog.WithError(err).Error("create database failed")
 		SetExitStatus(1)
 		return
 	}
@@ -164,7 +164,7 @@ func runCreate(cmd *Command, args []string) {
 
 	fmt.Printf("\nThe newly created database is: %#v\n", dsn)
 	storeOneDSN(dsn)
-	fmt.Printf("The connecting string beginning with 'covenant://' could used as a dsn for `cql console`\n or any command, and website like https://web.covenantsql.io\n")
+	fmt.Printf("The connecting string beginning with 'covenantsql://' could be used as a dsn for `cql console`\n or any command, or be used in website like https://web.covenantsql.io\n")
 }
 
 func printLoading(loadingMax int) func() {

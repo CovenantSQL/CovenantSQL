@@ -38,24 +38,10 @@ var CmdCreate = &Command{
 	UsageLine: "cql create [common params] [-wait-tx-confirm] [db_meta params]",
 	Short:     "create a database",
 	Long: `
-Create creates a CovenantSQL database by database meta info JSON string. The meta info must include
+Create command creates a CovenantSQL database by database meta params. The meta info must include
 node count.
 e.g.
-    cql create  -node 2
-
-A complete introduction of db_meta params fields：
-
-    target-miners          []string  // List of target miner addresses
-    node                   uint      // Target node number
-    space                  uint      // Minimum disk space requirement, 0 for none
-    memory                 uint      // Minimum memory requirement, 0 for none
-    load-avg-per-cpu       float     // Minimum idle CPU requirement, 0 for none
-    encrypt-key            string    // Encryption key for persistence data
-    eventual-consistency   bool      // Use eventual consistency to sync among miner nodes
-    consistency-level      float     // Consistency level, node*consistency_level is the node number to perform strong consistency
-    isolation-level        int       // Isolation level in a single node
-    gas-price              uint      // customized gas price
-    advance-payment        uint      // customized advance payment
+    cql create -node 2
 
 Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
 confirmation before the creation takes effect.
@@ -109,6 +95,12 @@ func addCreateFlags(cmd *Command) {
 }
 
 func runCreate(cmd *Command, args []string) {
+	if len(args) > 0 {
+		ConsoleLog.Error("Create params should set by sepecific param name like -node")
+		SetExitStatus(1)
+		help = true
+	}
+
 	for _, miner := range targetMiners.Values {
 		targetMiner, err := hash.NewHashFromStr(miner)
 		if err != nil {

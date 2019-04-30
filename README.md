@@ -35,14 +35,6 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 - **Immutable**: Query History in CQL is Immutable and Trackable.
 - **Permission**: Column Level ACL and SQL Pattern Whitelist.
 
-We believe [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
-
-**One Line Makes Data on Blockchain**
-
-```go
-sql.Open("cql", dbURI)
-```
-
 ## What is CQL?
 
 - Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
@@ -74,15 +66,13 @@ sql.Open("cql", dbURI)
     tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
-#### For More: [📚Docs Site](https://developers.covenantsql.io/docs/en/quickstart)
+#### To continue [TestNet Quickstart](https://developers.covenantsql.io/docs/en/quickstart)
 
 ## How CQL works
 
 ### 3 Layers Arch
 
-
-
-![CovenantSQL 3 Layer design](logo/arch.png)
+![CovenantSQL 3 Layer design](https://cdn.jsdelivr.net/gh/CovenantSQL/docs@b7143254adb804dff0e3bc1f2f6ab11ad9cd44f5/website/static/img/2layers.svg)
 
 - Layer 1: **Global Consensus Layer** (the main chain, the middle ring in the architecture diagram):
     - There will only be one main chain throughout the network.
@@ -132,8 +122,6 @@ CQL database consistency mode and node count can be selected in database creatio
   ```bash
   fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
   ```
-
-  
 
 ## Demos
 

@@ -58,7 +58,7 @@ func init() {
 
 func runTransfer(cmd *Command, args []string) {
 	if len(args) > 0 || addr == "" || tokenType == "" {
-		ConsoleLog.Error("Transfer command need target account address and token type as param")
+		ConsoleLog.Error("transfer command need target account address and token type as param")
 		SetExitStatus(1)
 		help = true
 	}
@@ -95,5 +95,5 @@ func runTransfer(cmd *Command, args []string) {
 		}
 	}
 
-	ConsoleLog.Info("Succeed in sending transaction to CovenantSQL")
+	ConsoleLog.Info("succeed in sending transaction to CovenantSQL")
 }

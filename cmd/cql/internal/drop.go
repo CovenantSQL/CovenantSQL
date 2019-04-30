@@ -45,7 +45,7 @@ func init() {
 
 func runDrop(cmd *Command, args []string) {
 	if len(args) != 1 {
-		ConsoleLog.Error("Drop command need CovenantSQL dsn or database_id string as param")
+		ConsoleLog.Error("drop command need CovenantSQL dsn or database_id string as param")
 		SetExitStatus(1)
 		help = true
 	}
@@ -57,7 +57,7 @@ func runDrop(cmd *Command, args []string) {
 	// drop database
 	if _, err := client.ParseDSN(dsn); err != nil {
 		// not a dsn/dbid
-		ConsoleLog.WithField("db", dsn).WithError(err).Error("Not a valid dsn")
+		ConsoleLog.WithField("db", dsn).WithError(err).Error("not a valid dsn")
 		SetExitStatus(1)
 		return
 	}

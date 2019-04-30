@@ -74,7 +74,7 @@ func startAdapterServer(adapterAddr string, adapterUseMirrorAddr string) func() 
 
 func runAdapter(cmd *Command, args []string) {
 	if len(args) != 1 {
-		ConsoleLog.Error("Adapter command need listen address as param")
+		ConsoleLog.Error("adapter command need listen address as param")
 		SetExitStatus(1)
 		help = true
 	}

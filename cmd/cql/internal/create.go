@@ -96,7 +96,7 @@ func addCreateFlags(cmd *Command) {
 
 func runCreate(cmd *Command, args []string) {
 	if len(args) > 0 {
-		ConsoleLog.Error("Create params should set by sepecific param name like -node")
+		ConsoleLog.Error("create params should set by sepecific param name like -node")
 		SetExitStatus(1)
 		help = true
 	}
@@ -104,7 +104,7 @@ func runCreate(cmd *Command, args []string) {
 	for _, miner := range targetMiners.Values {
 		targetMiner, err := hash.NewHashFromStr(miner)
 		if err != nil {
-			ConsoleLog.Error("Create target-miners param has invalid node address: ", miner)
+			ConsoleLog.Error("create target-miners param has invalid node address: ", miner)
 			SetExitStatus(1)
 			return
 		}
@@ -112,14 +112,14 @@ func runCreate(cmd *Command, args []string) {
 	}
 
 	if node32 > math.MaxUint16 {
-		ConsoleLog.Error("Create node param should not greater than uint16")
+		ConsoleLog.Error("create node param should not greater than uint16")
 		SetExitStatus(1)
 		return
 	}
 	meta.Node = uint16(node32)
 
 	if meta.Node == 0 {
-		ConsoleLog.Error("Create database failed: request node count must > 1")
+		ConsoleLog.Error("create database failed: request node count must > 1")
 		SetExitStatus(1)
 		help = true
 	}
@@ -136,7 +136,7 @@ func runCreate(cmd *Command, args []string) {
 		return
 	}
 
-	ConsoleLog.Info("Create database requested")
+	ConsoleLog.Info("create database requested")
 
 	if waitTxConfirmation {
 		cancelLoading := printLoading(int(waitTxConfirmationMaxDuration / time.Second))

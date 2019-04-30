@@ -63,7 +63,7 @@ type userPermPayload struct {
 
 func runGrant(cmd *Command, args []string) {
 	if len(args) != 1 {
-		ConsoleLog.Error("Grant command need CovenantSQL perm_meta json string as param")
+		ConsoleLog.Error("grant command need CovenantSQL perm_meta json string as param")
 		SetExitStatus(1)
 		help = true
 	}

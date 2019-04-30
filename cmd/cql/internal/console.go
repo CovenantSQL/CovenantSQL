@@ -363,7 +363,7 @@ func runConsole(cmd *Command, args []string) {
 			} else {
 				choice, err = strconv.Atoi(t)
 				if err != nil || choice >= len(dsnArray) || choice < 0 {
-					ConsoleLog.Error("Invalid choice number")
+					ConsoleLog.Error("invalid choice number")
 					SetExitStatus(1)
 					Exit()
 				}
@@ -372,7 +372,7 @@ func runConsole(cmd *Command, args []string) {
 			//Set dsn
 			dsn = dsnArray[choice]
 		} else {
-			ConsoleLog.Error("Nether local dsn storage exists nor a dsn string present")
+			ConsoleLog.Error("nether local dsn storage exists nor a dsn string present")
 			SetExitStatus(1)
 			help = true
 		}

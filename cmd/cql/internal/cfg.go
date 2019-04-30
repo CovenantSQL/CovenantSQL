@@ -207,7 +207,7 @@ func storeDSN(dsnArray []string) {
 	dsns := strings.Join(dsnArray, "\n")
 	err := ioutil.WriteFile(dsnFilePath, []byte(dsns), 0644)
 	if err != nil {
-		ConsoleLog.WithError(err).Error("Store dsn file failed")
+		ConsoleLog.WithError(err).Error("store dsn file failed")
 		return
 	}
 }
@@ -217,7 +217,7 @@ func loadDSN() []string {
 	dsns, err := ioutil.ReadFile(dsnFilePath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			ConsoleLog.WithError(err).Error("Load dsn file failed")
+			ConsoleLog.WithError(err).Error("load dsn file failed")
 		}
 		return nil
 	}

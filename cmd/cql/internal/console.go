@@ -76,6 +76,7 @@ func init() {
 	CmdConsole.Run = runConsole
 
 	addCommonFlags(CmdConsole)
+	addConfigFlag(CmdConsole)
 	CmdConsole.Flag.Var(&variables, "variable", "Set variable")
 	CmdConsole.Flag.StringVar(&outFile, "out", "", "Record stdout to file")
 	CmdConsole.Flag.BoolVar(&noRC, "no-rc", false, "Do not read start up file")
@@ -378,7 +379,8 @@ func runConsole(cmd *Command, args []string) {
 		}
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	usqlRegister()
 

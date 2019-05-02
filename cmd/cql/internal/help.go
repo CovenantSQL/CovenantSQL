@@ -126,6 +126,7 @@ Use "cql help <command>" for more information about a command.
 	}
 
 	addCommonFlags(CmdHelp)
+	addConfigFlag(CmdHelp)
 	fmt.Fprint(output, helpCommon)
 	CmdHelp.Flag.SetOutput(output)
 	CmdHelp.Flag.PrintDefaults()

@@ -28,6 +28,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -38,7 +39,7 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params] [-private existing_private_key]",
+	UsageLine: "cql generate [common params] [-source template_file] [-private existing_private_key] [dest_path]",
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
@@ -52,11 +53,15 @@ or input a passphrase by
 `,
 }
 
-var privateKeyParam string
+var (
+	privateKeyParam string
+	source          string
+)
 
 func init() {
 	CmdGenerate.Run = runGenerate
 	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
+	CmdGenerate.Flag.StringVar(&source, "source", "", "source config file template for config generation")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -92,7 +97,15 @@ func askDeleteFile(file string) {
 func runGenerate(cmd *Command, args []string) {
 	commonFlagsInit(cmd)
 
-	workingRoot := utils.HomeDirExpand(configFile)
+	var workingRoot string
+	if len(args) == 0 {
+		workingRoot = utils.HomeDirExpand("~/.cql")
+	} else if args[0] == "" {
+		workingRoot = utils.HomeDirExpand("~/.cql")
+	} else {
+		workingRoot = utils.HomeDirExpand(args[0])
+	}
+
 	if workingRoot == "" {
 		ConsoleLog.Error("config directory is required for generate config")
 		SetExitStatus(1)
@@ -199,16 +212,36 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Println("Generated nonce.")
 
 	fmt.Println("Generating config file...")
-	// Load testnet config
-	testnetConfig := testnet.GetTestNetConfig()
-	// Add client config
-	testnetConfig.PrivateKeyFile = privateKeyFileName
-	testnetConfig.WalletAddress = walletAddr
-	testnetConfig.ThisNodeID = cliNodeID
-	if testnetConfig.KnownNodes == nil {
-		testnetConfig.KnownNodes = make([]proto.Node, 0, 1)
+
+	var rawConfig *conf.Config
+
+	if source == "" {
+		// Load testnet config
+		rawConfig = testnet.GetTestNetConfig()
+	} else {
+		// Load from template file
+		sourceConfig, err := ioutil.ReadFile(source)
+		if err != nil {
+			ConsoleLog.WithError(err).Error("read config template failed")
+			SetExitStatus(1)
+			return
+		}
+		rawConfig = &conf.Config{}
+		if err = yaml.Unmarshal(sourceConfig, rawConfig); err != nil {
+			ConsoleLog.WithError(err).Error("load config template failed")
+			SetExitStatus(1)
+			return
+		}
 	}
-	testnetConfig.KnownNodes = append(testnetConfig.KnownNodes, proto.Node{
+
+	// Add client config
+	rawConfig.PrivateKeyFile = privateKeyFileName
+	rawConfig.WalletAddress = walletAddr
+	rawConfig.ThisNodeID = cliNodeID
+	if rawConfig.KnownNodes == nil {
+		rawConfig.KnownNodes = make([]proto.Node, 0, 1)
+	}
+	rawConfig.KnownNodes = append(rawConfig.KnownNodes, proto.Node{
 		ID:        cliNodeID,
 		Role:      proto.Client,
 		Addr:      "0.0.0.0:15151",
@@ -217,7 +250,7 @@ func runGenerate(cmd *Command, args []string) {
 	})
 
 	// Write config
-	out, err := yaml.Marshal(testnetConfig)
+	out, err := yaml.Marshal(rawConfig)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)

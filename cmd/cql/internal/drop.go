@@ -40,6 +40,7 @@ func init() {
 	CmdDrop.Run = runDrop
 
 	addCommonFlags(CmdDrop)
+	addConfigFlag(CmdDrop)
 	addWaitFlag(CmdDrop)
 }
 
@@ -50,7 +51,8 @@ func runDrop(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	dsn := args[0]
 

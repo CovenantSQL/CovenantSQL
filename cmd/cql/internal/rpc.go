@@ -71,6 +71,7 @@ func init() {
 	CmdRPC.Run = runRPC
 
 	addCommonFlags(CmdRPC)
+	addConfigFlag(CmdRPC)
 	addWaitFlag(CmdRPC)
 
 	CmdRPC.Flag.StringVar(&rpcName, "name", "", "RPC name to do test call")
@@ -86,7 +87,8 @@ func runRPC(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	req, resp := resolveRPCEntities()
 	ExitIfErrors()

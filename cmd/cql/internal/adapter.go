@@ -45,6 +45,7 @@ func init() {
 	CmdAdapter.Flag.StringVar(&adapterUseMirrorAddr, "mirror", "", "Mirror server for adapter to query")
 
 	addCommonFlags(CmdAdapter)
+	addConfigFlag(CmdAdapter)
 	addBgServerFlag(CmdAdapter)
 }
 
@@ -79,7 +80,8 @@ func runAdapter(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 	bgServerInit()
 
 	adapterAddr = args[0]

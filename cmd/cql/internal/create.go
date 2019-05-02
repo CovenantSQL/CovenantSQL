@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/cheggaaa/pb.v1"
+	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -54,6 +54,7 @@ func init() {
 	CmdCreate.Run = runCreate
 
 	addCommonFlags(CmdCreate)
+	addConfigFlag(CmdCreate)
 	addWaitFlag(CmdCreate)
 	addCreateFlags(CmdCreate)
 }
@@ -125,7 +126,8 @@ func runCreate(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	// create database
 	// parse instance requirement

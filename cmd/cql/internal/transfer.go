@@ -50,6 +50,7 @@ func init() {
 	CmdTransfer.Run = runTransfer
 
 	addCommonFlags(CmdTransfer)
+	addConfigFlag(CmdTransfer)
 	addWaitFlag(CmdTransfer)
 	CmdTransfer.Flag.StringVar(&addr, "address", "", "Address of an account to transfer token.")
 	CmdTransfer.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer.")
@@ -63,7 +64,8 @@ func runTransfer(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	unit := types.FromString(tokenType)
 	if !unit.Listed() {

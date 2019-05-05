@@ -51,8 +51,7 @@ CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR �
 - 非 Homebrew，可以执行：
 
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.osx-amd64.tar.gz" | \
-     tar xzv -C /usr/local/bin/ --strip-components=1'
+    sudo bash -c 'curl -L "https://cutt.ly/cql050mac" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
 #### Linux 平台
@@ -60,8 +59,7 @@ CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR �
 - 在命令行中执行：
 
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.linux-amd64.tar.gz" | \
-    tar xzv -C /usr/local/bin/ --strip-components=1'
+    sudo bash -c 'curl -L "https://cutt.ly/cql050linux" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
 #### 继续请参见：[测试网快速开始](https://developers.covenantsql.io/docs/zh-CN/quickstart)

@@ -53,7 +53,7 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 - non-Homebrew users can run:
     
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.osx-amd64.tar.gz" | \
+    sudo bash -c 'curl -L "https://cutt.ly/cql050mac" | \
      tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
@@ -62,7 +62,7 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 - Just run：
 
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.linux-amd64.tar.gz" | \
+    sudo bash -c 'curl -L "https://cutt.ly/cql050linux" | \
     tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 

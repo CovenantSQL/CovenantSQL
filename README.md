@@ -38,6 +38,7 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 ## What is CQL?
 
 - Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
+- Low cost DBaaS
 - Just like [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) is the decentralized file system, CQL is the decentralized database
 
 ## Quick Start

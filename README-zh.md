@@ -27,17 +27,18 @@
 
 CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR 合规与去中心化等特点。
 
-- **ServerLess 支持**: 为小程序、浏览器插件提供免部署维护，自动同步、高可用的数据库服务
+- **ServerLess 支持**: 为小程序、浏览器插件提供免部署维护、自动同步、高可用的数据库服务
 - **SQL 接口**: 支持 SQL-92 标准
-- **去中心化**: 基于共识算法 DH-RPC & Kayak 实现的去中心化
+- **去中心化**: 不依赖中心节点协调的高可用架构
 - **不可篡改**: CQL 中的 Query 历史是不可篡改且可追溯的
-- **隐私**: 使用列级 ACL 和 SQL 白名单模式授予权限
-- **权限**：列级别的权限限制，可以设定 SQL 白名单
+- **隐私&权限**: 列级别的权限限制，可以设定 SQL 白名单
 
 ## CQL 是什么?
 
-- [Amazon QLDB](https://aws.amazon.com/qldb/)的开源版
-- 如果 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, 那么 CQL 就是去中心化的数据库
+- 对标 [Amazon QLDB](https://aws.amazon.com/qldb/) 的开源版
+- 免搭建、免维护、低成本的数据库服务（DBaaS）
+- 就像 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, CQL 是去中心化的数据库
+
 
 ## 快速开始
 #### MacOS 平台

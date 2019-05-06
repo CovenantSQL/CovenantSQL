@@ -115,6 +115,7 @@ type Config struct {
 	WorkingRoot      string            `yaml:"WorkingRoot"`
 	PubKeyStoreFile  string            `yaml:"PubKeyStoreFile"`
 	PrivateKeyFile   string            `yaml:"PrivateKeyFile"`
+	WalletAddress    string            `yaml:"WalletAddress"`
 	DHTFileName      string            `yaml:"DHTFileName"`
 	ListenAddr       string            `yaml:"ListenAddr"`
 	ListenDirectAddr string            `yaml:"ListenDirectAddr",omitempty`

@@ -692,7 +692,7 @@ func cleanBenchTable(db *sql.DB) {
 
 func makeBenchName(trailings ...string) string {
 	var parts = make([]string, 0, 3+len(trailings))
-	parts = append(parts, fmt.Sprintf("%dMiner", benchMinerCount))
+	parts = append(parts, fmt.Sprintf("%d-Miner", benchMinerCount))
 	if benchBypassSignature {
 		parts = append(parts, "BypassSignature")
 	}
@@ -700,7 +700,7 @@ func makeBenchName(trailings ...string) string {
 		parts = append(parts, "EventualConsistency")
 	}
 	parts = append(parts, trailings...)
-	return strings.Join(parts, "_")
+	return strings.Join(parts, "-")
 }
 
 func benchDB(b *testing.B, db *sql.DB, createDB bool) {

@@ -73,14 +73,15 @@ func startAdapterServer(adapterAddr string, adapterUseMirrorAddr string) func() 
 }
 
 func runAdapter(cmd *Command, args []string) {
+	if len(args) != 1 {
+		ConsoleLog.Error("adapter command need listen address as param")
+		SetExitStatus(1)
+		help = true
+	}
+
 	configInit(cmd)
 	bgServerInit()
 
-	if len(args) != 1 {
-		ConsoleLog.Error("Adapter command need listen address as param")
-		SetExitStatus(1)
-		return
-	}
 	adapterAddr = args[0]
 
 	cancelFunc := startAdapterServer(adapterAddr, adapterUseMirrorAddr)

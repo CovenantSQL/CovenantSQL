@@ -79,14 +79,14 @@ func init() {
 }
 
 func runRPC(cmd *Command, args []string) {
-	configInit(cmd)
-
 	if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
 		// error
 		ConsoleLog.Error("rpc payload is required for rpc tool")
 		SetExitStatus(1)
-		return
+		help = true
 	}
+
+	configInit(cmd)
 
 	req, resp := resolveRPCEntities()
 	ExitIfErrors()

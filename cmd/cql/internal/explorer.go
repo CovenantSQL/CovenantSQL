@@ -66,11 +66,17 @@ func startExplorerServer(explorerAddr string) func() {
 }
 
 func runExplorer(cmd *Command, args []string) {
+	if len(args) != 1 {
+		ConsoleLog.Error("explorer command need listen address as param")
+		SetExitStatus(1)
+		help = true
+	}
+
 	configInit(cmd)
 	bgServerInit()
 
 	if len(args) != 1 {
-		ConsoleLog.Error("Explorer command need listen address as param")
+		ConsoleLog.Error("explorer command need listen address as param")
 		SetExitStatus(1)
 		return
 	}

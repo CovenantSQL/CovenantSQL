@@ -27,6 +27,7 @@ import (
 
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -47,12 +48,13 @@ var (
 	}
 	rpcName     string
 	rpcEndpoint string
+	callBP      bool
 	rpcReq      string
 )
 
 // CmdRPC is cql rpc command entity.
 var CmdRPC = &Command{
-	UsageLine: "cql rpc [common params] [-wait-tx-confirm] -name rpc_name -endpoint rpc_endpoint -req rpc_request",
+	UsageLine: "cql rpc [common params] [-wait-tx-confirm] -name rpc_name <-endpoint rpc_endpoint | -bp> -req rpc_request",
 	Short:     "make a rpc request",
 	Long: `
 RPC makes a RPC request to the target endpoint.
@@ -76,19 +78,24 @@ func init() {
 
 	CmdRPC.Flag.StringVar(&rpcName, "name", "", "RPC name to do test call")
 	CmdRPC.Flag.StringVar(&rpcEndpoint, "endpoint", "", "RPC endpoint Node ID to do test call")
+	CmdRPC.Flag.BoolVar(&callBP, "bp", false, "Call block producer node")
 	CmdRPC.Flag.StringVar(&rpcReq, "req", "", "RPC request to do test call, in json format")
 }
 
 func runRPC(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+	configInit()
+
+	if callBP {
+		rpcEndpoint = string(conf.GConf.BP.NodeID)
+	}
+
 	if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
 		// error
 		ConsoleLog.Error("rpc payload is required for rpc tool")
 		SetExitStatus(1)
 		help = true
 	}
-
-	commonFlagsInit(cmd)
-	configInit()
 
 	req, resp := resolveRPCEntities()
 	ExitIfErrors()

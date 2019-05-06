@@ -278,6 +278,7 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Printf("\nConfig file:      %s\n", configFilePath)
 	fmt.Printf("Private key file: %s\n", privateKeyFile)
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
+	fmt.Printf("Wallet address: %s\n", walletAddr)
 
 	fmt.Printf(`
 Any further command could costs PTC.

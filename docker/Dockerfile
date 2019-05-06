@@ -1,5 +1,5 @@
 # Stage: all runner
-FROM frolvlad/alpine-glibc:latest
+FROM alpine:3.9
 
 ARG COMMIT
 ARG VERSION

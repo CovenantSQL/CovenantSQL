@@ -33,6 +33,7 @@ DNSSeed:
 `
 	// CQLMinerYAML is the config string in YAML format of the CovenantSQL TestNet for miner.
 	CQLMinerYAML = `
+ListenAddr: 0.0.0.0:4661
 BillingBlockCount: 60
 BPPeriod: 10s
 BPTick: 3s

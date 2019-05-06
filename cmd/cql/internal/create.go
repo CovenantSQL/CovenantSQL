@@ -83,7 +83,7 @@ var targetMiners List
 var node32 uint
 
 func addCreateFlags(cmd *Command) {
-	cmd.Flag.Var(&targetMiners, "target-miners", "List of target miner addresses(seperated by ',')")
+	cmd.Flag.Var(&targetMiners, "target-miners", "List of target miner addresses(separated by ',')")
 	cmd.Flag.UintVar(&node32, "node", 0, "Target node number")
 	cmd.Flag.Uint64Var(&meta.Space, "space", 0, "Minimum disk space requirement, 0 for none")
 	cmd.Flag.Uint64Var(&meta.Memory, "memory", 0, "Minimum memory requirement, 0 for none")

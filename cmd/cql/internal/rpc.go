@@ -54,7 +54,7 @@ var (
 
 // CmdRPC is cql rpc command entity.
 var CmdRPC = &Command{
-	UsageLine: "cql rpc [common params] [-wait-tx-confirm] -name rpc_name <-endpoint rpc_endpoint | -bp> -req rpc_request",
+	UsageLine: "cql rpc [common params] [-wait-tx-confirm] [-endpoint rpc_endpoint | -bp] -name rpc_name -req rpc_request",
 	Short:     "make a rpc request",
 	Long: `
 RPC makes a RPC request to the target endpoint.
@@ -92,7 +92,7 @@ func runRPC(cmd *Command, args []string) {
 
 	if rpcEndpoint == "" || rpcName == "" || rpcReq == "" {
 		// error
-		ConsoleLog.Error("rpc payload is required for rpc tool")
+		ConsoleLog.Error("rpc endpoint/name/request payload is required for rpc tool")
 		SetExitStatus(1)
 		help = true
 	}

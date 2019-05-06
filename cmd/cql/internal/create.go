@@ -128,6 +128,33 @@ func runCreate(cmd *Command, args []string) {
 			SetExitStatus(1)
 			return
 		}
+
+		// 0.5.0 version forward compatibility
+		var tempMeta map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(args[0]), &tempMeta); err == nil {
+			for k, v := range tempMeta {
+				switch strings.ToLower(k) {
+				case "targetminers":
+					_ = json.Unmarshal(v, &meta.TargetMiners)
+				case "loadavgpercpu":
+					_ = json.Unmarshal(v, &meta.LoadAvgPerCPU)
+				case "encryptionkey":
+					_ = json.Unmarshal(v, &meta.EncryptionKey)
+				case "useeventualconsistency":
+					_ = json.Unmarshal(v, &meta.UseEventualConsistency)
+				case "consistencylevel":
+					_ = json.Unmarshal(v, &meta.ConsistencyLevel)
+				case "isolationlevel":
+					_ = json.Unmarshal(v, &meta.IsolationLevel)
+				case "gasprice":
+					_ = json.Unmarshal(v, &meta.GasPrice)
+				case "advancepayment":
+					_ = json.Unmarshal(v, &meta.AdvancePayment)
+				}
+			}
+		} else {
+			err = nil
+		}
 	}
 
 	if meta.Node == 0 {

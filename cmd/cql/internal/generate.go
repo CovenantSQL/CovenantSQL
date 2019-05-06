@@ -39,7 +39,7 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params] [-source template_file] [-private existing_private_key] [dest_path]",
+	UsageLine: "cql generate [common params] [-source template_file] [-miner] [-private existing_private_key] [dest_path]",
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
@@ -56,12 +56,14 @@ or input a passphrase by
 var (
 	privateKeyParam string
 	source          string
+	minerListenAddr string
 )
 
 func init() {
 	CmdGenerate.Run = runGenerate
 	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
 	CmdGenerate.Flag.StringVar(&source, "source", "", "source config file template for config generation")
+	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "", "generate miner config with specified listen address")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -218,6 +220,9 @@ func runGenerate(cmd *Command, args []string) {
 	if source == "" {
 		// Load testnet config
 		rawConfig = testnet.GetTestNetConfig()
+		if minerListenAddr != "" {
+			testnet.SetMinerConfig(rawConfig)
+		}
 	} else {
 		// Load from template file
 		sourceConfig, err := ioutil.ReadFile(source)
@@ -241,13 +246,18 @@ func runGenerate(cmd *Command, args []string) {
 	if rawConfig.KnownNodes == nil {
 		rawConfig.KnownNodes = make([]proto.Node, 0, 1)
 	}
-	rawConfig.KnownNodes = append(rawConfig.KnownNodes, proto.Node{
+	node := proto.Node{
 		ID:        cliNodeID,
 		Role:      proto.Client,
 		Addr:      "0.0.0.0:15151",
 		PublicKey: publicKey,
 		Nonce:     nonce.Nonce,
-	})
+	}
+	if minerListenAddr != "" {
+		node.Role = proto.Miner
+		node.Addr = minerListenAddr
+	}
+	rawConfig.KnownNodes = append(rawConfig.KnownNodes, node)
 
 	// Write config
 	out, err := yaml.Marshal(rawConfig)

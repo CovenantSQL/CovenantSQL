@@ -18,6 +18,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -35,7 +36,7 @@ var meta client.ResourceMeta
 
 // CmdCreate is cql create command entity.
 var CmdCreate = &Command{
-	UsageLine: "cql create [common params] [-wait-tx-confirm] [db_meta params]",
+	UsageLine: "cql create [common params] [-wait-tx-confirm] [db_meta_params]",
 	Short:     "create a database",
 	Long: `
 Create command creates a CovenantSQL database by database meta params. The meta info must include
@@ -96,8 +97,8 @@ func addCreateFlags(cmd *Command) {
 }
 
 func runCreate(cmd *Command, args []string) {
-	if len(args) > 0 {
-		ConsoleLog.Error("create params should set by sepecific param name like -node")
+	if len(args) > 1 {
+		ConsoleLog.Error("create params should set by specific param name like -node")
 		SetExitStatus(1)
 		help = true
 		commonFlagsInit(cmd)
@@ -119,6 +120,15 @@ func runCreate(cmd *Command, args []string) {
 		return
 	}
 	meta.Node = uint16(node32)
+
+	if len(args) == 1 && args[0] != "" {
+		// fill the meta with params
+		if err := json.Unmarshal([]byte(args[0]), &meta); err != nil {
+			ConsoleLog.Error("create node json param is not valid")
+			SetExitStatus(1)
+			return
+		}
+	}
 
 	if meta.Node == 0 {
 		ConsoleLog.Error("create database failed: request node count must > 1")

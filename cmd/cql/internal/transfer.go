@@ -37,12 +37,12 @@ var CmdTransfer = &Command{
 Transfer transfers your token to the target account.
 The command arguments are target wallet address, amount of token, and token type.
 e.g.
-    cql transfer -addr=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -address=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 
 Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
 confirmation before the transfer takes effect.
 e.g.
-    cql transfer -wait-tx-confirm -addr=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -wait-tx-confirm -address=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 `,
 }
 

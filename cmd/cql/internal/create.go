@@ -18,13 +18,14 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"strings"
 	"time"
 
-	"gopkg.in/cheggaaa/pb.v1"
+	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -35,7 +36,7 @@ var meta client.ResourceMeta
 
 // CmdCreate is cql create command entity.
 var CmdCreate = &Command{
-	UsageLine: "cql create [common params] [-wait-tx-confirm] [db_meta params]",
+	UsageLine: "cql create [common params] [-wait-tx-confirm] [db_meta_params]",
 	Short:     "create a database",
 	Long: `
 Create command creates a CovenantSQL database by database meta params. The meta info must include
@@ -54,6 +55,7 @@ func init() {
 	CmdCreate.Run = runCreate
 
 	addCommonFlags(CmdCreate)
+	addConfigFlag(CmdCreate)
 	addWaitFlag(CmdCreate)
 	addCreateFlags(CmdCreate)
 }
@@ -81,7 +83,7 @@ var targetMiners List
 var node32 uint
 
 func addCreateFlags(cmd *Command) {
-	cmd.Flag.Var(&targetMiners, "target-miners", "List of target miner addresses(seperated by ',')")
+	cmd.Flag.Var(&targetMiners, "target-miners", "List of target miner addresses(separated by ',')")
 	cmd.Flag.UintVar(&node32, "node", 0, "Target node number")
 	cmd.Flag.Uint64Var(&meta.Space, "space", 0, "Minimum disk space requirement, 0 for none")
 	cmd.Flag.Uint64Var(&meta.Memory, "memory", 0, "Minimum memory requirement, 0 for none")
@@ -95,8 +97,8 @@ func addCreateFlags(cmd *Command) {
 }
 
 func runCreate(cmd *Command, args []string) {
-	if len(args) > 0 {
-		ConsoleLog.Error("create params should set by sepecific param name like -node")
+	if len(args) > 1 {
+		ConsoleLog.Error("create params should set by specific param name like -node")
 		SetExitStatus(1)
 		help = true
 		commonFlagsInit(cmd)
@@ -119,13 +121,50 @@ func runCreate(cmd *Command, args []string) {
 	}
 	meta.Node = uint16(node32)
 
+	if len(args) == 1 && args[0] != "" {
+		// fill the meta with params
+		if err := json.Unmarshal([]byte(args[0]), &meta); err != nil {
+			ConsoleLog.Error("create node json param is not valid")
+			SetExitStatus(1)
+			return
+		}
+
+		// 0.5.0 version forward compatibility
+		var tempMeta map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(args[0]), &tempMeta); err == nil {
+			for k, v := range tempMeta {
+				switch strings.ToLower(k) {
+				case "targetminers":
+					_ = json.Unmarshal(v, &meta.TargetMiners)
+				case "loadavgpercpu":
+					_ = json.Unmarshal(v, &meta.LoadAvgPerCPU)
+				case "encryptionkey":
+					_ = json.Unmarshal(v, &meta.EncryptionKey)
+				case "useeventualconsistency":
+					_ = json.Unmarshal(v, &meta.UseEventualConsistency)
+				case "consistencylevel":
+					_ = json.Unmarshal(v, &meta.ConsistencyLevel)
+				case "isolationlevel":
+					_ = json.Unmarshal(v, &meta.IsolationLevel)
+				case "gasprice":
+					_ = json.Unmarshal(v, &meta.GasPrice)
+				case "advancepayment":
+					_ = json.Unmarshal(v, &meta.AdvancePayment)
+				}
+			}
+		} else {
+			err = nil
+		}
+	}
+
 	if meta.Node == 0 {
 		ConsoleLog.Error("create database failed: request node count must > 1")
 		SetExitStatus(1)
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	// create database
 	// parse instance requirement

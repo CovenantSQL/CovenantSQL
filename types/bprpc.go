@@ -174,3 +174,16 @@ type QueryTxStateResp struct {
 	Hash  hash.Hash
 	State pi.TransactionState
 }
+
+// QueryAccountSQLChainProfilesReq defines a request of QueryAccountSQLChainProfiles RPC method.
+type QueryAccountSQLChainProfilesReq struct {
+	proto.Envelope
+	Addr proto.AccountAddress
+}
+
+// QueryAccountSQLChainProfilesResp defines a response of QueryAccountSQLChainProfiles RPC method.
+type QueryAccountSQLChainProfilesResp struct {
+	proto.Envelope
+	Addr     proto.AccountAddress
+	Profiles []*SQLChainProfile
+}

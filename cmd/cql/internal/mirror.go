@@ -44,6 +44,7 @@ func init() {
 	CmdMirror.Run = runMirror
 
 	addCommonFlags(CmdMirror)
+	addConfigFlag(CmdMirror)
 	addBgServerFlag(CmdMirror)
 }
 
@@ -72,7 +73,8 @@ func runMirror(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 	bgServerInit()
 
 	dsn := args[0]

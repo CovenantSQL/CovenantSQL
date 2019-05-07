@@ -44,6 +44,7 @@ func init() {
 	CmdGrant.Run = runGrant
 
 	addCommonFlags(CmdGrant)
+	addConfigFlag(CmdGrant)
 	addWaitFlag(CmdGrant)
 }
 
@@ -68,7 +69,8 @@ func runGrant(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 	updatePermission := args[0]
 	// update user's permission on sqlchain
 	var perm userPermission

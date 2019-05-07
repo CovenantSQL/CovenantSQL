@@ -37,12 +37,12 @@ var CmdTransfer = &Command{
 Transfer transfers your token to the target account.
 The command arguments are target wallet address, amount of token, and token type.
 e.g.
-    cql transfer -addr=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -address=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 
 Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
 confirmation before the transfer takes effect.
 e.g.
-    cql transfer -wait-tx-confirm -addr=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -wait-tx-confirm -address=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 `,
 }
 
@@ -50,6 +50,7 @@ func init() {
 	CmdTransfer.Run = runTransfer
 
 	addCommonFlags(CmdTransfer)
+	addConfigFlag(CmdTransfer)
 	addWaitFlag(CmdTransfer)
 	CmdTransfer.Flag.StringVar(&addr, "address", "", "Address of an account to transfer token.")
 	CmdTransfer.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer.")
@@ -63,7 +64,8 @@ func runTransfer(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	unit := types.FromString(tokenType)
 	if !unit.Listed() {

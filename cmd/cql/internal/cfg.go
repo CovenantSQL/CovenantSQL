@@ -55,19 +55,17 @@ var (
 )
 
 func addCommonFlags(cmd *Command) {
-	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
-		"Config file for covenantsql (Usually no need to set, default is enough.)")
-
-	// debugging flags.
-	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
-		"Console log level: trace debug info warning error fatal panic")
-	cmd.Flag.StringVar(&password, "password", "",
-		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
+	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
 	cmd.Flag.BoolVar(&noPassword, "no-password", true,
 		"Use empty password for master key")
+
+	// debugging flags.
+	cmd.Flag.StringVar(&password, "password", "",
+		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
+	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
+		"Console log level: trace debug info warning error fatal panic")
 	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
 }
 
 func commonFlagsInit(cmd *Command) {
@@ -87,9 +85,12 @@ func commonFlagsInit(cmd *Command) {
 	}
 }
 
-func configInit(cmd *Command) {
-	commonFlagsInit(cmd)
+func addConfigFlag(cmd *Command) {
+	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
+		"Config file for covenantsql (Usually no need to set, default is enough.)")
+}
 
+func configInit() {
 	configFile = utils.HomeDirExpand(configFile)
 
 	if password == "" {

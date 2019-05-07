@@ -47,6 +47,7 @@ func init() {
 	CmdWallet.Run = runWallet
 
 	addCommonFlags(CmdWallet)
+	addConfigFlag(CmdWallet)
 	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
 }
 
@@ -68,7 +69,8 @@ func walletGen() string {
 }
 
 func runWallet(cmd *Command, args []string) {
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 
 	if conf.GConf.WalletAddress != "" {
 		fmt.Printf("\n\nwallet address: %s\n", conf.GConf.WalletAddress)

@@ -26,18 +26,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
+
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params]",
+	UsageLine: "cql generate [common params] [-source template_file] [-miner] [-private existing_private_key] [dest_path]",
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
@@ -51,8 +53,17 @@ or input a passphrase by
 `,
 }
 
+var (
+	privateKeyParam string
+	source          string
+	minerListenAddr string
+)
+
 func init() {
 	CmdGenerate.Run = runGenerate
+	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
+	CmdGenerate.Flag.StringVar(&source, "source", "", "source config file template for config generation")
+	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "", "generate miner config with specified listen address")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -88,7 +99,15 @@ func askDeleteFile(file string) {
 func runGenerate(cmd *Command, args []string) {
 	commonFlagsInit(cmd)
 
-	workingRoot := utils.HomeDirExpand(configFile)
+	var workingRoot string
+	if len(args) == 0 {
+		workingRoot = utils.HomeDirExpand("~/.cql")
+	} else if args[0] == "" {
+		workingRoot = utils.HomeDirExpand("~/.cql")
+	} else {
+		workingRoot = utils.HomeDirExpand(args[0])
+	}
+
 	if workingRoot == "" {
 		ConsoleLog.Error("config directory is required for generate config")
 		SetExitStatus(1)
@@ -99,7 +118,34 @@ func runGenerate(cmd *Command, args []string) {
 		workingRoot = filepath.Dir(workingRoot)
 	}
 
-	var err error
+	privateKeyFileName := "private.key"
+	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
+
+	var (
+		privateKey *asymmetric.PrivateKey
+		err        error
+	)
+
+	// detect customized private key
+	if privateKeyParam != "" {
+		var oldPassword string
+
+		if password == "" {
+			fmt.Println("Please enter the password of the existing private key")
+			oldPassword = readMasterKey(noPassword)
+		} else {
+			oldPassword = password
+		}
+
+		privateKey, err = kms.LoadPrivateKey(privateKeyParam, []byte(oldPassword))
+
+		if err != nil {
+			ConsoleLog.WithError(err).Error("load specified private key failed")
+			SetExitStatus(1)
+			return
+		}
+	}
+
 	var fileinfo os.FileInfo
 	if fileinfo, err = os.Stat(workingRoot); err == nil {
 		if fileinfo.IsDir() {
@@ -123,15 +169,6 @@ func runGenerate(cmd *Command, args []string) {
 		}
 	}
 
-	if err != nil && !os.IsNotExist(err) {
-		ConsoleLog.WithError(err).Error("unexpected error")
-		SetExitStatus(1)
-		return
-	}
-
-	privateKeyFileName := "private.key"
-	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
-
 	err = os.Mkdir(workingRoot, 0755)
 	if err != nil && !os.IsExist(err) {
 		ConsoleLog.WithError(err).Error("unexpected error")
@@ -141,14 +178,17 @@ func runGenerate(cmd *Command, args []string) {
 
 	fmt.Println("Generating private key...")
 	if password == "" {
+		fmt.Println("Please enter password for new private key")
 		password = readMasterKey(noPassword)
 	}
 
-	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
-	if err != nil {
-		ConsoleLog.WithError(err).Error("generate key pair failed")
-		SetExitStatus(1)
-		return
+	if privateKeyParam == "" {
+		privateKey, _, err = asymmetric.GenSecp256k1KeyPair()
+		if err != nil {
+			ConsoleLog.WithError(err).Error("generate key pair failed")
+			SetExitStatus(1)
+			return
+		}
 	}
 
 	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(password)); err != nil {
@@ -174,25 +214,53 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Println("Generated nonce.")
 
 	fmt.Println("Generating config file...")
-	// Load testnet config
-	testnetConfig := testnet.GetTestNetConfig()
-	// Add client config
-	testnetConfig.PrivateKeyFile = privateKeyFileName
-	testnetConfig.WalletAddress = walletAddr
-	testnetConfig.ThisNodeID = cliNodeID
-	if testnetConfig.KnownNodes == nil {
-		testnetConfig.KnownNodes = make([]proto.Node, 0, 1)
+
+	var rawConfig *conf.Config
+
+	if source == "" {
+		// Load testnet config
+		rawConfig = testnet.GetTestNetConfig()
+		if minerListenAddr != "" {
+			testnet.SetMinerConfig(rawConfig)
+		}
+	} else {
+		// Load from template file
+		sourceConfig, err := ioutil.ReadFile(source)
+		if err != nil {
+			ConsoleLog.WithError(err).Error("read config template failed")
+			SetExitStatus(1)
+			return
+		}
+		rawConfig = &conf.Config{}
+		if err = yaml.Unmarshal(sourceConfig, rawConfig); err != nil {
+			ConsoleLog.WithError(err).Error("load config template failed")
+			SetExitStatus(1)
+			return
+		}
 	}
-	testnetConfig.KnownNodes = append(testnetConfig.KnownNodes, proto.Node{
+
+	// Add client config
+	rawConfig.PrivateKeyFile = privateKeyFileName
+	rawConfig.WalletAddress = walletAddr
+	rawConfig.ThisNodeID = cliNodeID
+	if rawConfig.KnownNodes == nil {
+		rawConfig.KnownNodes = make([]proto.Node, 0, 1)
+	}
+	node := proto.Node{
 		ID:        cliNodeID,
 		Role:      proto.Client,
 		Addr:      "0.0.0.0:15151",
 		PublicKey: publicKey,
 		Nonce:     nonce.Nonce,
-	})
+	}
+	if minerListenAddr != "" {
+		node.Role = proto.Miner
+		node.Addr = minerListenAddr
+	}
+	rawConfig.KnownNodes = append(rawConfig.KnownNodes, node)
 
 	// Write config
-	out, err := yaml.Marshal(testnetConfig)
+	out, err := yaml.Marshal(rawConfig)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
@@ -210,6 +278,7 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Printf("\nConfig file:      %s\n", configFilePath)
 	fmt.Printf("Private key file: %s\n", privateKeyFile)
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
+	fmt.Printf("Wallet address: %s\n", walletAddr)
 
 	fmt.Printf(`
 Any further command could costs PTC.

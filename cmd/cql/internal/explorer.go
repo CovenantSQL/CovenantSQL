@@ -45,6 +45,7 @@ func init() {
 	CmdExplorer.Run = runExplorer
 
 	addCommonFlags(CmdExplorer)
+	addConfigFlag(CmdExplorer)
 	addBgServerFlag(CmdExplorer)
 }
 
@@ -72,7 +73,8 @@ func runExplorer(cmd *Command, args []string) {
 		help = true
 	}
 
-	configInit(cmd)
+	commonFlagsInit(cmd)
+	configInit()
 	bgServerInit()
 
 	if len(args) != 1 {

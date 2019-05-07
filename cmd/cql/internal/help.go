@@ -33,7 +33,7 @@ var (
 // CmdVersion is cql version command entity.
 var CmdVersion = &Command{
 	UsageLine: "cql version",
-	Short:     "show build version infomation",
+	Short:     "show build version information",
 	Long: `
 Use "cql help <command>" for more information about a command.
 `,
@@ -126,6 +126,7 @@ Use "cql help <command>" for more information about a command.
 	}
 
 	addCommonFlags(CmdHelp)
+	addConfigFlag(CmdHelp)
 	fmt.Fprint(output, helpCommon)
 	CmdHelp.Flag.SetOutput(output)
 	CmdHelp.Flag.PrintDefaults()

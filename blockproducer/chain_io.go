@@ -17,6 +17,8 @@
 package blockproducer
 
 import (
+	"database/sql"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -140,6 +142,60 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	}
 
 	return pi.TransactionStateNotFound, nil
+}
+
+func (c *Chain) queryAccountSQLChainProfiles(account proto.AccountAddress) (profiles []*types.SQLChainProfile, err error) {
+	var dbs []proto.DatabaseID
+
+	dbs, err = func() (dbs []proto.DatabaseID, err error) {
+		c.RLock()
+		defer c.RUnlock()
+
+		var (
+			id       string
+			rows     *sql.Rows
+			querySQL = `SELECT "id" FROM "indexed_shardChains" WHERE "account" = ?`
+		)
+
+		rows, err = c.storage.Reader().Query(querySQL, account.String())
+
+		if err != nil {
+			return
+		}
+
+		defer func() {
+			_ = rows.Close()
+		}()
+
+		for rows.Next() {
+			err = rows.Scan(&id)
+			if err != nil {
+				return
+			}
+
+			dbs = append(dbs, proto.DatabaseID(id))
+		}
+
+		return
+	}()
+
+	if err != nil {
+		return
+	}
+
+	var (
+		profile *types.SQLChainProfile
+		ok      bool
+	)
+
+	for _, db := range dbs {
+		profile, ok = c.loadSQLChainProfile(db)
+		if ok {
+			profiles = append(profiles, profile)
+		}
+	}
+
+	return
 }
 
 func (c *Chain) immutableNextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {

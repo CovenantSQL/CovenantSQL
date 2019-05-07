@@ -49,22 +49,16 @@ var (
 	}
 )
 
-// LoadPrivateKey loads private key from keyFilePath, and verifies the hash
-// head.
-func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
+// DecodePrivateKey loads private key from private key bytes form.
+func DecodePrivateKey(keyBytes []byte, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
 	var (
 		isBinaryKey bool
 		decData     []byte
 	)
-	fileContent, err := ioutil.ReadFile(keyFilePath)
-	if err != nil {
-		log.WithField("path", keyFilePath).WithError(err).Error("read key file failed")
-		return
-	}
 
 	// It's very impossible to get an raw private key base58 decodable.
 	// So if it's not base58 decodable we just make fileContent the encData
-	encData, version, err := base58.CheckDecode(string(fileContent))
+	encData, version, err := base58.CheckDecode(string(keyBytes))
 	switch err {
 	case base58.ErrChecksum:
 		return
@@ -72,7 +66,7 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	case base58.ErrInvalidFormat:
 		// be compatible with the original binary private key format
 		isBinaryKey = true
-		encData = fileContent
+		encData = keyBytes
 	}
 
 	if version != 0 && version != PrivateKeyStoreVersion {
@@ -121,18 +115,40 @@ func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.Priva
 	return
 }
 
-// SavePrivateKey saves private key with its hash on the head to keyFilePath,
-// default perm is 0600.
-func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []byte) (err error) {
+// LoadPrivateKey loads private key from keyFilePath, and verifies the hash head.
+func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
+	fileContent, err := ioutil.ReadFile(keyFilePath)
+	if err != nil {
+		log.WithField("path", keyFilePath).WithError(err).Error("read key file failed")
+		return
+	}
+
+	return DecodePrivateKey(fileContent, masterKey)
+}
+
+// EncodePrivateKey encode private to key to string format.
+func EncodePrivateKey(key *asymmetric.PrivateKey, masterKey []byte) (keyBytes []byte, err error) {
 	serializedKey := key.Serialize()
 	encKey, err := symmetric.EncryptWithPassword(serializedKey, masterKey, privateKDFSalt)
 	if err != nil {
 		return
 	}
 
-	base58EncKey := base58.CheckEncode(encKey, PrivateKeyStoreVersion)
+	keyBytes = []byte(base58.CheckEncode(encKey, PrivateKeyStoreVersion))
 
-	return ioutil.WriteFile(keyFilePath, []byte(base58EncKey), 0600)
+	return
+}
+
+// SavePrivateKey saves private key with its hash on the head to keyFilePath,
+// default perm is 0600.
+func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []byte) (err error) {
+	var keyBytes []byte
+	keyBytes, err = EncodePrivateKey(key, masterKey)
+	if err != nil {
+		return
+	}
+
+	return ioutil.WriteFile(keyFilePath, keyBytes, 0600)
 }
 
 // InitLocalKeyPair initializes local private key.

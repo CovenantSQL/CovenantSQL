@@ -106,25 +106,23 @@ func showAllTokenBalance() {
 	if stableCoinBalance, err = client.GetTokenBalance(types.Particle); err != nil {
 		if strings.Contains(err.Error(), "no such token balance") {
 			fmt.Println("Your account is not created in the TestNet, please apply tokens from our faucet first.")
-			SetExitStatus(1)
-			return
 		} else {
 			ConsoleLog.WithError(err).Error("get Particle balance failed")
-			SetExitStatus(1)
-			return
 		}
+
+		SetExitStatus(1)
+		return
 	}
 
 	if covenantCoinBalance, err = client.GetTokenBalance(types.Wave); err != nil {
 		if strings.Contains(err.Error(), "no such token balance") {
 			fmt.Println("Your account is not created in the TestNet, please apply tokens from our faucet first.")
-			SetExitStatus(1)
-			return
 		} else {
 			ConsoleLog.WithError(err).Error("get Wave balance failed")
-			SetExitStatus(1)
-			return
 		}
+
+		SetExitStatus(1)
+		return
 	}
 
 	fmt.Printf("Particle balance is: %d\n", stableCoinBalance)

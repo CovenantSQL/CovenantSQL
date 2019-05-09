@@ -50,8 +50,8 @@ case $role in
         docker cp covenantsql_bp_1:/app/cql ${RUNNING_DIR}
         sleep 3s
         ${RUNNING_DIR}/cql create -config ${RUNNING_DIR}/node_c/config.yaml \
-            -wait-tx-confirm -no-password '{"node":4,"advancepayment": 2000000000}' | tee dsn.txt
-        dsn=$(cat dsn.txt)
+            -wait-tx-confirm -node 4 -advance-payment 2000000000
+        dsn=$(cat ${RUNNING_DIR}/node_c/.dsn | tail -n1)
 
         #Start client
         go build -o 500million

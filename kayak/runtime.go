@@ -35,10 +35,6 @@ import (
 const (
 	// commit channel window size
 	commitWindow = 0
-	// missing log window
-	missingLogWindow = 10
-	// missing log concurrency
-	missingLogConcurrency = 10
 )
 
 // Runtime defines the main kayak Runtime.
@@ -85,7 +81,7 @@ type Runtime struct {
 	serviceName string
 	// rpc method for apply requests.
 	applyRPCMethod string
-	// rpc method for fetch requests.
+	// rpc method for startFetch requests.
 	fetchRPCMethod string
 
 	//// Parameters
@@ -97,13 +93,11 @@ type Runtime struct {
 	prepareTimeout time.Duration
 	// commit timeout defines the max allowed time for commit operation.
 	commitTimeout time.Duration
-	// log wait timeout to fetch missing logs.
+	// log wait timeout to startFetch missing logs.
 	logWaitTimeout time.Duration
 	// channel for awaiting commits.
-	commitCh chan *commitReq
-	// channel for missing log indexes.
-	missingLogCh chan *waitItem
-	waitLogMap   sync.Map // map[uint64]*waitItem
+	commitCh   chan *commitReq
+	waitLogMap sync.Map // map[uint64]*waitItem
 
 	/// Sub-routines management.
 	started uint32
@@ -124,10 +118,11 @@ type commitReq struct {
 
 // commitResult defines the commit operation result.
 type commitResult struct {
-	index  uint64
-	result interface{}
-	err    error
-	rpc    *rpcTracker
+	index      uint64
+	result     interface{}
+	err        error
+	storageErr error
+	rpc        *rpcTracker
 }
 
 type commitFuture struct {
@@ -239,7 +234,6 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 		commitTimeout:    cfg.CommitTimeout,
 		logWaitTimeout:   cfg.LogWaitTimeout,
 		commitCh:         make(chan *commitReq, commitWindow),
-		missingLogCh:     make(chan *waitItem, missingLogWindow),
 
 		// stop coordinator
 		stopCh: make(chan struct{}),
@@ -261,10 +255,6 @@ func (r *Runtime) Start() (err error) {
 
 	// start commit cycle
 	r.goFunc(r.commitCycle)
-	// start missing log worker
-	for i := 0; i != missingLogConcurrency; i++ {
-		r.goFunc(r.missingLogCycle)
-	}
 
 	return
 }
@@ -335,7 +325,7 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	return
 }
 
-// Fetch defines entry for missing log fetch.
+// Fetch defines entry for missing log startFetch.
 func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error) {
 	if atomic.LoadUint32(&r.started) != 1 {
 		err = kt.ErrStopped
@@ -348,7 +338,7 @@ func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error
 		log.WithField("l", index).
 			WithFields(tm.ToLogFields()).
 			WithError(err).
-			Debug("kayak log fetch")
+			Debug("kayak log startFetch")
 	}()
 
 	r.peersLock.RLock()
@@ -368,58 +358,7 @@ func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error
 
 // FollowerApply defines entry for follower node.
 func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
-	if l == nil {
-		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
-		return
-	}
-	if atomic.LoadUint32(&r.started) != 1 {
-		err = kt.ErrStopped
-		return
-	}
-
-	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply."+l.Type.String())
-	defer task.End()
-
-	tm := timer.NewTimer()
-
-	defer func() {
-		log.
-			WithFields(log.Fields{
-				"t": l.Type.String(),
-				"i": l.Index,
-			}).
-			WithFields(tm.ToLogFields()).
-			WithError(err).
-			Debug("kayak follower apply")
-	}()
-
-	r.peersLock.RLock()
-	defer r.peersLock.RUnlock()
-
-	tm.Add("peers_lock")
-
-	if r.role == proto.Leader {
-		// not follower
-		err = kt.ErrNotFollower
-		return
-	}
-
-	// verify log structure
-	switch l.Type {
-	case kt.LogPrepare:
-		err = r.followerPrepare(ctx, tm, l)
-	case kt.LogRollback:
-		err = r.followerRollback(ctx, tm, l)
-	case kt.LogCommit:
-		err = r.followerCommit(ctx, tm, l)
-	}
-
-	if err == nil {
-		r.updateNextIndex(ctx, l)
-		r.triggerLogAwaits(l.Index)
-	}
-
-	return
+	return r.followerApply(l, true)
 }
 
 // UpdatePeers defines entry for peers update logic.
@@ -466,4 +405,62 @@ func (r *Runtime) markPrepareFinished(ctx context.Context, index uint64) {
 	defer r.pendingPreparesLock.Unlock()
 
 	delete(r.pendingPrepares, index)
+}
+
+func (r *Runtime) followerApply(l *kt.Log, checkPrepare bool) (err error) {
+	if l == nil {
+		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
+		return
+	}
+	if atomic.LoadUint32(&r.started) != 1 {
+		err = kt.ErrStopped
+		return
+	}
+
+	ctx, task := trace.NewTask(context.Background(), "Kayak.FollowerApply."+l.Type.String())
+	defer task.End()
+
+	tm := timer.NewTimer()
+
+	var storageErr error
+
+	defer func() {
+		log.
+			WithFields(log.Fields{
+				"t":  l.Type.String(),
+				"i":  l.Index,
+				"se": storageErr,
+			}).
+			WithFields(tm.ToLogFields()).
+			WithError(err).
+			Debug("kayak follower apply")
+	}()
+
+	r.peersLock.RLock()
+	defer r.peersLock.RUnlock()
+
+	tm.Add("peers_lock")
+
+	if r.role == proto.Leader {
+		// not follower
+		err = kt.ErrNotFollower
+		return
+	}
+
+	// verify log structure
+	switch l.Type {
+	case kt.LogPrepare:
+		err = r.followerPrepare(ctx, tm, l, checkPrepare)
+	case kt.LogRollback:
+		err = r.followerRollback(ctx, tm, l)
+	case kt.LogCommit:
+		storageErr, err = r.followerCommit(ctx, tm, l)
+	}
+
+	if err == nil {
+		r.updateNextIndex(ctx, l)
+		r.triggerLogAwaits(l)
+	}
+
+	return
 }

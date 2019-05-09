@@ -30,6 +30,10 @@ type writeResult struct {
 	err error
 }
 
+type buffersWriter interface {
+	WriteBuffers(v [][]byte) (n int, err error)
+}
+
 // Session defines a multiplexed connection for streams
 type Session struct {
 	conn io.ReadWriteCloser
@@ -207,48 +211,29 @@ func (s *Session) returnTokens(n int) {
 	}
 }
 
-// session read a frame from underlying connection
-// it's data is pointed to the input buffer
-func (s *Session) readFrame(buffer []byte) (f Frame, err error) {
-	var hdr rawHeader
-	if _, err := io.ReadFull(s.conn, hdr[:]); err != nil {
-		return f, errors.Wrap(err, "readFrame")
-	}
-
-	if hdr.Version() != version {
-		return f, errors.New(errInvalidProtocol)
-	}
-
-	f.ver = hdr.Version()
-	f.cmd = hdr.Cmd()
-	f.sid = hdr.StreamID()
-	if length := hdr.Length(); length > 0 {
-		f.data = buffer[:length]
-		if _, err := io.ReadFull(s.conn, f.data); err != nil {
-			return f, errors.Wrap(err, "readFrame")
-		}
-	}
-	return f, nil
-}
-
 // recvLoop keeps on reading from underlying connection if tokens are available
 func (s *Session) recvLoop() {
-	buffer := make([]byte, 1<<16)
+	var hdr rawHeader
+
 	for {
 		for atomic.LoadInt32(&s.bucket) <= 0 && !s.IsClosed() {
 			<-s.bucketNotify
 		}
 
-		if f, err := s.readFrame(buffer); err == nil {
+		// read header first
+		if _, err := io.ReadFull(s.conn, hdr[:]); err == nil {
+			if hdr.Version() != version { // just ignore
+				continue
+			}
 			atomic.StoreInt32(&s.dataReady, 1)
-
-			switch f.cmd {
+			sid := hdr.StreamID()
+			switch hdr.Cmd() {
 			case cmdNOP:
 			case cmdSYN:
 				s.streamLock.Lock()
-				if _, ok := s.streams[f.sid]; !ok {
-					stream := newStream(f.sid, s.config.MaxFrameSize, s)
-					s.streams[f.sid] = stream
+				if _, ok := s.streams[sid]; !ok {
+					stream := newStream(sid, s.config.MaxFrameSize, s)
+					s.streams[sid] = stream
 					select {
 					case s.chAccepts <- stream:
 					case <-s.die:
@@ -257,19 +242,27 @@ func (s *Session) recvLoop() {
 				s.streamLock.Unlock()
 			case cmdFIN:
 				s.streamLock.Lock()
-				if stream, ok := s.streams[f.sid]; ok {
+				if stream, ok := s.streams[sid]; ok {
 					stream.markRST()
 					stream.notifyReadEvent()
 				}
 				s.streamLock.Unlock()
 			case cmdPSH:
+				var written int64
+				var err error
 				s.streamLock.Lock()
-				if stream, ok := s.streams[f.sid]; ok {
-					atomic.AddInt32(&s.bucket, -int32(len(f.data)))
-					stream.pushBytes(f.data)
+				if stream, ok := s.streams[sid]; ok {
+					written, err = stream.receiveBytes(s.conn, int64(hdr.Length()))
+					atomic.AddInt32(&s.bucket, -int32(written))
 					stream.notifyReadEvent()
 				}
 				s.streamLock.Unlock()
+
+				// read data error
+				if err != nil {
+					s.Close()
+					return
+				}
 			default:
 				s.Close()
 				return
@@ -304,6 +297,10 @@ func (s *Session) keepalive() {
 
 func (s *Session) sendLoop() {
 	buf := make([]byte, (1<<16)+headerSize)
+	var n int
+	var err error
+	v := make([][]byte, 2) // vector for writing
+
 	for {
 		select {
 		case <-s.die:
@@ -313,8 +310,15 @@ func (s *Session) sendLoop() {
 			buf[1] = request.frame.cmd
 			binary.LittleEndian.PutUint16(buf[2:], uint16(len(request.frame.data)))
 			binary.LittleEndian.PutUint32(buf[4:], request.frame.sid)
-			copy(buf[headerSize:], request.frame.data)
-			n, err := s.conn.Write(buf[:headerSize+len(request.frame.data)])
+
+			if bw, ok := s.conn.(buffersWriter); ok {
+				v[0] = buf[:headerSize]
+				v[1] = request.frame.data
+				n, err = bw.WriteBuffers(v)
+			} else {
+				copy(buf[headerSize:], request.frame.data)
+				n, err = s.conn.Write(buf[:headerSize+len(request.frame.data)])
+			}
 
 			n -= headerSize
 			if n < 0 {

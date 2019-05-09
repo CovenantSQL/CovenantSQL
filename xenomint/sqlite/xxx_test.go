@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -44,15 +45,17 @@ func setup() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
-	}
-	if lmt.Max < minNoFile {
-		panic("insufficient max RLIMIT_NOFILE")
-	}
-	lmt.Cur = lmt.Max
-	if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
+	if runtime.GOOS == "linux" {
+		if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+			panic(err)
+		}
+		if lmt.Max < minNoFile {
+			panic("insufficient max RLIMIT_NOFILE")
+		}
+		lmt.Cur = lmt.Max
+		if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+			panic(err)
+		}
 	}
 
 	log.SetOutput(os.Stdout)

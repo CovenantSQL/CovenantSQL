@@ -88,6 +88,7 @@
 //   ODBC (odbc)                  | od
 //   OLE ODBC (oleodbc)           | oo, ole, oleodbc [adodb]
 //   Presto (presto)              | pr, prestodb, prestos, prs, prestodbs
+//   SAP ASE (tds)                | ax, ase, sapase
 //   SAP HANA (hdb)               | sa, saphana, sap, hana
 //   Snowflake (snowflake)        | sf
 //   VoltDB (voltdb)              | vo, volt, vdb
@@ -133,6 +134,7 @@
 //   ODBC (odbc)                  | github.com/alexbrainman/odbc
 //   OLE ODBC (oleodbc)*          | github.com/mattn/go-adodb
 //   Presto (presto)              | github.com/prestodb/presto-go-client
+//   SAP ASE (tds)                | github.com/thda/tds
 //   SAP HANA (hdb)               | github.com/SAP/go-hdb/driver
 //   Snowflake (snowflake)        | github.com/snowflakedb/gosnowflake
 //   VoltDB (voltdb)              | github.com/VoltDB/voltdb-client-go/voltdbclient

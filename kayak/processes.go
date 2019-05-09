@@ -132,7 +132,7 @@ func (r *Runtime) leaderLogRollback(ctx context.Context, tm *timer.Timer, i uint
 	return r.newLog(ctx, kt.LogRollback, r.uint64ToBytes(i))
 }
 
-func (r *Runtime) followerPrepare(ctx context.Context, tm *timer.Timer, l *kt.Log) (err error) {
+func (r *Runtime) followerPrepare(ctx context.Context, tm *timer.Timer, l *kt.Log, checkPrepare bool) (err error) {
 	defer func() {
 		log.WithField("r", l.Index).WithFields(tm.ToLogFields()).Debug("kayak follower prepare stat")
 	}()
@@ -144,10 +144,12 @@ func (r *Runtime) followerPrepare(ctx context.Context, tm *timer.Timer, l *kt.Lo
 	}
 	tm.Add("decode")
 
-	if err = r.doCheck(ctx, req); err != nil {
-		return
+	if checkPrepare {
+		if err = r.doCheck(ctx, req); err != nil {
+			return
+		}
+		tm.Add("check")
 	}
-	tm.Add("check")
 
 	// write log
 	if err = r.writeWAL(ctx, l); err != nil {
@@ -183,13 +185,13 @@ func (r *Runtime) followerRollback(ctx context.Context, tm *timer.Timer, l *kt.L
 	}
 	tm.Add("write_wal")
 
-	r.markPrepareFinished(ctx, l.Index)
+	r.markPrepareFinished(ctx, prepareLog.Index)
 	tm.Add("mark")
 
 	return
 }
 
-func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log) (err error) {
+func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log) (storageErr error, err error) {
 	var (
 		prepareLog *kt.Log
 		lastCommit uint64
@@ -218,7 +220,15 @@ func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log
 		err = cResult.err
 	}
 
-	r.markPrepareFinished(ctx, l.Index)
+	if err != nil {
+		return
+	}
+
+	if cResult != nil {
+		storageErr = cResult.storageErr
+	}
+
+	r.markPrepareFinished(ctx, prepareLog.Index)
 	tm.Add("mark")
 
 	return

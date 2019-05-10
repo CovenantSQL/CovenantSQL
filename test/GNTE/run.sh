@@ -6,7 +6,7 @@ if [ "fast" == "$param" ]; then
     yaml=./scripts/gnte_0ms.yaml
 else
     yaml=(
-        ./scripts/gnte_{0,0.2,5,20,100,eventual}ms.yaml
+        ./scripts/gnte_{0,50,bpminer50,inbp50,eventual}ms.yaml
     )
 fi
 

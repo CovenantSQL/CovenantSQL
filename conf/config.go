@@ -23,6 +23,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -203,5 +204,22 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	if config.Miner != nil && !path.IsAbs(config.Miner.RootDir) {
 		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
 	}
+
+	if config.WalletAddress != "" {
+		for _, node := range config.KnownNodes {
+			if node.ID == config.ThisNodeID {
+				if node.PublicKey != nil {
+					var walletHash proto.AccountAddress
+
+					if walletHash, err = crypto.PubKeyHash(node.PublicKey); err != nil {
+						return
+					}
+
+					config.WalletAddress = walletHash.String()
+				}
+			}
+		}
+	}
+
 	return
 }

@@ -22,7 +22,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -51,32 +50,11 @@ func init() {
 	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
 }
 
-func walletGen() string {
-	//TODO if config has wallet, print and return
-
-	publicKey := getPublicFromConfig()
-
-	keyHash, err := crypto.PubKeyHash(publicKey)
-	if err != nil {
-		ConsoleLog.WithError(err).Error("unexpected error")
-		SetExitStatus(1)
-		return ""
-	}
-
-	return keyHash.String()
-
-	//TODO store in config.yaml
-}
-
 func runWallet(cmd *Command, args []string) {
 	commonFlagsInit(cmd)
 	configInit()
 
-	if conf.GConf.WalletAddress != "" {
-		fmt.Printf("\n\nwallet address: %s\n", conf.GConf.WalletAddress)
-	} else {
-		fmt.Printf("\n\nwallet address: %s\n", walletGen())
-	}
+	fmt.Printf("\n\nwallet address: %s\n", conf.GConf.WalletAddress)
 
 	var err error
 	if strings.ToLower(tokenName) == "" {

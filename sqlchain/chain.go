@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"expvar"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -30,6 +31,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -45,6 +47,16 @@ import (
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 )
 
+const (
+	mwMinerChain               = "service:miner:chain"
+	mwMinerChainBlockCount     = "head:count"
+	mwMinerChainBlockHeight    = "head:height"
+	mwMinerChainBlockHash      = "head:hash"
+	mwMinerChainBlockTimestamp = "head:timestamp"
+	mwMinerChainRequestsFreq   = "requests:freq"
+	mwMinerChainRequestsCount  = "requests:count"
+)
+
 var (
 	metaBlockIndex    = [4]byte{'B', 'L', 'C', 'K'}
 	metaResponseIndex = [4]byte{'R', 'E', 'S', 'P'}
@@ -56,6 +68,8 @@ var (
 	leveldbInit sync.Once
 	blkDB       *leveldb.DB
 	txDB        *leveldb.DB
+
+	chainVars = expvar.NewMap(mwMinerChain)
 )
 
 // heightToKey converts a height in int32 to a key in bytes.
@@ -113,6 +127,9 @@ type Chain struct {
 
 	// Atomic counters for stats
 	cachedBlockCount int32
+
+	// Metric vars to collect
+	expVars *expvar.Map
 }
 
 // NewChain creates a new sql-chain struct.
@@ -196,7 +213,19 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		metaBlockIndex:    utils.ConcatAll(metaKeyPrefix[:], metaBlockIndex[:]),
 		metaResponseIndex: utils.ConcatAll(metaKeyPrefix[:], metaResponseIndex[:]),
 		metaAckIndex:      utils.ConcatAll(metaKeyPrefix[:], metaAckIndex[:]),
+
+		expVars: new(expvar.Map).Init(),
 	}
+
+	chain.expVars.Set(mwMinerChainBlockCount, new(expvar.Int))
+	chain.expVars.Set(mwMinerChainBlockHeight, new(expvar.Int))
+	chain.expVars.Set(mwMinerChainBlockHash, new(expvar.String))
+	chain.expVars.Set(mwMinerChainBlockTimestamp, new(expvar.String))
+	chain.expVars.Set(mwMinerChainRequestsFreq, mw.NewGauge("5m1m"))
+	chain.expVars.Set(mwMinerChainRequestsCount, mw.NewCounter("5m1m"))
+
+	chainVars.Set(string(c.DatabaseID), chain.expVars)
+
 	le = le.WithField("peer", chain.rt.getPeerInfoString())
 
 	// Read blocks and rebuild memory index
@@ -271,6 +300,9 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	}
 	chain.rt.setHead(head)
 	chain.st.SetSeq(id)
+
+	// update metric
+	chain.updateMetrics()
 
 	// Read queries and rebuild memory index
 	respIter := txDB.NewIterator(util.BytesPrefix(chain.metaResponseIndex), nil)
@@ -360,6 +392,9 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 	atomic.AddInt32(&c.cachedBlockCount, 1)
 	c.rt.setHead(head)
 	c.bi.addBlock(node)
+
+	// update metrics
+	c.updateMetrics()
 
 	// Keep track of the queries from the new block
 	var (
@@ -930,6 +965,10 @@ func (c *Chain) Query(
 ) {
 	// TODO(leventeliu): we're using an external context passed by request. Make sure that
 	// cancelling will be propagated to this context before chain instance stops.
+	// update metrics
+	c.expVars.Get(mwMinerChainRequestsCount).(mw.Metric).Add(1)
+	c.expVars.Get(mwMinerChainRequestsFreq).(mw.Metric).Add(1)
+
 	return c.st.QueryWithContext(req.GetContext(), req, isLeader)
 }
 
@@ -1103,4 +1142,12 @@ func (c *Chain) logEntryWithHeadState() *log.Entry {
 		"head_height": c.rt.getHead().Height,
 		"head_block":  c.rt.getHead().Head.String(),
 	})
+}
+
+func (c *Chain) updateMetrics() {
+	head := c.rt.getHead()
+	c.expVars.Get(mwMinerChainBlockCount).(*expvar.Int).Set(int64(head.node.count))
+	c.expVars.Get(mwMinerChainBlockHeight).(*expvar.Int).Set(int64(head.Height))
+	c.expVars.Get(mwMinerChainBlockHash).(*expvar.String).Set(head.Head.String())
+	c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(head.node.load().Timestamp().String())
 }

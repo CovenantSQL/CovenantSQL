@@ -25,7 +25,7 @@ wallet=$(grep "WalletAddress" ~/.cql/config.yaml | awk '{print $2}')
 
 #transfer some coin to above address
 ${BIN}/cql transfer -config ${PROJECT_DIR}/conf/testnet/config.yaml -wait-tx-confirm \
-    -address ${wallet} -amount 100000000 -type Particle
+    -to-user ${wallet} -amount 100000000 -type Particle
 
 ${BIN}/cql wallet
 

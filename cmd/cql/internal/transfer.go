@@ -17,6 +17,8 @@
 package internal
 
 import (
+	"strings"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -24,25 +26,26 @@ import (
 )
 
 var (
-	addr      string
+	toUser    string
+	toDSN     string
 	amount    uint64
 	tokenType string
 )
 
 // CmdTransfer is cql transfer command entity.
 var CmdTransfer = &Command{
-	UsageLine: "cql transfer [common params] [-wait-tx-confirm] [-address wallet] [-amount count] [-type token_type]",
+	UsageLine: "cql transfer [common params] [-wait-tx-confirm] [-to-user wallet | -to-dsn dsn] [-amount count] [-type token_type]",
 	Short:     "transfer token to target account",
 	Long: `
-Transfer transfers your token to the target account.
-The command arguments are target wallet address, amount of token, and token type.
+Transfer transfers your token to the target account or database.
+The command arguments are target wallet address(or dsn), amount of token, and token type.
 e.g.
-    cql transfer -address=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -to-user=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 
 Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
 confirmation before the transfer takes effect.
 e.g.
-    cql transfer -wait-tx-confirm -address=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -wait-tx-confirm -to-dsn=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 `,
 }
 
@@ -52,26 +55,44 @@ func init() {
 	addCommonFlags(CmdTransfer)
 	addConfigFlag(CmdTransfer)
 	addWaitFlag(CmdTransfer)
-	CmdTransfer.Flag.StringVar(&addr, "address", "", "Address of an account to transfer token.")
+	CmdTransfer.Flag.StringVar(&toUser, "to-user", "", "Target address of an user account to transfer token.")
+	CmdTransfer.Flag.StringVar(&toDSN, "to-dsn", "", "Target database dsn to transfer token.")
 	CmdTransfer.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer.")
 	CmdTransfer.Flag.StringVar(&tokenType, "type", "", "Token type to transfer.")
 }
 
 func runTransfer(cmd *Command, args []string) {
-	if len(args) > 0 || addr == "" || tokenType == "" {
-		ConsoleLog.Error("transfer command need target account address and token type as param")
+	if len(args) > 0 || (toUser == "" && toDSN == "") || tokenType == "" {
+		ConsoleLog.Error("transfer command need to-user(or to-dsn) address and token type as param")
+		SetExitStatus(1)
+		help = true
+	}
+	if toUser != "" && toDSN != "" {
+		ConsoleLog.Error("transfer command accepts either to-user or to-dsn as param")
 		SetExitStatus(1)
 		help = true
 	}
 
 	commonFlagsInit(cmd)
-	configInit()
 
 	unit := types.FromString(tokenType)
 	if !unit.Listed() {
 		ConsoleLog.Error("transfer token failed: invalid token type")
 		SetExitStatus(1)
 		return
+	}
+
+	var addr string
+	if toUser != "" {
+		addr = toUser
+	} else {
+		if !strings.HasPrefix(toDSN, client.DBScheme) && !strings.HasPrefix(toDSN, client.DBSchemeAlias) {
+			ConsoleLog.Error("transfer token failed: invalid dsn provided, use address start with 'covenantsql://'")
+			SetExitStatus(1)
+			return
+		}
+		toDSN = strings.TrimLeft(toDSN, client.DBScheme+"://")
+		addr = strings.TrimLeft(toDSN, client.DBSchemeAlias+"://")
 	}
 
 	targetAccountHash, err := hash.NewHashFromStr(addr)
@@ -81,6 +102,8 @@ func runTransfer(cmd *Command, args []string) {
 		return
 	}
 	targetAccount := proto.AccountAddress(*targetAccountHash)
+
+	configInit()
 
 	txHash, err := client.TransferToken(targetAccount, amount, unit)
 	if err != nil {

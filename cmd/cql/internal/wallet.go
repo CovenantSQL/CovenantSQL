@@ -32,14 +32,13 @@ import (
 )
 
 var (
-	tokenName             string // get specific token's balance of current account
-	showAllDatabaseTokens bool
-	databaseTokens        string
+	tokenName  string // get specific token's balance of current account
+	databaseID string
 )
 
 // CmdWallet is cql wallet command entity.
 var CmdWallet = &Command{
-	UsageLine: "cql wallet [common params] [-token type] [-databases] [-database dsn]",
+	UsageLine: "cql wallet [common params] [-token type] [-dsn dsn]",
 	Short:     "get the wallet address and the balance of current account",
 	Long: `
 Wallet gets the CovenantSQL wallet address and the token balances of the current account.
@@ -48,9 +47,7 @@ e.g.
 
     cql wallet -token Particle
 
-    cql wallet -database "covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c"
-
-    cql wallet -databases
+    cql wallet -dsn "covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c"
 `,
 }
 
@@ -61,8 +58,7 @@ func init() {
 	addConfigFlag(CmdWallet)
 
 	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
-	CmdWallet.Flag.BoolVar(&showAllDatabaseTokens, "databases", false, "Show all database deposit")
-	CmdWallet.Flag.StringVar(&databaseTokens, "database", "", "Show specified database deposit")
+	CmdWallet.Flag.StringVar(&databaseID, "dsn", "", "Show specified database deposit")
 }
 
 func showTokenBalance(tokenName string) {
@@ -228,12 +224,11 @@ func runWallet(cmd *Command, args []string) {
 
 	fmt.Printf("\n\nwallet address: %s\n", conf.GConf.WalletAddress)
 
-	if databaseTokens != "" {
-		showDatabaseDeposit(databaseTokens)
-	} else if showAllDatabaseTokens {
-		showAllDatabaseDeposit()
+	if databaseID != "" {
+		showDatabaseDeposit(databaseID)
 	} else if tokenName == "" {
 		showAllTokenBalance()
+		showAllDatabaseDeposit()
 	} else {
 		showTokenBalance(tokenName)
 	}

@@ -94,6 +94,7 @@ type MinerInfo struct {
 	RootDir                string                 `yaml:"RootDir"`
 	MaxReqTimeGap          time.Duration          `yaml:"MaxReqTimeGap,omitempty"`
 	ProvideServiceInterval time.Duration          `yaml:"ProvideServiceInterval,omitempty"`
+	DiskUsageInterval      time.Duration          `yaml:"DiskUsageInterval,omitempty"`
 	TargetUsers            []proto.AccountAddress `yaml:"TargetUsers,omitempty"`
 }
 

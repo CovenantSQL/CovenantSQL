@@ -34,9 +34,10 @@ import (
 )
 
 const (
-	mwMinerAddr   = "service:miner:addr"
-	mwMinerNodeID = "service:miner:node"
-	mwMinerWallet = "service:miner:wallet"
+	mwMinerAddr     = "service:miner:addr"
+	mwMinerNodeID   = "service:miner:node"
+	mwMinerWallet   = "service:miner:wallet"
+	mwMinerDiskRoot = "service:miner:disk:root"
 )
 
 func initNode() (server *mux.Server, direct *rpc.Server, err error) {
@@ -99,7 +100,13 @@ func createDirectServer(privateKeyPath string, masterKey []byte, listenAddr stri
 }
 
 func initMetrics() {
-	expvar.NewString(mwMinerAddr).Set(conf.GConf.ListenAddr)
-	expvar.NewString(mwMinerNodeID).Set(string(conf.GConf.ThisNodeID))
-	expvar.NewString(mwMinerWallet).Set(conf.GConf.WalletAddress)
+	if conf.GConf != nil {
+		expvar.NewString(mwMinerAddr).Set(conf.GConf.ListenAddr)
+		expvar.NewString(mwMinerNodeID).Set(string(conf.GConf.ThisNodeID))
+		expvar.NewString(mwMinerWallet).Set(conf.GConf.WalletAddress)
+
+		if conf.GConf.Miner != nil {
+			expvar.NewString(mwMinerDiskRoot).Set(conf.GConf.Miner.RootDir)
+		}
+	}
 }

@@ -1149,5 +1149,14 @@ func (c *Chain) updateMetrics() {
 	c.expVars.Get(mwMinerChainBlockCount).(*expvar.Int).Set(int64(head.node.count))
 	c.expVars.Get(mwMinerChainBlockHeight).(*expvar.Int).Set(int64(head.Height))
 	c.expVars.Get(mwMinerChainBlockHash).(*expvar.String).Set(head.Head.String())
-	c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(head.node.load().Timestamp().String())
+
+	b := head.node.load()
+	if b == nil {
+		// load manually
+		var err error
+		b, err = c.FetchBlock(head.Height)
+		if err == nil {
+			c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(b.Timestamp().String())
+		}
+	}
 }

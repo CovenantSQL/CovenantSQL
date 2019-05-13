@@ -118,6 +118,10 @@ const (
 	MCCQueryAccountTokenBalance
 	// MCCQueryTxState is used by client to query transaction state.
 	MCCQueryTxState
+	// MCCQueryAccountSQLChainProfiles is used by client to query account databases.
+	MCCQueryAccountSQLChainProfiles
+	// MaxRPCOffset defines max rpc constant.
+	MaxRPCOffset
 
 	// DHTRPCName defines the block producer dh-rpc service name
 	DHTRPCName = "DHT"
@@ -190,6 +194,8 @@ func (s RemoteFunc) String() string {
 		return "MCC.QueryAccountTokenBalance"
 	case MCCQueryTxState:
 		return "MCC.QueryTxState"
+	case MCCQueryAccountSQLChainProfiles:
+		return "MCC.QueryAccountSQLChainProfiles"
 	}
 	return "Unknown"
 }

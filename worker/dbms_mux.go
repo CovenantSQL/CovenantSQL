@@ -77,11 +77,11 @@ func (s *DBKayakMuxService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) 
 
 	if v, ok := s.serviceMap.Load(id); ok {
 		var l *kt.Log
-		if l, err = v.(*kayak.Runtime).Fetch(req.GetContext(), req.Index); err != nil {
+		if l, err = v.(*kayak.Runtime).Fetch(req.GetContext(), req.Index); err == nil {
 			resp.Log = l
 			resp.Instance = req.Instance
-			return err
 		}
+		return
 	}
 
 	return errors.Wrapf(ErrUnknownMuxRequest, "instance %v", req.Instance)

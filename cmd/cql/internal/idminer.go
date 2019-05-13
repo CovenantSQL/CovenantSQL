@@ -56,6 +56,7 @@ func init() {
 	CmdIDMiner.Run = runIDMiner
 
 	addCommonFlags(CmdIDMiner)
+	addConfigFlag(CmdIDMiner)
 	CmdIDMiner.Flag.IntVar(&difficulty, "difficulty", 24, "Difficulty for miner to mine nodes and generating nonce")
 	CmdIDMiner.Flag.BoolVar(&loop, "loop", false, "Keep mining until interrupted")
 }

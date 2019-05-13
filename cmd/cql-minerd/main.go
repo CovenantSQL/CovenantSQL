@@ -32,7 +32,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -153,7 +152,6 @@ func main() {
 		log.Fatal("miner request time gap is invalid")
 	}
 
-	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
 
 	// init log

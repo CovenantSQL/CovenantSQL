@@ -453,7 +453,6 @@ func benchmarkEnc(b *testing.B, v interface{}) {
 	var (
 		h = &codec.MsgpackHandle{
 			WriteExt:    true,
-			RawToString: true,
 		}
 		err error
 	)
@@ -472,7 +471,6 @@ func benchmarkDec(b *testing.B, v interface{}) {
 
 		h = &codec.MsgpackHandle{
 			WriteExt:    true,
-			RawToString: true,
 		}
 		enc   = codec.NewEncoderBytes(&r, h)
 		recvt = reflect.ValueOf(v).Elem().Type()

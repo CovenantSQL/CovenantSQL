@@ -45,6 +45,7 @@ func init() {
 	CmdAdapter.Flag.StringVar(&adapterUseMirrorAddr, "mirror", "", "Mirror server for adapter to query")
 
 	addCommonFlags(CmdAdapter)
+	addConfigFlag(CmdAdapter)
 	addBgServerFlag(CmdAdapter)
 }
 
@@ -73,14 +74,16 @@ func startAdapterServer(adapterAddr string, adapterUseMirrorAddr string) func() 
 }
 
 func runAdapter(cmd *Command, args []string) {
-	configInit(cmd)
+	if len(args) != 1 {
+		ConsoleLog.Error("adapter command need listen address as param")
+		SetExitStatus(1)
+		help = true
+	}
+
+	commonFlagsInit(cmd)
+	configInit()
 	bgServerInit()
 
-	if len(args) != 1 {
-		ConsoleLog.Error("Adapter command need listen address as param")
-		SetExitStatus(1)
-		return
-	}
 	adapterAddr = args[0]
 
 	cancelFunc := startAdapterServer(adapterAddr, adapterUseMirrorAddr)

@@ -53,6 +53,7 @@ func initNode() (server *mux.Server, direct *rpc.Server, err error) {
 
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
+	kms.InitBP()
 
 	err = mux.RegisterNodeToBP(30 * time.Second)
 	if err != nil {

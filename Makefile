@@ -33,10 +33,12 @@ status:
 
 
 builder: status
+	# alpine image libmusl is not compatible with golang race detector
+	# also alpine libmusl is required for building static binaries to avoid glibc getaddrinfo panic
 	docker build \
 		--tag $(BUILDER):$(VERSION) \
 		--tag $(BUILDER):latest \
-		--build-arg BUILD_ARG=use_all_cores \
+		--build-arg BUILD_ARG=release \
 		-f docker/builder.Dockerfile \
 		.
 
@@ -182,6 +184,11 @@ miner: bin/cql-minerd.test bin/cql-minerd
 client: bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
 all: bp miner client
+
+build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+
+release:
+	make -j$(JOBS) build-release
 
 clean:
 	rm -rf bin/cql*

@@ -15,9 +15,44 @@ type ResultSet interface {
 	Err() error
 }
 
-// EncodeAll encodes all result sets in rs to the writer using the encoder
-// settings.
+// EncodeAll encodes all result sets to the writer using the encoder settings.
 func (enc *TableEncoder) EncodeAll(w io.Writer) error {
+	var err error
+
+	if err = enc.Encode(w); err != nil {
+		return err
+	}
+
+	_, err = w.Write(enc.newline)
+	return err
+}
+
+// EncodeAll encodes all result sets to the writer using the encoder settings.
+func (enc *JSONEncoder) EncodeAll(w io.Writer) error {
+	var err error
+
+	if err = enc.Encode(w); err != nil {
+		return err
+	}
+
+	_, err = w.Write(enc.newline)
+	return err
+}
+
+// EncodeAll encodes all result sets to the writer using the encoder settings.
+func (enc *CSVEncoder) EncodeAll(w io.Writer) error {
+	var err error
+
+	if err = enc.Encode(w); err != nil {
+		return err
+	}
+
+	_, err = w.Write(enc.newline)
+	return err
+}
+
+// EncodeAll encodes all result sets to the writer using the encoder settings.
+func (enc *TemplateEncoder) EncodeAll(w io.Writer) error {
 	var err error
 
 	if err = enc.Encode(w); err != nil {

@@ -792,7 +792,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 }
 
 // Start starts the main process of the sql-chain.
-func (c *Chain) Start() (err error) {
+func (c *Chain) Start() {
 	c.rt.goFunc(c.processBlocks)
 	c.sync()
 	c.rt.goFunc(c.mainCycle)

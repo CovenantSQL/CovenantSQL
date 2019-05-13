@@ -196,6 +196,12 @@ func showAllDatabaseDeposit() {
 	}
 
 	if err = mux.RequestBP(route.MCCQueryAccountSQLChainProfiles.String(), req, resp); err != nil {
+		if strings.Contains(err.Error(), "can't find method") {
+			// old version block producer
+			ConsoleLog.WithError(err).Warning("query account database profiles is not supported in old version block producer")
+			return
+		}
+
 		ConsoleLog.WithError(err).Error("query account database profiles failed")
 		SetExitStatus(1)
 		return

@@ -71,7 +71,7 @@ const (
 )
 
 func init() {
-	expvar.Publish(mwKeyDHTNodeCount, mw.NewGauge("1M1d"))
+	expvar.Publish(mwKeyDHTNodeCount, mw.NewGauge("1M1h"))
 }
 
 // Consistent holds the information about the members of the consistent hash circle.
@@ -82,7 +82,6 @@ type Consistent struct {
 	//members          map[proto.NodeID]proto.Node
 	sortedHashes     NodeKeys
 	NumberOfReplicas int
-	count            int64
 	persist          Persistence
 	cacheLock        sync.RWMutex
 	sync.RWMutex
@@ -204,8 +203,7 @@ func (c *Consistent) AddCache(node proto.Node) {
 		c.circle[hashKey(c.nodeKey(node.ID, i))] = &node
 	}
 	c.updateSortedHashes()
-	c.count++
-	expvar.Get(mwKeyDHTNodeCount).(mw.Metric).Add(float64(c.count))
+	expvar.Get(mwKeyDHTNodeCount).(mw.Metric).Add(float64(len(c.circle) / c.NumberOfReplicas))
 	return
 }
 
@@ -218,7 +216,6 @@ func (c *Consistent) RemoveCache(nodeID proto.NodeID) {
 		delete(c.circle, hashKey(c.nodeKey(nodeID, i)))
 	}
 	c.updateSortedHashes()
-	c.count--
 }
 
 // ResetCache removes all node from the hash cache.
@@ -227,7 +224,6 @@ func (c *Consistent) ResetCache() {
 	defer c.cacheLock.Unlock()
 
 	c.circle = make(map[proto.NodeKey]*proto.Node)
-	c.count = 0
 	c.sortedHashes = NodeKeys{}
 }
 
@@ -286,7 +282,7 @@ func (c *Consistent) GetTwoNeighbors(name string) (proto.Node, proto.Node, error
 	i := c.search(key)
 	a := *c.circle[c.sortedHashes[i]]
 
-	if c.count == 1 {
+	if len(c.sortedHashes)/c.NumberOfReplicas == 1 {
 		return a, proto.Node{}, nil
 	}
 
@@ -315,8 +311,9 @@ func (c *Consistent) GetNeighborsEx(name string, n int, roles proto.ServerRoles)
 		return nil, ErrEmptyCircle
 	}
 
-	if c.count < int64(n) {
-		n = int(c.count)
+	count := len(c.sortedHashes) / c.NumberOfReplicas
+	if count < n {
+		n = count
 	}
 
 	var (

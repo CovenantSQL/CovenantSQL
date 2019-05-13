@@ -797,7 +797,6 @@ func (c *Chain) Start() {
 	c.sync()
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
-	return
 }
 
 // Stop stops the main process of the sql-chain.

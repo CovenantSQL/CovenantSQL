@@ -705,8 +705,8 @@ func TestSet(t *testing.T) {
 	x.Add(NewNodeFromString("2222"))
 
 	x.Set([]Node{NewNodeFromString("3333"), NewNodeFromString("4444")})
-	if x.count != 2 {
-		t.Errorf("expected 2 elts, got %d", x.count)
+	if len(x.sortedHashes)/x.NumberOfReplicas != 2 {
+		t.Errorf("expected 2 elts, got %d", len(x.sortedHashes)/x.NumberOfReplicas)
 	}
 	a, b, err := x.GetTwoNeighbors("33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333wqer")
 	if err != nil {
@@ -722,8 +722,8 @@ func TestSet(t *testing.T) {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
 	x.Set([]Node{NewNodeFromString("5555"), NewNodeFromString("4444")})
-	if x.count != 2 {
-		t.Errorf("expected 2 elts, got %d", x.count)
+	if len(x.sortedHashes)/x.NumberOfReplicas != 2 {
+		t.Errorf("expected 2 elts, got %d", len(x.sortedHashes)/x.NumberOfReplicas)
 	}
 	a, b, err = x.GetTwoNeighbors("33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333wqer")
 	if err != nil {
@@ -739,8 +739,8 @@ func TestSet(t *testing.T) {
 		t.Errorf("expected a != b, they were both %v", a)
 	}
 	x.Set([]Node{NewNodeFromString("5555"), NewNodeFromString("4444")})
-	if x.count != 2 {
-		t.Errorf("expected 2 elts, got %d", x.count)
+	if len(x.sortedHashes)/x.NumberOfReplicas != 2 {
+		t.Errorf("expected 2 elts, got %d", len(x.sortedHashes)/x.NumberOfReplicas)
 	}
 	a, b, err = x.GetTwoNeighbors("33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333wqer")
 	if err != nil {

@@ -593,11 +593,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:95be927b2ec224dfd5357bdd9a8f588299779812525d9aeb0740a3713a5a2560"
+  digest = "1:4023dedf9b259eec99de28e2ae5498dad81d3603a60c82851151b8ef2f9d17aa"
   name = "github.com/zserge/metric"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5a5d84c90520d706b4805b4a5cca4c57998868e0"
+  revision = "b0b64cb7bfeaa2b0b33cc178f9e6b191b7cb7c0a"
 
 [[projects]]
   branch = "master"

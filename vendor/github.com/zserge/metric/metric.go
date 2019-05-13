@@ -345,8 +345,8 @@ func newTimeseries(builder func() metric, frame string) *timeseries {
 		'h': time.Hour,
 		'd': time.Hour * 24,
 		'w': time.Hour * 24 * 7,
-		'M': time.Hour * 24 * 7 * 30,
-		'y': time.Hour * 24 * 7 * 365,
+		'M': time.Hour * 24 * 30,
+		'y': time.Hour * 24 * 365,
 	}
 	fmt.Sscanf(frame, "%d%c%d%c", &totalNum, &totalUnit, &intervalNum, &intervalUnit)
 	interval := units[intervalUnit] * time.Duration(intervalNum)

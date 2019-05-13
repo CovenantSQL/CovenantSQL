@@ -19,6 +19,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"expvar"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -49,6 +50,12 @@ const (
 
 	// DefaultSlowQueryTime defines the default slow query log time
 	DefaultSlowQueryTime = time.Second * 5
+
+	mwMinerDBCount = "service:miner:db:count"
+)
+
+var (
+	dbCount = expvar.NewInt(mwMinerDBCount)
 )
 
 // DBMS defines a database management instance.
@@ -449,6 +456,9 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 	// add to meta
 	err = dbms.addMeta(instance.DatabaseID, db)
 
+	// update metrics
+	dbCount.Add(1)
+
 	return
 }
 
@@ -465,6 +475,8 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	if err = db.Destroy(); err != nil {
 		return
 	}
+
+	dbCount.Add(-1)
 
 	// remove meta
 	return dbms.removeMeta(dbID)

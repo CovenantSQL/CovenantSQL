@@ -151,6 +151,11 @@ func main() {
 	if conf.GConf.Miner.MaxReqTimeGap.Seconds() <= 0 {
 		log.Fatal("miner request time gap is invalid")
 	}
+	if conf.GConf.Miner.DiskUsageInterval.Seconds() <= 0 {
+		// set to default disk usage interval
+		log.Warning("miner disk usage interval not provided, set to default 10 minutes")
+		conf.GConf.Miner.DiskUsageInterval = time.Minute * 10
+	}
 
 	log.Debugf("config:\n%#v", conf.GConf)
 
@@ -176,6 +181,8 @@ func main() {
 		log.WithError(err).Fatal("init node failed")
 	}
 
+	initMetrics()
+
 	// stop channel for all daemon routines
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -197,7 +204,7 @@ func main() {
 	// start prometheus collector
 	reg := metric.StartMetricCollector()
 
-	// start period provide service transaction generator
+	// start periodic provide service transaction generator
 	go func() {
 		tick := time.NewTicker(conf.GConf.Miner.ProvideServiceInterval)
 		defer tick.Stop()
@@ -209,6 +216,22 @@ func main() {
 			case <-stopCh:
 				return
 			case <-tick.C:
+			}
+		}
+	}()
+
+	// start periodic disk usage metric update
+	go func() {
+		for {
+			err := collectDiskUsage()
+			if err != nil {
+				log.WithError(err).Error("collect disk usage failed")
+			}
+
+			select {
+			case <-stopCh:
+				return
+			case <-time.After(conf.GConf.Miner.DiskUsageInterval):
 			}
 		}
 	}()

@@ -368,6 +368,7 @@ func (dbms *DBMS) initDatabases(
 ) {
 	currentInstance := make(map[proto.DatabaseID]bool)
 	wg := &sync.WaitGroup{}
+	errCh := make(chan error, len(profiles))
 
 	for id, profile := range profiles {
 		currentInstance[id] = true
@@ -378,14 +379,19 @@ func (dbms *DBMS) initDatabases(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err = dbms.Create(instance, false); err != nil {
+			if err := dbms.Create(instance, false); err != nil {
 				log.WithFields(log.Fields{
 					"id": instance.DatabaseID,
 				}).WithError(err).Error("failed to create database instance")
+				errCh <- errors.Wrapf(err, "failed to create database %s", instance.DatabaseID)
 			}
 		}()
 	}
 	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		return err // omit any other error after this instance
+	}
 
 	// calculate to drop databases
 	toDropInstance := make(map[proto.DatabaseID]bool)

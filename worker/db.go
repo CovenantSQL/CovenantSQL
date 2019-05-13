@@ -175,9 +175,8 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return
-	} else if err = db.chain.Start(); err != nil {
-		return
 	}
+	db.chain.Start()
 
 	// init kayak config
 	kayakWalPath := filepath.Join(cfg.DataDir, KayakWalFileName)

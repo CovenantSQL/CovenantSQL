@@ -127,3 +127,16 @@ func (s *ChainRPCService) QueryTxState(
 	resp.State = state
 	return
 }
+
+// QueryAccountSQLChainProfiles is the RPC method to query account sqlchain profiles.
+func (s *ChainRPCService) QueryAccountSQLChainProfiles(
+	req *types.QueryAccountSQLChainProfilesReq, resp *types.QueryAccountSQLChainProfilesResp) (err error,
+) {
+	var profiles []*types.SQLChainProfile
+	if profiles, err = s.chain.queryAccountSQLChainProfiles(req.Addr); err != nil {
+		return
+	}
+	resp.Addr = req.Addr
+	resp.Profiles = profiles
+	return
+}

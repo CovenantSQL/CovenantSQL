@@ -16,8 +16,7 @@ type ResultSet interface {
 	NextResultSet() bool
 }
 
-// EncodeAll encodes all result sets in rs to the writer using the encoder
-// settings.
+// EncodeAll encodes all result sets to the writer using the encoder settings.
 func (enc *TableEncoder) EncodeAll(w io.Writer) error {
 	var err error
 
@@ -25,17 +24,96 @@ func (enc *TableEncoder) EncodeAll(w io.Writer) error {
 		return err
 	}
 
+	for enc.resultSet.NextResultSet() {
+		if _, err = w.Write(enc.newline); err != nil {
+			return err
+		}
+
+		if err = enc.Encode(w); err != nil {
+			return err
+		}
+	}
+
 	if _, err = w.Write(enc.newline); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// EncodeAll encodes all result sets to the writer using the encoder settings.
+func (enc *JSONEncoder) EncodeAll(w io.Writer) error {
+	var err error
+
+	if err = enc.Encode(w); err != nil {
+		return err
+	}
+
 	for enc.resultSet.NextResultSet() {
-		if err = enc.Encode(w); err != nil {
+		if _, err = w.Write([]byte{','}); err != nil {
 			return err
 		}
+
 		if _, err = w.Write(enc.newline); err != nil {
 			return err
 		}
+
+		if err = enc.Encode(w); err != nil {
+			return err
+		}
+	}
+
+	if _, err = w.Write(enc.newline); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// EncodeAll encodes all result sets to the writer using the encoder settings.
+func (enc *CSVEncoder) EncodeAll(w io.Writer) error {
+	var err error
+
+	if err = enc.Encode(w); err != nil {
+		return err
+	}
+
+	for enc.resultSet.NextResultSet() {
+		if _, err = w.Write(enc.newline); err != nil {
+			return err
+		}
+
+		if err = enc.Encode(w); err != nil {
+			return err
+		}
+	}
+
+	if _, err = w.Write(enc.newline); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// EncodeAll encodes all result sets to the writer using the encoder settings.
+func (enc *TemplateEncoder) EncodeAll(w io.Writer) error {
+	var err error
+
+	if err = enc.Encode(w); err != nil {
+		return err
+	}
+
+	for enc.resultSet.NextResultSet() {
+		if _, err = w.Write(enc.newline); err != nil {
+			return err
+		}
+		if err = enc.Encode(w); err != nil {
+			return err
+		}
+	}
+
+	if _, err = w.Write(enc.newline); err != nil {
+		return err
 	}
 
 	return nil

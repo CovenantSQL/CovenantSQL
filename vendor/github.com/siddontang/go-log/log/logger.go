@@ -1,6 +1,7 @@
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
@@ -183,6 +184,62 @@ func (l *Logger) Output(callDepth int, level Level, msg string) {
 
 	l.hLock.Lock()
 	l.handler.Write(buf)
+	l.hLock.Unlock()
+}
+
+// Output json format records the log with special callstack depth and log level.
+func (l *Logger) OutputJson(callDepth int, level Level, body interface{}) {
+	if l.level > level {
+		return
+	}
+
+	buf := l.bufs.Get().([]byte)
+	buf = buf[0:0]
+	defer l.bufs.Put(buf)
+
+	type JsonLog struct {
+		Time string `json:"log_time"`
+		Level string `json:"log_level"`
+		File string `json:"log_file"`
+		Line string `json:"log_line"`
+		Body interface{} `json:"log_body"`
+	}
+
+	var jsonlog JsonLog
+	if l.flag&Ltime > 0 {
+		now := time.Now().Format(timeFormat)
+		jsonlog.Time = now
+	}
+
+	if l.flag&Llevel > 0 {
+		jsonlog.Level = level.String()
+	}
+
+	if l.flag&Lfile > 0 {
+		_, file, line, ok := runtime.Caller(callDepth)
+		if !ok {
+			file = "???"
+			line = 0
+		} else {
+			for i := len(file) - 1; i > 0; i-- {
+				if file[i] == '/' {
+					file = file[i+1:]
+					break
+				}
+			}
+		}
+
+		jsonlog.File = file
+		jsonlog.Line = string(strconv.AppendInt(buf, int64(line), 10))
+	}
+
+	jsonlog.Body = body
+
+	msg, _ := json.Marshal(jsonlog)
+	msg = append(msg, '\n')
+
+	l.hLock.Lock()
+	l.handler.Write(msg)
 	l.hLock.Unlock()
 }
 

@@ -86,6 +86,7 @@ func BaseSchemes() []Scheme {
 		{"presto", GenPresto, 0, false, []string{"prestodb", "prestos", "prs", "prestodbs"}, ""},
 		{"ql", GenOpaque, 0, true, []string{"ql", "cznic", "cznicql"}, ""},
 		{"snowflake", GenSnowflake, 0, false, []string{"sf"}, ""},
+		{"tds", GenFromURL("http://localhost:5000/"), 0, false, []string{"ax", "ase", "sapase"}, ""},
 		{"voltdb", GenVoltDB, 0, false, []string{"volt", "vdb"}, ""},
 	}
 }

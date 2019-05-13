@@ -71,6 +71,8 @@ var (
 	UNIQUE ("address", "id")
 );`,
 
+		`CREATE INDEX IF NOT EXISTS "idx__shardChain__id" ON "shardChain" ("id");`,
+
 		`CREATE TABLE IF NOT EXISTS "provider" (
 	"address"	TEXT,
 	"encoded"	BLOB,
@@ -108,6 +110,14 @@ var (
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__timestamp" ON "indexed_transactions" ("timestamp" DESC);`,
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__tx_type__timestamp" ON "indexed_transactions" ("tx_type", "timestamp" DESC);`,
 		`CREATE INDEX IF NOT EXISTS "idx__indexed_transactions__address__timestamp" ON "indexed_transactions" ("address", "timestamp" DESC);`,
+
+		`CREATE TABLE IF NOT EXISTS "indexed_shardChains" (
+	"account" 	TEXT,
+	"address" 	TEXT,
+	"id"		TEXT,
+	UNIQUE("account", "address", "id")
+);`,
+		`CREATE INDEX IF NOT EXISTS "idx__indexed_shardChains__id" ON "indexed_shardChains" ("id");`,
 	}
 )
 
@@ -322,6 +332,29 @@ func updateShardChain(profile *types.SQLChainProfile) storageProcedure {
 			profile.Address.String(),
 			string(profile.ID),
 			enc.Bytes())
+		if err != nil {
+			return
+		}
+
+		for _, u := range profile.Users {
+			if u.Permission.Role == types.Void {
+				// remove index
+				_, err = tx.Exec(`DELETE FROM "indexed_shardChains" WHERE "account" = ? AND "address" = ?`,
+					u.Address.String(),
+					profile.Address.String())
+			} else {
+				_, err = tx.Exec(`INSERT OR REPLACE INTO "indexed_shardChains" ("account", "address", "id") 
+	VALUES(?, ?, ?)`,
+					u.Address.String(),
+					profile.Address.String(),
+					profile.ID)
+			}
+
+			if err != nil {
+				return
+			}
+		}
+
 		return
 	}
 }
@@ -332,6 +365,10 @@ func deleteShardChain(id proto.DatabaseID) storageProcedure {
 			"profile_database_id": id,
 		}).Debug("deleting profile")
 		_, err = tx.Exec(`DELETE FROM "shardChain" WHERE "id"=?`, id)
+		if err != nil {
+			return
+		}
+		_, err = tx.Exec(`DELETE FROM "indexed_shardChains" WHERE "id" = ?`, id)
 		return
 	}
 }
@@ -416,6 +453,23 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 	return
 }
 
+func loadBlock(st xi.Storage, hash hash.Hash) (block *types.BPBlock, err error) {
+	var (
+		enc []byte
+		dec = &types.BPBlock{}
+	)
+	if err = st.Reader().QueryRow(
+		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, hash.String(),
+	).Scan(&enc); err != nil {
+		return
+	}
+	if err = utils.DecodeMsgPack(enc, dec); err != nil {
+		return
+	}
+	block = dec
+	return
+}
+
 func loadBlocks(
 	st xi.Storage, irreHash hash.Hash) (lastIrre *blockNode, heads []*blockNode, err error,
 ) {
@@ -471,7 +525,7 @@ func loadBlocks(
 				err = ErrMultipleGenesis
 				return
 			}
-			bn = newBlockNode(0, dec, nil)
+			bn = newNonCacheBlockNode(0, dec, nil)
 			index[bh] = bn
 			headsIndex[bh] = bn
 			log.WithFields(log.Fields{
@@ -487,7 +541,7 @@ func loadBlocks(
 			err = errors.Wrapf(ErrParentNotFound, "parent %s not found", ph.Short(4))
 			return
 		}
-		bn = newBlockNode(height, dec, pn)
+		bn = newNonCacheBlockNode(height, dec, pn)
 		index[bh] = bn
 		if _, ok = headsIndex[ph]; ok {
 			delete(headsIndex, ph)

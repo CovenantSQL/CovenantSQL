@@ -135,6 +135,7 @@ func initBPNodeIDs() (bpNodeIDs NodeIDAddressMap) {
 		dc := IPv6SeedClient{}
 		bpIndex = rand.Intn(conf.GConf.DNSSeed.BPCount)
 		bpDomain := fmt.Sprintf("bp%02d.%s", bpIndex, conf.GConf.DNSSeed.Domain)
+		log.Infof("Geting bp address from dns: %v", bpDomain)
 		resolver.bpNodes, err = dc.GetBPFromDNSSeed(bpDomain)
 		if err != nil {
 			log.WithField("seed", bpDomain).WithError(err).Error(

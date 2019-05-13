@@ -18,7 +18,7 @@ $ go get -u github.com/xo/terminfo
 Please see the [GoDoc API listing][2] for more information on using `terminfo`.
 
 ```go
-// examples/simple/main.go
+// _examples/simple/main.go
 package main
 
 import (

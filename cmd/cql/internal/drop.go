@@ -40,23 +40,26 @@ func init() {
 	CmdDrop.Run = runDrop
 
 	addCommonFlags(CmdDrop)
+	addConfigFlag(CmdDrop)
 	addWaitFlag(CmdDrop)
 }
 
 func runDrop(cmd *Command, args []string) {
-	configInit(cmd)
-
 	if len(args) != 1 {
-		ConsoleLog.Error("Drop command need CovenantSQL dsn or database_id string as param")
+		ConsoleLog.Error("drop command need CovenantSQL dsn or database_id string as param")
 		SetExitStatus(1)
-		return
+		help = true
 	}
+
+	commonFlagsInit(cmd)
+	configInit()
+
 	dsn := args[0]
 
 	// drop database
 	if _, err := client.ParseDSN(dsn); err != nil {
 		// not a dsn/dbid
-		ConsoleLog.WithField("db", dsn).WithError(err).Error("Not a valid dsn")
+		ConsoleLog.WithField("db", dsn).WithError(err).Error("not a valid dsn")
 		SetExitStatus(1)
 		return
 	}

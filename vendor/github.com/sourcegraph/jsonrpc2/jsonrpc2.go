@@ -315,14 +315,17 @@ var ErrClosed = errors.New("jsonrpc2: connection is closed")
 //
 // NewClient consumes conn, so you should call Close on the returned
 // client not on the given conn.
-func NewConn(ctx context.Context, stream ObjectStream, h Handler, opt ...ConnOpt) *Conn {
+func NewConn(ctx context.Context, stream ObjectStream, h Handler, opts ...ConnOpt) *Conn {
 	c := &Conn{
 		stream:     stream,
 		h:          h,
 		pending:    map[ID]*call{},
 		disconnect: make(chan struct{}),
 	}
-	for _, opt := range opt {
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		opt(c)
 	}
 	go c.readMessages(ctx)
@@ -415,6 +418,9 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		return err
 	}
 	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		if err := opt.apply(req); err != nil {
 			return err
 		}
@@ -458,6 +464,9 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}, op
 		return err
 	}
 	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		if err := opt.apply(req); err != nil {
 			return err
 		}

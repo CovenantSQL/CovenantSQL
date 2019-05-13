@@ -48,6 +48,9 @@ const (
 	argDatabase  = "db"
 	argTx        = "tx"
 	argNodeCount = "node_count"
+	argPassword  = "password"
+	argKey       = "key"
+	argAmount    = "amount"
 )
 
 var (
@@ -112,6 +115,231 @@ func (d *service) parseAccountAddress(account string) (addr proto.AccountAddress
 	return
 }
 
+func (d *service) genKeyPair(rw http.ResponseWriter, r *http.Request) {
+	password := r.FormValue(argPassword)
+
+	if password == "" {
+		sendResponse(http.StatusBadRequest, false,
+			"non-empty password is required for key generation", nil, rw)
+		return
+	}
+
+	// gen key pair
+	privKey, pubKey, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	keyBytes, err := kms.EncodePrivateKey(privKey, []byte(password))
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	account, err := crypto.PubKeyHash(pubKey)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	// save to faucet database
+	err = d.p.savePrivateKey(account.String(), keyBytes)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		argAccount: account,
+		argKey:     string(keyBytes),
+	}, rw)
+}
+
+func (d *service) uploadKeyPair(rw http.ResponseWriter, r *http.Request) {
+	privateKeyBytes := r.FormValue(argKey)
+	password := r.FormValue(argPassword)
+
+	if privateKeyBytes == "" || password == "" {
+		sendResponse(http.StatusBadRequest, false, "private key and password is required", nil, rw)
+		return
+	}
+
+	// parse private key
+	privateKey, err := kms.DecodePrivateKey([]byte(privateKeyBytes), []byte(password))
+	if err != nil {
+		// key with empty password
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	account, err := crypto.PubKeyHash(privateKey.PubKey())
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	err = d.p.savePrivateKey(account.String(), []byte(privateKeyBytes))
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, map[string]interface{}{
+		argAccount: account,
+	}, nil, rw)
+}
+
+func (d *service) deleteKeyPair(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+	password := r.FormValue(argPassword)
+
+	if !regexAccount.MatchString(account) {
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
+		return
+	}
+
+	if account == "" || password == "" {
+		sendResponse(http.StatusBadRequest, false, "account and password is required", nil, rw)
+		return
+	}
+
+	_, err := d.p.getPrivateKey(account, password)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	err = d.p.deletePrivateKey(account)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, nil, rw)
+}
+
+func (d *service) downloadKeyPair(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+	password := r.FormValue(argPassword)
+
+	if !regexAccount.MatchString(account) {
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
+		return
+	}
+
+	if account == "" || password == "" {
+		sendResponse(http.StatusBadRequest, false, "account and password is required", nil, rw)
+		return
+	}
+
+	privateKey, err := d.p.getPrivateKey(account, password)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	privateKeyBytes, err := kms.EncodePrivateKey(privateKey, []byte(password))
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		argKey: string(privateKeyBytes),
+	}, rw)
+}
+
+func (d *service) topUp(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+	password := r.FormValue(argPassword)
+	db := r.FormValue(argDatabase)
+	amountStr := r.FormValue(argAmount)
+
+	if !regexAccount.MatchString(account) {
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
+		return
+	}
+
+	if account == "" || password == "" || db == "" {
+		sendResponse(http.StatusBadRequest, false,
+			"account, password and database is required", nil, rw)
+		return
+	}
+
+	var (
+		amount uint64
+		err    error
+	)
+
+	if amountStr != "" {
+		amount, err = strconv.ParseUint(amountStr, 10, 64)
+		if err != nil {
+			sendResponse(http.StatusBadRequest, false, err, nil, rw)
+			return
+		}
+	} else {
+		amount = uint64(d.p.tokenAmount)
+	}
+
+	dbID := proto.DatabaseID(db)
+	dbAccount, err := dbID.AccountAddress()
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	accountAddr, err := d.parseAccountAddress(account)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	privateKey, err := d.p.getPrivateKey(account, password)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = accountAddr
+
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	tx := types.NewTransfer(&types.TransferHeader{
+		Sender:    accountAddr,
+		Receiver:  dbAccount,
+		Amount:    amount,
+		TokenType: types.Particle,
+		Nonce:     nonceResp.Nonce,
+	})
+
+	err = tx.Sign(privateKey)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = tx
+	err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		"tx":     tx.Hash().String(),
+		"amount": amount,
+	}, rw)
+}
+
 func (d *service) applyToken(rw http.ResponseWriter, r *http.Request) {
 	// get args
 	var (
@@ -125,34 +353,37 @@ func (d *service) applyToken(rw http.ResponseWriter, r *http.Request) {
 	// validate args
 	if !regexAccount.MatchString(account) {
 		// error
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
 	// check limits
 	if err = d.p.checkAccountLimit(account); err != nil {
-		sendResponse(http.StatusTooManyRequests, false, err.Error(), nil, rw)
+		sendResponse(http.StatusTooManyRequests, false, err, nil, rw)
 		return
 	}
 
 	if err = d.p.checkEmailLimit(email); err != nil {
-		sendResponse(http.StatusTooManyRequests, false, err.Error(), nil, rw)
+		sendResponse(http.StatusTooManyRequests, false, err, nil, rw)
 		return
 	}
 
 	// account address
-	if accountAddr, err := d.parseAccountAddress(account); err != nil {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+	accountAddr, err := d.parseAccountAddress(account)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
-	} else if txHash, err = client.TransferToken(accountAddr, uint64(d.p.tokenAmount), types.Particle); err != nil {
+	}
+
+	if txHash, err = client.TransferToken(accountAddr, uint64(d.p.tokenAmount), types.Particle); err != nil {
 		// send token
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
 	// add record
 	if applicationID, err = d.p.addRecord(account, email); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
@@ -171,7 +402,7 @@ func (d *service) getBalance(rw http.ResponseWriter, r *http.Request) {
 
 	if !regexAccount.MatchString(account) {
 		// error
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
@@ -183,12 +414,12 @@ func (d *service) getBalance(rw http.ResponseWriter, r *http.Request) {
 	)
 
 	if req.Addr, err = d.parseAccountAddress(account); err != nil {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
 	if err = rpc.RequestBP(route.MCCQueryAccountTokenBalance.String(), req, resp); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
@@ -202,7 +433,7 @@ func (d *service) createDB(rw http.ResponseWriter, r *http.Request) {
 	nodeCount := uint16(1)
 
 	if !regexAccount.MatchString(account) {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
@@ -225,7 +456,7 @@ func (d *service) createDB(rw http.ResponseWriter, r *http.Request) {
 	)
 
 	if addr, err = d.parseAccountAddress(account); err != nil {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
@@ -233,19 +464,19 @@ func (d *service) createDB(rw http.ResponseWriter, r *http.Request) {
 	meta.Node = nodeCount
 
 	if txCreateHash, dsn, err = client.Create(meta); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
 	if cfg, err = client.ParseDSN(dsn); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
 	dbID = proto.DatabaseID(cfg.DatabaseID)
 
 	if txCreateState, err = client.WaitTxConfirmation(r.Context(), txCreateHash); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	} else if txCreateState != pi.TransactionStateConfirmed {
 		sendResponse(http.StatusInternalServerError, false, "create database failed", nil, rw)
@@ -253,14 +484,14 @@ func (d *service) createDB(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if dbAccountAddr, err = dbID.AccountAddress(); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
 	// update permission, add current user as admin
 	if txUpdatePermHash, err = client.UpdatePermission(
 		addr, dbAccountAddr, types.UserPermissionFromRole(types.Admin)); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
@@ -277,7 +508,7 @@ func (d *service) getDBBalance(rw http.ResponseWriter, r *http.Request) {
 	dbID := r.FormValue(argDatabase)
 
 	if !regexAccount.MatchString(account) {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
@@ -289,14 +520,14 @@ func (d *service) getDBBalance(rw http.ResponseWriter, r *http.Request) {
 	)
 
 	if addr, err = d.parseAccountAddress(account); err != nil {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
 	req.DBID = proto.DatabaseID(dbID)
 
 	if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
@@ -311,7 +542,7 @@ func (d *service) getDBBalance(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sendResponse(http.StatusBadRequest, false, ErrInvalidDatabase.Error(), nil, rw)
+	sendResponse(http.StatusBadRequest, false, ErrInvalidDatabase, nil, rw)
 }
 
 func (d *service) privatizeDB(rw http.ResponseWriter, r *http.Request) {
@@ -320,12 +551,12 @@ func (d *service) privatizeDB(rw http.ResponseWriter, r *http.Request) {
 	rawDBID := r.FormValue(argDatabase)
 
 	if !regexAccount.MatchString(account) {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
 	if !regexAccount.MatchString(rawDBID) {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidDatabase.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidDatabase, nil, rw)
 		return
 	}
 
@@ -340,14 +571,14 @@ func (d *service) privatizeDB(rw http.ResponseWriter, r *http.Request) {
 	)
 
 	if addr, err = d.parseAccountAddress(account); err != nil {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
 		return
 	}
 
 	req.DBID = dbID
 
 	if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-		sendResponse(http.StatusInternalServerError, false, ErrInvalidDatabase.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, ErrInvalidDatabase, nil, rw)
 		return
 	}
 
@@ -362,17 +593,17 @@ func (d *service) privatizeDB(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if !found {
-		sendResponse(http.StatusBadRequest, false, ErrInvalidDatabase.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, ErrInvalidDatabase, nil, rw)
 		return
 	}
 
 	if dbAccountAddr, err = dbID.AccountAddress(); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
 	if txHash, err = client.UpdatePermission(d.addr, dbAccountAddr, types.UserPermissionFromRole(types.Void)); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
@@ -390,16 +621,70 @@ func (d *service) waitTx(rw http.ResponseWriter, r *http.Request) {
 	)
 
 	if txHash, err = hash.NewHashFromStr(tx); err != nil {
-		sendResponse(http.StatusBadRequest, false, err.Error(), nil, rw)
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
 		return
 	}
 
 	if txState, err = client.WaitTxConfirmation(r.Context(), *txHash); err != nil {
-		sendResponse(http.StatusInternalServerError, false, err.Error(), nil, rw)
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
 		return
 	}
 
-	sendResponse(http.StatusOK, false, nil, map[string]interface{}{"state": txState.String()}, rw)
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{"state": txState.String()}, rw)
+}
+
+func (d *service) accountDatabaseList(rw http.ResponseWriter, r *http.Request) {
+	account := r.FormValue(argAccount)
+
+	if !regexAccount.MatchString(account) {
+		sendResponse(http.StatusBadRequest, false, ErrInvalidAccount, nil, rw)
+		return
+	}
+
+	accountAddr, err := d.parseAccountAddress(account)
+	if err != nil {
+		sendResponse(http.StatusBadRequest, false, err, nil, rw)
+		return
+	}
+
+	req := new(types.QueryAccountSQLChainProfilesReq)
+	resp := new(types.QueryAccountSQLChainProfilesResp)
+
+	req.Addr = accountAddr
+	err = rpc.RequestBP(route.MCCQueryAccountSQLChainProfiles.String(), req, resp)
+	if err != nil {
+		sendResponse(http.StatusInternalServerError, false, err, nil, rw)
+		return
+	}
+
+	var profiles []map[string]interface{}
+
+	for _, p := range resp.Profiles {
+		var (
+			privatized = true
+			profile    = map[string]interface{}{}
+		)
+
+		for _, user := range p.Users {
+			if user.Address == accountAddr && user.Permission.HasSuperPermission() {
+				profile["id"] = p.ID
+				profile["deposit"] = user.Deposit
+				profile["arrears"] = user.Arrears
+				profile["advance_payment"] = user.AdvancePayment
+			} else if user.Permission.HasSuperPermission() {
+				privatized = false
+			}
+		}
+
+		if len(profile) > 0 {
+			profile["privatized"] = privatized
+			profiles = append(profiles, profile)
+		}
+	}
+
+	sendResponse(http.StatusOK, true, nil, map[string]interface{}{
+		"profiles": profiles,
+	}, rw)
 }
 
 func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error) {
@@ -434,6 +719,20 @@ func startAPI(p *Persistence, listenAddr string) (server *http.Server, err error
 	v1Router.HandleFunc("/create_database", service.createDB).Methods("POST")
 	v1Router.HandleFunc("/privatize", service.privatizeDB).Methods("POST")
 	v1Router.HandleFunc("/wait_tx", service.waitTx).Methods("GET", "POST")
+
+	v2Router := router.PathPrefix("/v2").Subrouter()
+	v2Router.Use(jsonContentType)
+	v2Router.HandleFunc("/database", service.accountDatabaseList).Methods("GET", "POST")
+	v2Router.HandleFunc("/database/balance", service.getDBBalance).Methods("GET", "POST")
+	v2Router.HandleFunc("/database/create", service.createDB).Methods("POST")
+	v2Router.HandleFunc("/database/topup", service.topUp).Methods("POST")
+	v2Router.HandleFunc("/database/privatize", service.privatizeDB).Methods("POST")
+	v2Router.HandleFunc("/account/apply", service.applyToken).Methods("POST")
+	v2Router.HandleFunc("/account/balance", service.getBalance).Methods("GET", "POST")
+	v2Router.HandleFunc("/keypair/apply", service.genKeyPair).Methods("POST")
+	v2Router.HandleFunc("/keypair/upload", service.uploadKeyPair).Methods("POST")
+	v2Router.HandleFunc("/keypair/delete", service.deleteKeyPair).Methods("POST")
+	v2Router.HandleFunc("/keypair/download", service.downloadKeyPair).Methods("GET", "POST")
 
 	server = &http.Server{
 		Addr:         listenAddr,

@@ -138,6 +138,7 @@ func Init(configFile string, masterKey []byte) (err error) {
 	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
 		return
 	}
+
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 	if err = kms.InitLocalKeyPair(conf.GConf.PrivateKeyFile, masterKey); err != nil {
 		return
@@ -530,6 +531,7 @@ func registerNode() (err error) {
 	}
 
 	if nodeInfo.Role != proto.Leader && nodeInfo.Role != proto.Follower {
+		log.Infof("Register self to blockproducer: %v", conf.GConf.BP.NodeID)
 		err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
 	}
 

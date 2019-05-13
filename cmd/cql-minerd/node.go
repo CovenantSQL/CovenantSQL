@@ -17,6 +17,7 @@
 package main
 
 import (
+	"expvar"
 	"fmt"
 	"syscall"
 	"time"
@@ -30,6 +31,12 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+)
+
+const (
+	mwMinerAddr   = "service:miner:addr"
+	mwMinerNodeID = "service:miner:node"
+	mwMinerWallet = "service:miner:wallet"
 )
 
 func initNode() (server *mux.Server, direct *rpc.Server, err error) {
@@ -78,9 +85,6 @@ func initNode() (server *mux.Server, direct *rpc.Server, err error) {
 
 func createServer(privateKeyPath string, masterKey []byte, listenAddr string) (server *mux.Server, err error) {
 	server = mux.NewServer()
-	if err != nil {
-		return
-	}
 	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
 	return
 }
@@ -90,9 +94,12 @@ func createDirectServer(privateKeyPath string, masterKey []byte, listenAddr stri
 		return nil, nil
 	}
 	server = rpc.NewServer()
-	if err != nil {
-		return
-	}
 	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
 	return
+}
+
+func initMetrics() {
+	expvar.Publish(mwMinerAddr, expvar.NewString(conf.GConf.ListenAddr))
+	expvar.Publish(mwMinerNodeID, expvar.NewString(string(conf.GConf.ThisNodeID)))
+	expvar.Publish(mwMinerWallet, expvar.NewString(conf.GConf.WalletAddress))
 }

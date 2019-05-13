@@ -99,7 +99,7 @@ func createDirectServer(privateKeyPath string, masterKey []byte, listenAddr stri
 }
 
 func initMetrics() {
-	expvar.Publish(mwMinerAddr, expvar.NewString(conf.GConf.ListenAddr))
-	expvar.Publish(mwMinerNodeID, expvar.NewString(string(conf.GConf.ThisNodeID)))
-	expvar.Publish(mwMinerWallet, expvar.NewString(conf.GConf.WalletAddress))
+	expvar.NewString(mwMinerAddr).Set(conf.GConf.ListenAddr)
+	expvar.NewString(mwMinerNodeID).Set(string(conf.GConf.ThisNodeID))
+	expvar.NewString(mwMinerWallet).Set(conf.GConf.WalletAddress)
 }

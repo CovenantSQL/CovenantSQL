@@ -531,7 +531,7 @@ func registerNode() (err error) {
 	}
 
 	if nodeInfo.Role != proto.Leader && nodeInfo.Role != proto.Follower {
-		log.Infof("Register self to blockproducer: %v", conf.GConf.BP.NodeID)
+		log.Infof("Self register to blockproducer: %v", conf.GConf.BP.NodeID)
 		err = rpc.PingBP(nodeInfo, conf.GConf.BP.NodeID)
 	}
 

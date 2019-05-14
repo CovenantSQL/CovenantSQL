@@ -35,18 +35,18 @@ var (
 
 // CmdTransfer is cql transfer command entity.
 var CmdTransfer = &Command{
-	UsageLine: "cql transfer [common params] [-wait-tx-confirm] [-to-user wallet | -to-dsn dsn] [-amount count] [-type token_type]",
+	UsageLine: "cql transfer [common params] [-wait-tx-confirm] [-to-user wallet | -to-dsn dsn] [-amount count] [-token token_type]",
 	Short:     "transfer token to target account",
 	Long: `
 Transfer transfers your token to the target account or database.
 The command arguments are target wallet address(or dsn), amount of token, and token type.
 e.g.
-    cql transfer -to-user=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -to-user=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -token=Particle
 
-Since CovenantSQL is built on top of blockchains, you may want to wait for the transaction
+Since CovenantSQL is built on top of the blockchain, you need to wait for the transaction
 confirmation before the transfer takes effect.
 e.g.
-    cql transfer -wait-tx-confirm -to-dsn=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
+    cql transfer -wait-tx-confirm -to-dsn="covenantsql://xxxx" -amount=100 -token=Particle
 `,
 	Flag:       flag.NewFlagSet("Transfer params", flag.ExitOnError),
 	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
@@ -59,10 +59,10 @@ func init() {
 	addCommonFlags(CmdTransfer)
 	addConfigFlag(CmdTransfer)
 	addWaitFlag(CmdTransfer)
-	CmdTransfer.Flag.StringVar(&toUser, "to-user", "", "Target address of an user account to transfer token.")
-	CmdTransfer.Flag.StringVar(&toDSN, "to-dsn", "", "Target database dsn to transfer token.")
-	CmdTransfer.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer.")
-	CmdTransfer.Flag.StringVar(&tokenType, "type", "", "Token type to transfer.")
+	CmdTransfer.Flag.StringVar(&toUser, "to-user", "", "Target address of an user account to transfer token")
+	CmdTransfer.Flag.StringVar(&toDSN, "to-dsn", "", "Target database dsn to transfer token")
+	CmdTransfer.Flag.Uint64Var(&amount, "amount", 0, "Token account to transfer")
+	CmdTransfer.Flag.StringVar(&tokenType, "token", "", "Token type to transfer, e.g. Particle, Wave")
 }
 
 func runTransfer(cmd *Command, args []string) {

@@ -57,7 +57,7 @@ var (
 func addCommonFlags(cmd *Command) {
 	cmd.CommonFlag.BoolVar(&help, "help", false, "Show help message")
 	cmd.CommonFlag.BoolVar(&withPassword, "with-password", false,
-		"Input passphrase for encrypting private.key")
+		"Enter the passphrase for private.key")
 
 	// debugging flags.
 	cmd.DebugFlag.StringVar(&password, "password", "",
@@ -129,7 +129,7 @@ func wait(txHash hash.Hash) (err error) {
 
 func addBgServerFlag(cmd *Command) {
 	cmd.Flag.StringVar(&tmpPath, "tmp-path", "",
-		"Background service temp file path, use \"dirname `mktemp -u`\" to check it out")
+		"Background service temp file path, use \"dirname $(mktemp -u)\" to check it out")
 	cmd.Flag.StringVar(&bgLogLevel, "bg-log-level", "info",
 		"Background service log level: trace debug info warning error fatal panic")
 }

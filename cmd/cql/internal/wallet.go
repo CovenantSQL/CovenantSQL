@@ -61,7 +61,7 @@ func init() {
 	addCommonFlags(CmdWallet)
 	addConfigFlag(CmdWallet)
 
-	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
+	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token balance of current account, e.g. Particle, Wave, All")
 	CmdWallet.Flag.StringVar(&databaseID, "dsn", "", "Show specified database deposit")
 }
 

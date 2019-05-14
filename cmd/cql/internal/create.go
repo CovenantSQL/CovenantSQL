@@ -88,13 +88,13 @@ var node32 uint
 
 func addCreateFlags(cmd *Command) {
 	cmd.Flag.Var(&targetMiners, "db-target-miners", "List of target miner addresses(separated by ',')")
-	cmd.Flag.UintVar(&node32, "db-node", 0, "Target node number")
+	cmd.Flag.UintVar(&node32, "db-node", 0, "Target node count")
 	cmd.Flag.Uint64Var(&meta.Space, "db-space", 0, "Minimum disk space requirement, 0 for none")
 	cmd.Flag.Uint64Var(&meta.Memory, "db-memory", 0, "Minimum memory requirement, 0 for none")
 	cmd.Flag.Float64Var(&meta.LoadAvgPerCPU, "db-load-avg-per-cpu", 0, "Minimum idle CPU requirement, 0 for none")
 	cmd.Flag.StringVar(&meta.EncryptionKey, "db-encrypt-key", "", "Encryption key for persistence data")
 	cmd.Flag.BoolVar(&meta.UseEventualConsistency, "db-eventual-consistency", false, "Use eventual consistency to sync among miner nodes")
-	cmd.Flag.Float64Var(&meta.ConsistencyLevel, "db-consistency-level", 0, "Consistency level, node*consistency_level is the node number to perform strong consistency")
+	cmd.Flag.Float64Var(&meta.ConsistencyLevel, "db-consistency-level", 0, "Consistency level, node*consistency_level is the node count to perform strong consistency")
 	cmd.Flag.IntVar(&meta.IsolationLevel, "db-isolation-level", 0, "Isolation level in a single node")
 	cmd.Flag.Uint64Var(&meta.GasPrice, "db-gas-price", 0, "Customized gas price")
 	cmd.Flag.Uint64Var(&meta.AdvancePayment, "db-advance-payment", 0, "Customized advance payment")

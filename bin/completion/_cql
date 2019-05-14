@@ -21,26 +21,25 @@ _cql_dsn() {
 _cql_args() {
   case $words[1] in
     (help)
-      _arguments '*:help:(generate console create drop wallet transfer grant mirror explorer adapter idminer rpc
-)'
+      _arguments '*:help:(generate console create drop wallet transfer grant mirror explorer adapter idminer rpc)'
       ;;
     (generate)
       _arguments '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
+        '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-private=-[Generate config using an existing private key]:name: ' \
         '-source=-[Generate config using the specified config template]:name: ' \
         '-miner=-[Generate miner config with specified miner address]:name: ' \
-        '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '*:arguments:(config public)'
       ;;
     (console)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-adapter=-[Address to serve a database chain adapter]:adapter_addr: ' \
         '-command=-[Run only single command and exit]:cmd: ' \
@@ -53,57 +52,76 @@ _cql_args() {
         '1:Database ID:_cql_dsn '
       ;;
     (create)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
-        '-wait-tx-confirm[Wait for transaction confirmation]'
+        '-wait-tx-confirm[Wait for transaction confirmation]' \
+        '-db-advance-payment=-[Customized advance payment]:var: ' \
+        '-db-consistency-level=-[Consistency level, node*consistency_level is the node count to perform strong consistency]:var: ' \
+        '-db-encrypt-key=-[Encryption key for persistence data]:var: ' \
+        '-db-eventual-consistency=-[Use eventual consistency to sync among miner nodes]:var: ' \
+        '-db-gas-price=-[Customized gas price]:var: ' \
+        '-db-isolation-level=-[Isolation level in a single node]:var: ' \
+        '-db-load-avg-per-cpu=-[Minimum idle CPU requirement, 0 for none]:var: ' \
+        '-db-memory=-[Minimum memory requirement, 0 for none]:var: ' \
+        '-db-node=-[Target node count]:var: ' \
+        '-db-space=-[Minimum disk space requirement, 0 for none]:var: ' \
+        '-db-target-miners=-[List of target miner addresses(separated by ',')]:var: '
       ;;
     (drop)
-      _arguments -C '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments -C '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-wait-tx-confirm[Wait for transaction confirmation]' \
         '1:Database ID:_cql_dsn '
       ;;
     (wallet)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
-        '-balance=-[Get specific token balance of current account]:token_type:(Particle Wave All)'
+        '-dsn=-[Database url]:dsn:_cql_dsn' \
+        '-token=-[Get specific token balance of current account, e.g. Particle, Wave, All]:token_type:(Particle Wave All)'
       ;;
     (transfer)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
-        '-wait-tx-confirm[Wait for transaction confirmation]'
+        '-wait-tx-confirm[Wait for transaction confirmation]' \
+        '-amount=-[Token account to transfer]:var: ' \
+        '-to-dsn=-[Target database dsn to transfer token]:dsn:_cql_dsn' \
+        '-to-user=-[Target address of an user account to transfer token]:var: ' \
+        '-token=-[Token type to transfer, e.g. Particle, Wave]:token_type:(Particle Wave)'
       ;;
     (grant)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
-        '-wait-tx-confirm[Wait for transaction confirmation]'
+        '-to-dsn=-[Target database dsn to transfer token]:dsn:_cql_dsn' \
+        '-to-user=-[Target address of an user account to transfer token]:var: ' \
+        '-wait-tx-confirm[Wait for transaction confirmation]' \
+        '-perm=-[Permission type struct for grant]:name: '
       ;;
     (mirror)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-bg-log-level=-[Background log level]:bg_log_level:(trace debug info warning error fatal panic)' \
         '-tmp-path=-[Background service temp file path, use os.TempDir for default]:tmp_path:_files' \
@@ -111,22 +129,22 @@ _cql_args() {
         '2:Listen Addr:'
       ;;
     (explorer)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-bg-log-level=-[Background log level]:bg_log_level:(trace debug info warning error fatal panic)' \
         '-tmp-path=-[Background service temp file path, use os.TempDir for default]:tmp_path:_files' \
         '1:Listen Addr:'
       ;;
     (adapter)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-bg-log-level=-[Background log level]:bg_log_level:(trace debug info warning error fatal panic)' \
         '-tmp-path=-[Background service temp file path, use os.TempDir for default]:tmp_path:_files' \
@@ -134,24 +152,25 @@ _cql_args() {
         '1:Listen Addr:'
       ;;
     (idminer)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-difficulty=-[Difficulty for miner to mine nodes and generating nonce (default 24)]:difficulty: ' \
         '-loop[Keep mining until interrupted]'
       ;;
     (rpc)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
+      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml"]:CONF file:_files' \
         '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
-        '-no-password[Use empty password for master key]' \
-        '-password=-[Master key]:name: ' \
+        '-with-password[Enter the passphrase for private.key]' \
+        '-password=-[Passphrase for encrypting private.key]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
-        '-wait-tx-confirm[Wait for transaction confirmation]' \
+        '-bp[Call block producer node]' \
         '-endpoint=-[RPC endpoint Node ID to do test call]:' \
+        '-wait-tx-confirm[Wait for transaction confirmation]' \
         '-name=-[RPC name to do test call]:' \
         '-req=-[RPC request to do test call, in json format]:'
       ;;

@@ -92,8 +92,8 @@ func addCreateFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&meta.UseEventualConsistency, "eventual-consistency", false, "Use eventual consistency to sync among miner nodes")
 	cmd.Flag.Float64Var(&meta.ConsistencyLevel, "consistency-level", 0, "Consistency level, node*consistency_level is the node number to perform strong consistency")
 	cmd.Flag.IntVar(&meta.IsolationLevel, "isolation-level", 0, "Isolation level in a single node")
-	cmd.Flag.Uint64Var(&meta.GasPrice, "gas-price", 0, "customized gas price")
-	cmd.Flag.Uint64Var(&meta.AdvancePayment, "advance-payment", 0, "customized advance payment")
+	cmd.Flag.Uint64Var(&meta.GasPrice, "gas-price", 0, "Customized gas price")
+	cmd.Flag.Uint64Var(&meta.AdvancePayment, "advance-payment", 0, "Customized advanced payment")
 }
 
 func runCreate(cmd *Command, args []string) {

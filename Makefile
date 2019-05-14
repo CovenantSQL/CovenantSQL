@@ -195,10 +195,10 @@ android-release: status
 		--tag $(BUILDER):android-$(VERSION) \
 		-f docker/android-builder.Dockerfile \
 		.
-    temp_container=$(shell docker create $(BUILDER):android-$(VERSION))
-    docker cp $(temp_container):/CovenantSQL.tar.gz CovenantSQL-android-$(version).tar.gz
-    docker rm $(temp_container)
-    docker rmi $(BUILDER):android-$(VERSION)
+	temp_container=$$(docker create $(BUILDER):android-$(VERSION)) ; \
+	docker cp $${temp_container}:/CovenantSQL.tar.gz CovenantSQL-android-$(VERSION).tar.gz && \
+	docker rm $${temp_container} && \
+	docker rmi $(BUILDER):android-$(VERSION)
 
 clean:
 	rm -rf bin/cql*

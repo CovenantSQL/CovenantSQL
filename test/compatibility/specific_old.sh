@@ -63,7 +63,7 @@ if [[ $CLIENTBIN =~ "v0.5.0" ]]; then
         -command 'show tables;' -no-password | tee result.log
 else
     ${CLIENTBIN} wallet -config node_c/config.yaml
-    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm -node 2
+    ${CLIENTBIN} create -config node_c/config.yaml -wait-tx-confirm -db-node 2
 
     #get dsn
     dsn=$(cat node_c/.dsn | tail -n1)

@@ -103,7 +103,7 @@ func addCreateFlags(cmd *Command) {
 func runCreate(cmd *Command, args []string) {
 	commonFlagsInit(cmd)
 
-	if len(args) > 1 || len(args) == 0 {
+	if len(args) > 1 {
 		ConsoleLog.Error("create params should set by specific param name like -node")
 		SetExitStatus(1)
 		printCommandHelp(cmd)

@@ -212,7 +212,8 @@ func showAllDatabaseDeposit() {
 		return
 	}
 
-	fmt.Println("DatabaseID\tDeposit\tArrears\tAdvancePayment")
+	fmt.Printf("Database Deposits:\n\n")
+	fmt.Printf("%-64s\tDeposit\tArrears\tAdvancePayment\n", "DatabaseID")
 
 	for _, p := range resp.Profiles {
 		for _, user := range p.Users {

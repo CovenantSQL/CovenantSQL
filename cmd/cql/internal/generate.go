@@ -43,13 +43,13 @@ var CmdGenerate = &Command{
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
-You can input a passphrase for local encrypt your private key file by set -no-password=false
+You can input a passphrase for local encrypt your private key file by set -with-password
 e.g.
     cql generate
 
 or input a passphrase by
 
-    cql generate -no-password=false
+    cql generate -with-password
 `,
 }
 
@@ -132,7 +132,7 @@ func runGenerate(cmd *Command, args []string) {
 
 		if password == "" {
 			fmt.Println("Please enter the password of the existing private key")
-			oldPassword = readMasterKey(noPassword)
+			oldPassword = readMasterKey(!withPassword)
 		} else {
 			oldPassword = password
 		}
@@ -179,7 +179,7 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Println("Generating private key...")
 	if password == "" {
 		fmt.Println("Please enter password for new private key")
-		password = readMasterKey(noPassword)
+		password = readMasterKey(!withPassword)
 	}
 
 	if privateKeyParam == "" {
@@ -287,6 +287,6 @@ You can get some free PTC from:
 	fmt.Println(walletAddr)
 
 	if password != "" {
-		fmt.Println("Your private key had been encrypted by a passphrase, add -no-password=false in any further command")
+		fmt.Println("Your private key had been encrypted by a passphrase, add -with-password in any further command")
 	}
 }

@@ -44,7 +44,7 @@ import (
 var (
 	configFile      string
 	password        string
-	noPassword      bool
+	withPassword    bool
 	consoleLogLevel string // foreground console log level
 
 	waitTxConfirmation bool // wait for transaction confirmation before exiting
@@ -56,12 +56,12 @@ var (
 
 func addCommonFlags(cmd *Command) {
 	cmd.CommonFlag.BoolVar(&help, "help", false, "Show help message")
-	cmd.CommonFlag.BoolVar(&noPassword, "no-password", true,
-		"Use empty password for master key")
+	cmd.CommonFlag.BoolVar(&withPassword, "with-password", false,
+		"Input passphrase for encrypting private.key")
 
 	// debugging flags.
 	cmd.DebugFlag.StringVar(&password, "password", "",
-		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
+		"Passphrase for encrypting private.key (NOT SAFE, for debug or script only)")
 	cmd.DebugFlag.StringVar(&consoleLogLevel, "log-level", "info",
 		"Console log level: trace debug info warning error fatal panic")
 	cmd.DebugFlag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
@@ -83,14 +83,14 @@ func commonFlagsInit(cmd *Command) {
 
 func addConfigFlag(cmd *Command) {
 	cmd.CommonFlag.StringVar(&configFile, "config", "~/.cql/config.yaml",
-		"Config file for covenantsql (Usually no need to set, default is enough.)")
+		"Config file for CovanantSQL (Usually no need to set, default is enough.)")
 }
 
 func configInit() {
 	configFile = utils.HomeDirExpand(configFile)
 
 	if password == "" {
-		password = readMasterKey(noPassword)
+		password = readMasterKey(!withPassword)
 	}
 
 	// init covenantsql driver

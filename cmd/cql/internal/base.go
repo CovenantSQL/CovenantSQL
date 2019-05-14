@@ -62,6 +62,12 @@ type Command struct {
 	// Long is the long message shown in the 'cql help <this-command>' output.
 	Long string
 
+	// DebugFlag is a set of debug flags specific to this command.
+	DebugFlag flag.FlagSet
+
+	// CommonFlag is a set of common flags specific to this command.
+	CommonFlag flag.FlagSet
+
 	// Flag is a set of flags specific to this command.
 	Flag flag.FlagSet
 }

@@ -19,6 +19,7 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"math"
 	"os"
@@ -49,6 +50,9 @@ confirmation before the creation takes effect.
 e.g.
     cql create -wait-tx-confirm -node 2
 `,
+	Flag:       *flag.NewFlagSet("DB meta params", flag.ExitOnError),
+	CommonFlag: *flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  *flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {

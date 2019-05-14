@@ -18,6 +18,7 @@ package internal
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -69,6 +70,21 @@ func runVersion(cmd *Command, args []string) {
 	fmt.Print(PrintVersion(false))
 }
 
+func printParamHelp(flagSet flag.FlagSet) {
+	_, _ = fmt.Fprintf(os.Stdout, "\n%s:\n", flagSet.Name())
+	flagSet.SetOutput(os.Stdout)
+	flagSet.PrintDefaults()
+}
+
+func printCommandHelp(cmd *Command) {
+	_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
+	_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
+
+	printParamHelp(cmd.Flag)
+	printParamHelp(cmd.CommonFlag)
+	printParamHelp(cmd.DebugFlag)
+}
+
 func runHelp(cmd *Command, args []string) {
 	if l := len(args); l != 1 {
 		if l > 1 {
@@ -83,11 +99,7 @@ func runHelp(cmd *Command, args []string) {
 		if command.Name() != cmdName {
 			continue
 		}
-		fmt.Fprintf(os.Stdout, "usage: %s\n", command.UsageLine)
-		fmt.Fprintf(os.Stdout, command.Long)
-		fmt.Fprintf(os.Stdout, "\nParams:\n")
-		command.Flag.SetOutput(os.Stdout)
-		command.Flag.PrintDefaults()
+		printCommandHelp(command)
 		return
 	}
 

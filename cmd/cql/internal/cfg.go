@@ -55,26 +55,22 @@ var (
 )
 
 func addCommonFlags(cmd *Command) {
-	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
-	cmd.Flag.BoolVar(&noPassword, "no-password", true,
+	cmd.CommonFlag.BoolVar(&help, "help", false, "Show help message")
+	cmd.CommonFlag.BoolVar(&noPassword, "no-password", true,
 		"Use empty password for master key")
 
 	// debugging flags.
-	cmd.Flag.StringVar(&password, "password", "",
+	cmd.DebugFlag.StringVar(&password, "password", "",
 		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
-	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
+	cmd.DebugFlag.StringVar(&consoleLogLevel, "log-level", "info",
 		"Console log level: trace debug info warning error fatal panic")
-	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
+	cmd.DebugFlag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 }
 
 func commonFlagsInit(cmd *Command) {
 	if help {
-		_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
-		_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
-		_, _ = fmt.Fprintf(os.Stdout, "\nParams:\n")
-		cmd.Flag.SetOutput(os.Stdout)
-		cmd.Flag.PrintDefaults()
+		printCommandHelp(cmd)
 		Exit()
 	}
 
@@ -86,7 +82,7 @@ func commonFlagsInit(cmd *Command) {
 }
 
 func addConfigFlag(cmd *Command) {
-	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
+	cmd.CommonFlag.StringVar(&configFile, "config", "~/.cql/config.yaml",
 		"Config file for covenantsql (Usually no need to set, default is enough.)")
 }
 

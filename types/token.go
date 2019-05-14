@@ -60,7 +60,7 @@ func (t TokenType) String() string {
 func FromString(t string) TokenType {
 	var i TokenType
 	for ; i < SupportTokenNumber; i++ {
-		if strings.ToLower(TokenList[i]) == strings.ToLower(t) {
+		if strings.EqualFold(TokenList[i], t) {
 			return i
 		}
 	}

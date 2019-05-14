@@ -65,9 +65,12 @@ var (
 
 func init() {
 	CmdGenerate.Run = runGenerate
-	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
-	CmdGenerate.Flag.StringVar(&source, "source", "", "source config file template for config generation")
-	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "", "generate miner config with specified listen address")
+	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "",
+		"Generate config using an existing private key")
+	CmdGenerate.Flag.StringVar(&source, "source", "",
+		"Generate config using the specified config template")
+	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "",
+		"Generate miner config with specified miner address")
 
 	addCommonFlags(CmdGenerate)
 }

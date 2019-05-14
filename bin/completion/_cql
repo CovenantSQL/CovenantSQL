@@ -10,7 +10,7 @@
 # -------
 #
 #  * Robinhuett <https://github.com/Robinhuett>
-#  * Auxten <auxtenwpc#gmail.com>
+#  * Auxten <auxten@covenantsql.io>
 #
 # ------------------------------------------------------------------------------
 
@@ -25,11 +25,13 @@ _cql_args() {
 )'
       ;;
     (generate)
-      _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \
-        '-bypass-signature[Disable signature sign and verify, for testing]' \
+      _arguments '-bypass-signature[Disable signature sign and verify, for testing]' \
         '-help[Show help message]' \
         '-no-password[Use empty password for master key]' \
         '-password=-[Master key]:name: ' \
+        '-private=-[Generate config using an existing private key]:name: ' \
+        '-source=-[Generate config using the specified config template]:name: ' \
+        '-miner=-[Generate miner config with specified miner address]:name: ' \
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '*:arguments:(config public)'
       ;;
@@ -42,13 +44,13 @@ _cql_args() {
         '-log-level=-[Console log level]:log_level:(trace debug info warning error fatal panic)' \
         '-adapter=-[Address to serve a database chain adapter]:adapter_addr: ' \
         '-command=-[Run only single command and exit]:cmd: ' \
-        '-dsn=-[Database url]:dsn:_cql_dsn' \
         '-explorer=-[Address serve a database chain explorer]:explorer_addr: ' \
         '-file=-[Execute commands from file and exit]:_files' \
         '-no-rc[Do not read start up file]' \
         '-out=-[Record stdout to file]:out_file:_files' \
         '-single-transaction[Execute as a single transaction (if non-interactive)]' \
-        '-variable=-[Set variable]:var: '
+        '-variable=-[Set variable]:var: ' \
+        '1:Database ID:_cql_dsn '
       ;;
     (create)
       _arguments '-config=-[Config file for CovenantSQL, default "~/.cql/config.yaml]:CONF file:_files' \

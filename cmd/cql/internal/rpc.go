@@ -18,6 +18,7 @@ package internal
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"reflect"
 	"strings"
@@ -63,6 +64,9 @@ e.g.
             -endpoint 000000fd2c8f68d54d55d97d0ad06c6c0d91104e4e51a7247f3629cc2a0127cf \
             -req '{"DBID": "c8328272ba9377acdf1ee8e73b17f2b0f7430c798141080d0282195507eb94e7"}'
 `,
+	Flag:       flag.NewFlagSet("RPC params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 type canSign interface {
@@ -94,7 +98,8 @@ func runRPC(cmd *Command, args []string) {
 		// error
 		ConsoleLog.Error("rpc endpoint/name/request payload is required for rpc tool")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
 
 	req, resp := resolveRPCEntities()

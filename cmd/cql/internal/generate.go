@@ -19,6 +19,7 @@ package internal
 import (
 	"bufio"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -51,6 +52,9 @@ or input a passphrase by
 
     cql generate -with-password
 `,
+	Flag:       flag.NewFlagSet("Generate params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 var (
@@ -131,7 +135,7 @@ func runGenerate(cmd *Command, args []string) {
 		var oldPassword string
 
 		if password == "" {
-			fmt.Println("Please enter the password of the existing private key")
+			fmt.Println("Please enter the passphrase of the existing private key")
 			oldPassword = readMasterKey(!withPassword)
 		} else {
 			oldPassword = password
@@ -178,7 +182,7 @@ func runGenerate(cmd *Command, args []string) {
 
 	fmt.Println("Generating private key...")
 	if password == "" {
-		fmt.Println("Please enter password for new private key")
+		fmt.Println("Please enter passphrase for new private key")
 		password = readMasterKey(!withPassword)
 	}
 

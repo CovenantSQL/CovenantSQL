@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"flag"
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -47,6 +48,9 @@ confirmation before the transfer takes effect.
 e.g.
     cql transfer -wait-tx-confirm -to-dsn=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -amount=100 -type=Particle
 `,
+	Flag:       flag.NewFlagSet("Transfer params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -62,18 +66,20 @@ func init() {
 }
 
 func runTransfer(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) > 0 || (toUser == "" && toDSN == "") || tokenType == "" {
 		ConsoleLog.Error("transfer command need to-user(or to-dsn) address and token type as param")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
 	if toUser != "" && toDSN != "" {
 		ConsoleLog.Error("transfer command accepts either to-user or to-dsn as param")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
-
-	commonFlagsInit(cmd)
 
 	unit := types.FromString(tokenType)
 	if !unit.Listed() {

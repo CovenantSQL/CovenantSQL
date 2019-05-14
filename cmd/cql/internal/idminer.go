@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"math/rand"
@@ -50,6 +51,9 @@ e.g.
 If you want mining a good id, use:
     cql idminer -config ~/.cql/config.yaml -loop -difficulty 24
 `,
+	Flag:       flag.NewFlagSet("IDMiner params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {

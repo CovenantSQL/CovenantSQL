@@ -18,6 +18,7 @@ package internal
 
 import (
 	"encoding/json"
+	"flag"
 	"strings"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -44,6 +45,9 @@ confirmation before the permission takes effect.
 e.g.
     cql grant -wait-tx-confirm -to-user=43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40 -to-dsn="covenantsql://xxxx" -perm perm_struct
 `,
+	Flag:       flag.NewFlagSet("Grant params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -66,13 +70,14 @@ type userPermPayload struct {
 }
 
 func runGrant(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) > 0 || toUser == "" || toDSN == "" || perm == "" {
 		ConsoleLog.Error("grant command need to-user, to-dsn address and permission struct as param")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
-
-	commonFlagsInit(cmd)
 
 	if !strings.HasPrefix(toDSN, client.DBScheme) && !strings.HasPrefix(toDSN, client.DBSchemeAlias) {
 		ConsoleLog.Error("grant permission failed: invalid dsn provided, use address start with 'covenantsql://'")

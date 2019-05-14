@@ -38,6 +38,9 @@ var CmdVersion = &Command{
 	Long: `
 Use "cql help <command>" for more information about a command.
 `,
+	Flag:       flag.NewFlagSet("", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("", flag.ExitOnError),
 }
 
 // CmdHelp is cql help command entity.
@@ -47,6 +50,9 @@ var CmdHelp = &Command{
 	Long: `
 Use "cql help <command>" for more information about a command.
 `,
+	Flag:       flag.NewFlagSet("", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("", flag.ExitOnError),
 }
 
 func init() {
@@ -70,8 +76,10 @@ func runVersion(cmd *Command, args []string) {
 	fmt.Print(PrintVersion(false))
 }
 
-func printParamHelp(flagSet flag.FlagSet) {
-	_, _ = fmt.Fprintf(os.Stdout, "\n%s:\n", flagSet.Name())
+func printParamHelp(flagSet *flag.FlagSet) {
+	if flagSet.Name() != "" {
+		_, _ = fmt.Fprintf(os.Stdout, "\n%s:\n", flagSet.Name())
+	}
 	flagSet.SetOutput(os.Stdout)
 	flagSet.PrintDefaults()
 }
@@ -80,9 +88,15 @@ func printCommandHelp(cmd *Command) {
 	_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
 	_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
 
-	printParamHelp(cmd.Flag)
-	printParamHelp(cmd.CommonFlag)
-	printParamHelp(cmd.DebugFlag)
+	if cmd.Flag != nil {
+		printParamHelp(cmd.Flag)
+	}
+	if cmd.CommonFlag != nil {
+		printParamHelp(cmd.CommonFlag)
+	}
+	if cmd.DebugFlag != nil {
+		printParamHelp(cmd.DebugFlag)
+	}
 }
 
 func runHelp(cmd *Command, args []string) {
@@ -123,7 +137,10 @@ The commands are:
 The common params for commands (except help and version) are:
 
 `
+	helpDebug := `
+The debug params for commands (except help and version) are:
 
+`
 	helpTail := `
 Use "cql help <command>" for more information about a command.
 `
@@ -140,8 +157,11 @@ Use "cql help <command>" for more information about a command.
 	addCommonFlags(CmdHelp)
 	addConfigFlag(CmdHelp)
 	fmt.Fprint(output, helpCommon)
-	CmdHelp.Flag.SetOutput(output)
-	CmdHelp.Flag.PrintDefaults()
+	CmdHelp.CommonFlag.SetOutput(output)
+	CmdHelp.CommonFlag.PrintDefaults()
+	fmt.Fprint(output, helpDebug)
+	CmdHelp.DebugFlag.SetOutput(output)
+	CmdHelp.DebugFlag.PrintDefaults()
 
 	fmt.Fprint(output, helpTail)
 	fmt.Fprintf(os.Stdout, output.String())

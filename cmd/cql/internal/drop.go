@@ -17,6 +17,8 @@
 package internal
 
 import (
+	"flag"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 )
 
@@ -34,6 +36,9 @@ confirmation before the drop operation takes effect.
 e.g.
     cql drop -wait-tx-confirm covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c
 `,
+	Flag:       flag.NewFlagSet("Drop params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -45,13 +50,15 @@ func init() {
 }
 
 func runDrop(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) != 1 {
 		ConsoleLog.Error("drop command need CovenantSQL dsn or database_id string as param")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
 
-	commonFlagsInit(cmd)
 	configInit()
 
 	dsn := args[0]

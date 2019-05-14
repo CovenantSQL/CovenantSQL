@@ -50,9 +50,9 @@ confirmation before the creation takes effect.
 e.g.
     cql create -wait-tx-confirm -node 2
 `,
-	Flag:       *flag.NewFlagSet("DB meta params", flag.ExitOnError),
-	CommonFlag: *flag.NewFlagSet("Common params", flag.ExitOnError),
-	DebugFlag:  *flag.NewFlagSet("Debug params", flag.ExitOnError),
+	Flag:       flag.NewFlagSet("DB meta params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -101,11 +101,13 @@ func addCreateFlags(cmd *Command) {
 }
 
 func runCreate(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) > 1 {
 		ConsoleLog.Error("create params should set by specific param name like -node")
 		SetExitStatus(1)
-		help = true
-		commonFlagsInit(cmd)
+		printCommandHelp(cmd)
+		Exit()
 	}
 
 	for _, miner := range targetMiners.Values {
@@ -164,10 +166,9 @@ func runCreate(cmd *Command, args []string) {
 	if meta.Node == 0 {
 		ConsoleLog.Error("create database failed: request node count must > 1")
 		SetExitStatus(1)
-		help = true
+		return
 	}
 
-	commonFlagsInit(cmd)
 	configInit()
 
 	// create database

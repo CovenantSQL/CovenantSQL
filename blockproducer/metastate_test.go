@@ -502,20 +502,20 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 				err = t2.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = ms.apply(t0)
+				err = ms.apply(t0, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
-				err = ms.apply(t1)
+				err = ms.apply(t1, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
-				err = ms.apply(t2)
+				err = ms.apply(t2, 0)
 				So(err, ShouldBeNil)
 
 				Convey("The metaState should report error if tx fails verification", func() {
 					t1.Nonce = pi.AccountNonce(10)
 					err = t1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = ms.apply(t1)
+					err = ms.apply(t1, 0)
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
 					t1.Nonce, err = ms.nextNonce(addr1)
 					So(err, ShouldBeNil)
@@ -528,7 +528,7 @@ func TestMetaState(t *testing.T) {
 					So(n, ShouldEqual, 3)
 				})
 				Convey("The metaState should report error on unknown transaction type", func() {
-					err = ms.applyTransaction(nil)
+					err = ms.applyTransaction(nil, 0)
 					So(err, ShouldEqual, ErrUnknownTransactionType)
 				})
 			})
@@ -598,7 +598,7 @@ func TestMetaState(t *testing.T) {
 			txs[5].Sign(privKey2)
 			txs[6].Sign(privKey2)
 			for _, tx := range txs {
-				err = ms.apply(tx)
+				err = ms.apply(tx, 0)
 				So(err, ShouldBeNil)
 			}
 			ms.commit()
@@ -676,7 +676,7 @@ func TestMetaState(t *testing.T) {
 			err = txs[3].Sign(privKey4)
 			So(err, ShouldBeNil)
 			for i := range txs {
-				err = ms.apply(txs[i])
+				err = ms.apply(txs[i], 0)
 				So(err, ShouldBeNil)
 				ms.commit()
 			}
@@ -808,19 +808,19 @@ func TestMetaState(t *testing.T) {
 				err = invalidCd8.Sign(privKey2)
 				So(err, ShouldBeNil)
 
-				err = ms.apply(&invalidPs)
+				err = ms.apply(&invalidPs, 0)
 				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
-				err = ms.apply(&invalidCd1)
+				err = ms.apply(&invalidCd1, 0)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
-				err = ms.apply(&invalidCd2)
+				err = ms.apply(&invalidCd2, 0)
 				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
-				err = ms.apply(&invalidCd3)
+				err = ms.apply(&invalidCd3, 0)
 				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
-				err = ms.apply(&invalidCd4)
+				err = ms.apply(&invalidCd4, 0)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
-				err = ms.apply(&invalidCd5)
+				err = ms.apply(&invalidCd5, 0)
 				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
-				err = ms.apply(&invalidCd6)
+				err = ms.apply(&invalidCd6, 0)
 				So(errors.Cause(err), ShouldEqual, ErrInvalidMinerCount)
 				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("1")))] = &types.ProviderProfile{
 					TargetUser: nil,
@@ -869,7 +869,7 @@ func TestMetaState(t *testing.T) {
 					TokenType:     0,
 					NodeID:        "",
 				}
-				err = ms.apply(&invalidCd7)
+				err = ms.apply(&invalidCd7, 0)
 				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
 
 				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("9")))] = &types.ProviderProfile{
@@ -919,7 +919,7 @@ func TestMetaState(t *testing.T) {
 					TokenType:     0,
 					NodeID:        "0000001",
 				}
-				err = ms.apply(&invalidCd8)
+				err = ms.apply(&invalidCd8, 0)
 				So(err, ShouldBeNil)
 				dbID := proto.FromAccountAndNonce(addr2, uint32(invalidCd8.Nonce))
 
@@ -975,17 +975,17 @@ func TestMetaState(t *testing.T) {
 
 				var b1, b2 uint64
 				b1, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
-				err = ms.apply(&ps)
+				err = ms.apply(&ps, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
 				b2, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
 				So(loaded, ShouldBeTrue)
 				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
-				err = ms.apply(&cd2)
+				err = ms.apply(&cd2, 0)
 				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
 				b1, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
-				err = ms.apply(&cd1)
+				err = ms.apply(&cd1, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
 				b2, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
@@ -1009,13 +1009,13 @@ func TestMetaState(t *testing.T) {
 				}
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
 				up.Permission = types.UserPermissionFromRole(types.Void)
 				up.TargetSQLChain = dbAccount
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(err, ShouldBeNil)
 				// test permission update
 				// addr1(admin) update addr3 as admin
@@ -1024,7 +1024,7 @@ func TestMetaState(t *testing.T) {
 				up.Permission = types.UserPermissionFromRole(types.Admin)
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
 				// addr3(admin) update addr4 as read
@@ -1033,7 +1033,7 @@ func TestMetaState(t *testing.T) {
 				up.Permission = types.UserPermissionFromRole(types.Read)
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
 				// addr3(admin) update addr1(admin) as read
@@ -1041,7 +1041,7 @@ func TestMetaState(t *testing.T) {
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(err, ShouldBeNil)
 				ms.commit()
 				// addr3(admin) update addr3(admin) as read fail
@@ -1050,13 +1050,13 @@ func TestMetaState(t *testing.T) {
 				up.Nonce = up.Nonce + 1
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(errors.Cause(err), ShouldEqual, ErrNoSuperUserLeft)
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 3
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = ms.apply(&up)
+				err = ms.apply(&up, 0)
 				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
 
 				co, loaded = ms.loadSQLChainObject(dbID)
@@ -1093,7 +1093,7 @@ func TestMetaState(t *testing.T) {
 					trans1.Nonce = nonce
 					err = trans1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans1)
+					err = ms.apply(trans1, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 					addr1B2, ok := ms.loadAccountTokenBalance(addr1, types.Particle)
@@ -1123,21 +1123,21 @@ func TestMetaState(t *testing.T) {
 					So(dbID, ShouldEqual, dbAccount.DatabaseID())
 					trans2.Nonce = nonce
 					//no sign err
-					err = ms.apply(trans2)
+					err = ms.apply(trans2, 0)
 					So(err, ShouldEqual, ErrInvalidSender)
 					//wrong key sign err
 					err = trans2.Sign(privKey2)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans2)
+					err = ms.apply(trans2, 0)
 					So(err, ShouldNotBeNil)
 					//invalid sign
 					copy([]byte("invalid hash"), trans2.DataHash[:])
-					err = ms.apply(trans2)
+					err = ms.apply(trans2, 0)
 					So(err, ShouldNotBeNil)
 					//correct transfer
 					err = trans2.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans2)
+					err = ms.apply(trans2, 0)
 					So(err, ShouldBeNil)
 					// ms.commit()
 					profile, ok = ms.loadSQLChainObject(dbID)
@@ -1175,7 +1175,7 @@ func TestMetaState(t *testing.T) {
 					ub.Nonce = nonce
 					err = ub.Sign(privKey2)
 					So(err, ShouldBeNil)
-					err = ms.apply(ub)
+					err = ms.apply(ub, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 					profile, ok = ms.loadSQLChainObject(dbID)
@@ -1199,7 +1199,7 @@ func TestMetaState(t *testing.T) {
 					trans3.Nonce = nonce
 					err = trans3.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans3)
+					err = ms.apply(trans3, 0)
 					So(err, ShouldEqual, ErrInsufficientTransfer)
 					profile, ok = ms.loadSQLChainObject(dbID)
 					So(ok, ShouldBeTrue)
@@ -1222,7 +1222,7 @@ func TestMetaState(t *testing.T) {
 					trans5.Nonce = nonce
 					err = trans5.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans5)
+					err = ms.apply(trans5, 0)
 					So(err, ShouldEqual, ErrInsufficientBalance)
 					profile, ok = ms.loadSQLChainObject(dbID)
 					So(ok, ShouldBeTrue)
@@ -1245,7 +1245,7 @@ func TestMetaState(t *testing.T) {
 					trans6.Nonce = nonce
 					err = trans6.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans6)
+					err = ms.apply(trans6, 0)
 					So(err, ShouldEqual, ErrWrongTokenType)
 					profile, ok = ms.loadSQLChainObject(dbID)
 					So(ok, ShouldBeTrue)
@@ -1268,7 +1268,7 @@ func TestMetaState(t *testing.T) {
 					trans4.Nonce = nonce
 					err = trans4.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans4)
+					err = ms.apply(trans4, 0)
 					ms.commit()
 					profile, ok = ms.loadSQLChainObject(dbID)
 					So(ok, ShouldBeTrue)
@@ -1283,7 +1283,7 @@ func TestMetaState(t *testing.T) {
 					invalidIk1 := &types.IssueKeys{}
 					err = invalidIk1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = ms.apply(invalidIk1)
+					err = ms.apply(invalidIk1, 0)
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
 					invalidIk2 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
@@ -1293,7 +1293,7 @@ func TestMetaState(t *testing.T) {
 					}
 					err = invalidIk2.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(invalidIk2)
+					err = ms.apply(invalidIk2, 0)
 					So(err, ShouldEqual, ErrDatabaseNotFound)
 					invalidIk3 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
@@ -1303,7 +1303,7 @@ func TestMetaState(t *testing.T) {
 					}
 					err = invalidIk3.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = ms.apply(invalidIk3)
+					err = ms.apply(invalidIk3, 0)
 					So(err, ShouldEqual, ErrAccountPermissionDeny)
 					ik1 := &types.IssueKeys{
 						IssueKeysHeader: types.IssueKeysHeader{
@@ -1313,7 +1313,7 @@ func TestMetaState(t *testing.T) {
 					}
 					err = ik1.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(ik1)
+					err = ms.apply(ik1, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 					encryptKey := "12345"
@@ -1331,7 +1331,7 @@ func TestMetaState(t *testing.T) {
 					}
 					err = ik2.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(ik2)
+					err = ms.apply(ik2, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 
@@ -1356,7 +1356,7 @@ func TestMetaState(t *testing.T) {
 					ub1.Version = int32(ub1.HSPDefaultVersion())
 					err = ub1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = ms.apply(ub1)
+					err = ms.apply(ub1, 0)
 					So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
 					trans1 := types.NewTransfer(&types.TransferHeader{
 						Sender:    addr1,
@@ -1369,7 +1369,7 @@ func TestMetaState(t *testing.T) {
 					trans1.Nonce = nonce
 					err = trans1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans1)
+					err = ms.apply(trans1, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 					trans2 := types.NewTransfer(&types.TransferHeader{
@@ -1383,7 +1383,7 @@ func TestMetaState(t *testing.T) {
 					trans2.Nonce = nonce
 					err = trans2.Sign(privKey3)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans2)
+					err = ms.apply(trans2, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 					trans3 := types.NewTransfer(&types.TransferHeader{
@@ -1397,7 +1397,7 @@ func TestMetaState(t *testing.T) {
 					trans3.Nonce = nonce
 					err = trans3.Sign(privKey4)
 					So(err, ShouldBeNil)
-					err = ms.apply(trans3)
+					err = ms.apply(trans3, 0)
 					So(err, ShouldBeNil)
 					ms.commit()
 
@@ -1447,7 +1447,7 @@ func TestMetaState(t *testing.T) {
 					ub2.Version = int32(ub2.HSPDefaultVersion())
 					err = ub2.Sign(privKey2)
 					So(err, ShouldBeNil)
-					err = ms.apply(ub2)
+					err = ms.apply(ub2, 0)
 					ms.commit()
 					sqlchain, loaded := ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
@@ -1499,7 +1499,7 @@ func TestMetaState(t *testing.T) {
 					ub3.Version = int32(ub3.HSPDefaultVersion())
 					err = ub3.Sign(privKey2)
 					So(err, ShouldBeNil)
-					err = ms.apply(ub3)
+					err = ms.apply(ub3, 0)
 					So(err, ShouldBeNil)
 					sqlchain, loaded = ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)

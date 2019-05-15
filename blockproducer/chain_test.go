@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -325,7 +326,7 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 			err = chain.storeTx(t1)
 			So(err, ShouldBeNil)
-			err = chain.produceBlock(begin.Add(chain.period).UTC())
+			err = chain.produceBlock(begin.Add(chain.period * conf.BPHeightCIPFixProvideService).UTC())
 			So(err, ShouldBeNil)
 			bal2, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
 			So(loaded, ShouldBeTrue)
@@ -334,7 +335,7 @@ func TestChain(t *testing.T) {
 			So(bal1-bal2, ShouldEqual, po1.Deposit)
 			err = chain.storeTx(t2)
 			So(err, ShouldBeNil)
-			err = chain.produceBlock(begin.Add(2 * chain.period).UTC())
+			err = chain.produceBlock(begin.Add(chain.period * (conf.BPHeightCIPFixProvideService + 1)).UTC())
 			So(err, ShouldBeNil)
 			bal3, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
 			So(bal3, ShouldEqual, bal2)

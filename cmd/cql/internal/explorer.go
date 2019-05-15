@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"flag"
 	"net/http"
 
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/observer"
@@ -39,6 +40,9 @@ Explorer serves a SQLChain web explorer.
 e.g.
     cql explorer 127.0.0.1:8546
 `,
+	Flag:       flag.NewFlagSet("Explorer params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -67,13 +71,15 @@ func startExplorerServer(explorerAddr string) func() {
 }
 
 func runExplorer(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) != 1 {
 		ConsoleLog.Error("explorer command need listen address as param")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
 
-	commonFlagsInit(cmd)
 	configInit()
 	bgServerInit()
 

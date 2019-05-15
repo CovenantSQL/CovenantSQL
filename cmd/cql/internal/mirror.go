@@ -17,6 +17,8 @@
 package internal
 
 import (
+	"flag"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/mirror"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -38,6 +40,9 @@ Mirror subscribes database updates and serves a read-only database mirror.
 e.g.
     cql mirror dsn 127.0.0.1:9389
 `,
+	Flag:       flag.NewFlagSet("Mirror params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -67,13 +72,15 @@ func startMirrorServer(mirrorDatabase string, mirrorAddr string) func() {
 }
 
 func runMirror(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) != 2 {
 		ConsoleLog.Error("missing args, run `cql help mirror` for help")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
 
-	commonFlagsInit(cmd)
 	configInit()
 	bgServerInit()
 

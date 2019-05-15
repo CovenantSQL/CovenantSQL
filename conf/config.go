@@ -23,6 +23,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
@@ -93,6 +94,7 @@ type MinerInfo struct {
 	RootDir                string                 `yaml:"RootDir"`
 	MaxReqTimeGap          time.Duration          `yaml:"MaxReqTimeGap,omitempty"`
 	ProvideServiceInterval time.Duration          `yaml:"ProvideServiceInterval,omitempty"`
+	DiskUsageInterval      time.Duration          `yaml:"DiskUsageInterval,omitempty"`
 	TargetUsers            []proto.AccountAddress `yaml:"TargetUsers,omitempty"`
 }
 
@@ -115,6 +117,7 @@ type Config struct {
 	WorkingRoot      string            `yaml:"WorkingRoot"`
 	PubKeyStoreFile  string            `yaml:"PubKeyStoreFile"`
 	PrivateKeyFile   string            `yaml:"PrivateKeyFile"`
+	WalletAddress    string            `yaml:"WalletAddress"`
 	DHTFileName      string            `yaml:"DHTFileName"`
 	ListenAddr       string            `yaml:"ListenAddr"`
 	ListenDirectAddr string            `yaml:"ListenDirectAddr",omitempty`
@@ -202,5 +205,22 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	if config.Miner != nil && !path.IsAbs(config.Miner.RootDir) {
 		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
 	}
+
+	if config.WalletAddress != "" {
+		for _, node := range config.KnownNodes {
+			if node.ID == config.ThisNodeID {
+				if node.PublicKey != nil {
+					var walletHash proto.AccountAddress
+
+					if walletHash, err = crypto.PubKeyHash(node.PublicKey); err != nil {
+						return
+					}
+
+					config.WalletAddress = walletHash.String()
+				}
+			}
+		}
+	}
+
 	return
 }

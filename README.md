@@ -35,17 +35,10 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 - **Immutable**: Query History in CQL is Immutable and Trackable.
 - **Permission**: Column Level ACL and SQL Pattern Whitelist.
 
-We believe [On the next Internet, everyone should have a complete **Data Rights**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
-
-**One Line Makes Data on Blockchain**
-
-```go
-sql.Open("cql", dbURI)
-```
-
 ## What is CQL?
 
 - Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
+- Low cost DBaaS
 - Just like [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) is the decentralized file system, CQL is the decentralized database
 
 ## Quick Start
@@ -61,8 +54,7 @@ sql.Open("cql", dbURI)
 - non-Homebrew users can run:
     
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.osx-amd64.tar.gz" | \
-     tar xzv -C /usr/local/bin/ --strip-components=1'
+    sudo bash -c 'curl -L "https://cutt.ly/cql050mac" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
 #### Linux
@@ -70,19 +62,16 @@ sql.Open("cql", dbURI)
 - Just run：
 
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.linux-amd64.tar.gz" | \
-    tar xzv -C /usr/local/bin/ --strip-components=1'
+    sudo bash -c 'curl -L "https://cutt.ly/cql050linux" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
-#### To continue: [Docs](https://developers.covenantsql.io/docs/en/quickstart)
+#### To continue: [TestNet Quickstart](https://developers.covenantsql.io/docs/en/quickstart)
 
 ## How CQL works
 
 ### 3 Layers Arch
 
-
-
-![CovenantSQL 3 Layer design](logo/arch.png)
+![CovenantSQL 3 Layer design](https://cdn.jsdelivr.net/gh/CovenantSQL/docs@b7143254adb804dff0e3bc1f2f6ab11ad9cd44f5/website/static/img/2layers.svg)
 
 - Layer 1: **Global Consensus Layer** (the main chain, the middle ring in the architecture diagram):
     - There will only be one main chain throughout the network.

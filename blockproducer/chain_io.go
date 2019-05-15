@@ -17,11 +17,12 @@
 package blockproducer
 
 import (
+	"database/sql"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -29,20 +30,7 @@ import (
 
 // loadBlock loads a BPBlock from chain storage.
 func (c *Chain) loadBlock(h hash.Hash) (b *types.BPBlock, err error) {
-	var (
-		enc []byte
-		out = &types.BPBlock{}
-	)
-	if err = c.storage.Reader().QueryRow(
-		`SELECT "encoded" FROM "blocks" WHERE "hash"=?`, h.String(),
-	).Scan(&enc); err != nil {
-		return
-	}
-	if err = utils.DecodeMsgPack(enc, out); err != nil {
-		return
-	}
-	b = out
-	return
+	return loadBlock(c.storage, h)
 }
 
 func (c *Chain) fetchLastIrreversibleBlock() (
@@ -154,6 +142,60 @@ func (c *Chain) queryTxState(hash hash.Hash) (state pi.TransactionState, err err
 	}
 
 	return pi.TransactionStateNotFound, nil
+}
+
+func (c *Chain) queryAccountSQLChainProfiles(account proto.AccountAddress) (profiles []*types.SQLChainProfile, err error) {
+	var dbs []proto.DatabaseID
+
+	dbs, err = func() (dbs []proto.DatabaseID, err error) {
+		c.RLock()
+		defer c.RUnlock()
+
+		var (
+			id       string
+			rows     *sql.Rows
+			querySQL = `SELECT "id" FROM "indexed_shardChains" WHERE "account" = ?`
+		)
+
+		rows, err = c.storage.Reader().Query(querySQL, account.String())
+
+		if err != nil {
+			return
+		}
+
+		defer func() {
+			_ = rows.Close()
+		}()
+
+		for rows.Next() {
+			err = rows.Scan(&id)
+			if err != nil {
+				return
+			}
+
+			dbs = append(dbs, proto.DatabaseID(id))
+		}
+
+		return
+	}()
+
+	if err != nil {
+		return
+	}
+
+	var (
+		profile *types.SQLChainProfile
+		ok      bool
+	)
+
+	for _, db := range dbs {
+		profile, ok = c.loadSQLChainProfile(db)
+		if ok {
+			profiles = append(profiles, profile)
+		}
+	}
+
+	return
 }
 
 func (c *Chain) immutableNextNonce(addr proto.AccountAddress) (n pi.AccountNonce, err error) {

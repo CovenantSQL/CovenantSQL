@@ -94,13 +94,16 @@ func InitBP() {
 	if conf.GConf == nil {
 		log.Fatal("must call conf.LoadConfig first")
 	}
-	if conf.GConf.BP == nil {
+	if conf.GConf.BP == nil && len(conf.GConf.SeedBPNodes) > 0 {
 		seedBP := &conf.GConf.SeedBPNodes[0]
 		conf.GConf.BP = &conf.BPInfo{
 			PublicKey: seedBP.PublicKey,
 			NodeID:    seedBP.ID,
 			Nonce:     seedBP.Nonce,
 		}
+	}
+	if conf.GConf.BP == nil {
+		log.Fatal("no available block producer config")
 	}
 
 	BP = conf.GConf.BP

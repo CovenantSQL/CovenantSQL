@@ -17,7 +17,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"path/filepath"
 	"time"
@@ -26,6 +25,8 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 
 	// Load sqlite3 database driver.
@@ -38,29 +39,6 @@ type Persistence struct {
 	accountDailyQuota uint
 	addressDailyQuota uint
 	tokenAmount       int64
-}
-
-// applicationRecord defines single record for verification.
-type applicationRecord struct {
-	id          string
-	rowID       int64
-	account     string
-	email       string
-	tokenAmount int64 // covenantsql could not store uint64 value, use int64 instead
-	createTime  time.Time
-}
-
-func (r *applicationRecord) asMap() (result map[string]interface{}) {
-	result = make(map[string]interface{})
-
-	result["id"] = r.id
-	result["rowID"] = r.rowID
-	result["account"] = r.account
-	result["email"] = r.email
-	result["tokenAmount"] = r.tokenAmount
-	result["createTime"] = r.createTime.String()
-
-	return
 }
 
 // NewPersistence returns a new applyToken persistence api.
@@ -94,7 +72,7 @@ func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 }
 
 func (p *Persistence) initDB() (err error) {
-	_, err = p.db.ExecContext(context.Background(),
+	_, err = p.db.Exec(
 		`CREATE TABLE IF NOT EXISTS faucet_records (
 				id text unique,
 				account text, 
@@ -102,6 +80,14 @@ func (p *Persistence) initDB() (err error) {
 				amount bigint, 
 				ctime datetime
 			  )`)
+	if err != nil {
+		return
+	}
+	_, err = p.db.Exec(
+		`CREATE TABLE IF NOT EXISTS faucet_keys (
+				account text primary key,
+				private blob
+			)`)
 	return
 }
 
@@ -109,7 +95,7 @@ func (p *Persistence) checkAccountLimit(account string) (err error) {
 	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
-	row := p.db.QueryRowContext(context.Background(),
+	row := p.db.QueryRow(
 		`SELECT COUNT(1) AS cnt FROM faucet_records
 		WHERE ctime >= ? AND account = ?`,
 		timeOfDayStart, account)
@@ -134,7 +120,7 @@ func (p *Persistence) checkEmailLimit(email string) (err error) {
 	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
-	row := p.db.QueryRowContext(context.Background(),
+	row := p.db.QueryRow(
 		`SELECT COUNT(1) AS cnt FROM faucet_records
 		WHERE ctime >= ? AND email = ?`,
 		timeOfDayStart, email)
@@ -162,7 +148,7 @@ func (p *Persistence) addRecord(account string, email string) (applicationID str
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	// enqueue
-	_, err = p.db.ExecContext(context.Background(),
+	_, err = p.db.Exec(
 		`INSERT INTO faucet_records (
 				id,
 				account,
@@ -181,5 +167,28 @@ func (p *Persistence) addRecord(account string, email string) (applicationID str
 		err = ErrEnqueueApplication
 	}
 
+	return
+}
+
+// savePrivateKey saves private key to faucet store.
+func (p *Persistence) savePrivateKey(account string, privateKey []byte) (err error) {
+	_, err = p.db.Exec(`INSERT INTO faucet_keys (account, private) VALUES(?, ?)`, account, privateKey)
+	return
+}
+
+// getPrivateKey returns private key using account and password.
+func (p *Persistence) getPrivateKey(account string, password string) (privateKey *asymmetric.PrivateKey, err error) {
+	var privKeyBytes []byte
+	err = p.db.QueryRow(`SELECT private FROM faucet_keys WHERE account = ? LIMIT 1`, account).Scan(&privKeyBytes)
+	if err != nil {
+		return
+	}
+
+	return kms.DecodePrivateKey(privKeyBytes, []byte(password))
+}
+
+// deletePrivateKey deletes private key using account and password
+func (p *Persistence) deletePrivateKey(pubKey string) (err error) {
+	_, err = p.db.Exec(`DELETE FROM faucet_keys WHERE account = ?`, pubKey)
 	return
 }

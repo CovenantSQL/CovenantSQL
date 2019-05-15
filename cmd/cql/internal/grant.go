@@ -44,6 +44,7 @@ func init() {
 	CmdGrant.Run = runGrant
 
 	addCommonFlags(CmdGrant)
+	addConfigFlag(CmdGrant)
 	addWaitFlag(CmdGrant)
 }
 
@@ -62,14 +63,14 @@ type userPermPayload struct {
 }
 
 func runGrant(cmd *Command, args []string) {
-	configInit(cmd)
-
 	if len(args) != 1 {
-		ConsoleLog.Error("Grant command need CovenantSQL perm_meta json string as param")
+		ConsoleLog.Error("grant command need CovenantSQL perm_meta json string as param")
 		SetExitStatus(1)
-		return
+		help = true
 	}
 
+	commonFlagsInit(cmd)
+	configInit()
 	updatePermission := args[0]
 	// update user's permission on sqlchain
 	var perm userPermission

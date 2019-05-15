@@ -6,7 +6,7 @@ if [ "fast" == "$param" ]; then
     yaml=./scripts/gnte_0ms.yaml
 else
     yaml=(
-        ./scripts/gnte_{0,0.2,5,20,100}ms.yaml
+        ./scripts/gnte_{0,0.2,5,20,100,eventual}ms.yaml
     )
 fi
 
@@ -57,7 +57,7 @@ do
         exit 1
     fi
     echo "${delay_file}" >> ${tmp_file}
-    grep BenchmarkMinerGNTE gnte.log >> ${tmp_file}
+    grep BenchmarkMinerGNTE gnte.log | sed 's/BenchmarkMinerGNTE\///g' >> ${tmp_file}
     echo "" >> ${tmp_file}
 done
 

@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/mattn/go-runewidth"
+	runewidth "github.com/mattn/go-runewidth"
 )
 
 // Formatter is the common interface for formatting values.
@@ -49,6 +49,9 @@ type EscapeFormatter struct {
 	// indent is the indent used by the JSON encoder when Marshaler is nil.
 	indent string
 
+	// escapeJSON sets escaping JSON characters.
+	escapeJSON bool
+
 	// escapeHTML sets the JSON encoder used when Marshaler is nil to escape HTML
 	// characters.
 	escapeHTML bool
@@ -81,12 +84,15 @@ func NewEscapeFormatter(opts ...EscapeFormatterOption) *EscapeFormatter {
 func (f *EscapeFormatter) Header(headers []string) ([]*Value, error) {
 	n := len(headers)
 	res := make([]*Value, n)
+	useMask := strings.Contains(f.mask, "%")
 	for i := 0; i < n; i++ {
 		s := strings.TrimSpace(headers[i])
-		if s == "" {
+		if s == "" && useMask {
 			s = fmt.Sprintf(f.mask, i+1)
+		} else if s == "" {
+			s = f.mask
 		}
-		res[i] = f.escapeString(s)
+		res[i] = FormatBytes([]byte(s), f.invalid, f.invalidWidth, f.escapeJSON)
 	}
 	return res, nil
 }
@@ -99,172 +105,138 @@ func (f *EscapeFormatter) Format(vals []interface{}) ([]*Value, error) {
 	// TODO: change time to v.AppendFormat() + pool
 	// TODO: use strconv.Format* for numeric times
 	// TODO: use pool
-	// TODO: don't use escapeString() for everything
 	// TODO: allow configurable runes that can be escaped
+	// TODO: handler driver.Valuer
 
 	for i := 0; i < n; i++ {
 		switch v := (*(vals[i].(*interface{}))).(type) {
 		case nil:
 
 		case bool:
-			res[i] = f.escapeString(strconv.FormatBool(v))
-
+			res[i] = newValue(strconv.FormatBool(v), AlignLeft, false)
 		case *bool:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatBool(*v))
+				res[i] = newValue(strconv.FormatBool(*v), AlignLeft, false)
 			}
 
-		// SPECIAL CASE -- should be a single character!
 		case uint8:
-			res[i] = f.escapeString(string(rune(v)))
+			res[i] = &Value{Buf: []byte(string(rune(v))), Width: 1, Align: AlignRight, Raw: true}
 		case *uint8:
 			if v != nil {
-				res[i] = f.escapeString(string(rune(*v)))
+				res[i] = &Value{Buf: []byte(string(rune(*v))), Width: 1, Align: AlignRight, Raw: true}
 			}
-
 		case int:
-			res[i] = f.escapeString(strconv.FormatInt(int64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case int8:
-			res[i] = f.escapeString(strconv.FormatInt(int64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case int16:
-			res[i] = f.escapeString(strconv.FormatInt(int64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case int32:
-			res[i] = f.escapeString(strconv.FormatInt(int64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case int64:
-			res[i] = f.escapeString(strconv.FormatInt(v, 10))
-			res[i].Align = AlignRight
-
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case *int:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatInt(int64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *int8:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatInt(int64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *int16:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatInt(int64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *int32:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatInt(int64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *int64:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatInt(*v, 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
-
 		case uint:
-			res[i] = f.escapeString(strconv.FormatUint(uint64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case uint16:
-			res[i] = f.escapeString(strconv.FormatUint(uint64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case uint32:
-			res[i] = f.escapeString(strconv.FormatUint(uint64(v), 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case uint64:
-			res[i] = f.escapeString(strconv.FormatUint(v, 10))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatInt(int64(v), 10), AlignRight, true)
 		case *uint:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatUint(uint64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *uint16:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatUint(uint64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *uint32:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatUint(uint64(*v), 10))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatInt(int64(*v), 10), AlignRight, true)
 			}
 		case *uint64:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatUint(*v, 10))
+				// int64 cannot hold uint64's max value
+				res[i] = newValue(strconv.FormatUint(uint64(*v), 10), AlignRight, true)
 			}
 
 		case uintptr:
-			res[i] = f.escapeString(fmt.Sprintf("(0x%x)", v))
-			res[i].Align = AlignRight
+			res[i] = newValue(fmt.Sprintf("(0x%x)", v), AlignRight, true)
 		case *uintptr:
 			if v != nil {
-				res[i] = f.escapeString(fmt.Sprintf("(0x%x)", *v))
-				res[i].Align = AlignRight
+				res[i] = newValue(fmt.Sprintf("(0x%x)", v), AlignRight, true)
 			}
 
 		case float32:
-			res[i] = f.escapeString(strconv.FormatFloat(float64(v), 'g', -1, 32))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatFloat(float64(v), 'g', -1, 32), AlignRight, true)
 		case float64:
-			res[i] = f.escapeString(strconv.FormatFloat(float64(v), 'g', -1, 64))
-			res[i].Align = AlignRight
+			res[i] = newValue(strconv.FormatFloat(v, 'g', -1, 64), AlignRight, true)
 		case *float32:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatFloat(float64(*v), 'g', -1, 32))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatFloat(float64(*v), 'g', -1, 32), AlignRight, true)
 			}
 		case *float64:
 			if v != nil {
-				res[i] = f.escapeString(strconv.FormatFloat(float64(*v), 'g', -1, 64))
-				res[i].Align = AlignRight
+				res[i] = newValue(strconv.FormatFloat(*v, 'g', -1, 64), AlignRight, true)
 			}
 
 		case complex64:
-			res[i] = f.escapeString(fmt.Sprintf("%g", v))
-			res[i].Align = AlignRight
+			res[i] = newValue(fmt.Sprintf("%g", v), AlignRight, false)
 		case complex128:
-			res[i] = f.escapeString(fmt.Sprintf("%g", v))
-			res[i].Align = AlignRight
+			res[i] = newValue(fmt.Sprintf("%g", v), AlignRight, false)
 		case *complex64:
 			if v != nil {
-				res[i] = f.escapeString(fmt.Sprintf("%g", *v))
-				res[i].Align = AlignRight
+				res[i] = newValue(fmt.Sprintf("%g", *v), AlignRight, false)
 			}
 		case *complex128:
 			if v != nil {
-				res[i] = f.escapeString(fmt.Sprintf("%g", *v))
-				res[i].Align = AlignRight
+				res[i] = newValue(fmt.Sprintf("%g", *v), AlignRight, false)
 			}
 
 		case []byte:
-			res[i] = f.escapeBytes(v)
-
+			res[i] = FormatBytes(v, f.invalid, f.invalidWidth, f.escapeJSON)
 		case *[]byte:
 			if v != nil {
-				res[i] = f.escapeBytes(*v)
+				res[i] = FormatBytes(*v, f.invalid, f.invalidWidth, f.escapeJSON)
 			}
 
 		case string:
-			res[i] = f.escapeString(v)
-
+			res[i] = FormatBytes([]byte(v), f.invalid, f.invalidWidth, f.escapeJSON)
 		case *string:
 			if v != nil {
-				res[i] = f.escapeString(*v)
+				res[i] = FormatBytes([]byte(*v), f.invalid, f.invalidWidth, f.escapeJSON)
 			}
 
 		case time.Time:
-			res[i] = f.escapeString(v.Format(f.timeFormat))
-
+			res[i] = newValue(v.Format(f.timeFormat), AlignLeft, false)
 		case *time.Time:
 			if v != nil {
-				res[i] = f.escapeString(v.Format(f.timeFormat))
+				res[i] = newValue(v.Format(f.timeFormat), AlignLeft, false)
 			}
 
 		case fmt.Stringer:
-			res[i] = f.escapeString(v.String())
+			res[i] = FormatBytes([]byte(v.String()), f.invalid, f.invalidWidth, f.escapeJSON)
 
 		default:
 			// TODO: pool
@@ -273,7 +245,10 @@ func (f *EscapeFormatter) Format(vals []interface{}) ([]*Value, error) {
 				if err != nil {
 					return nil, err
 				}
-				res[i] = f.escapeBytes(buf)
+				res[i] = &Value{
+					Buf: buf,
+					Raw: true,
+				}
 			} else {
 				// json encode
 				buf := new(bytes.Buffer)
@@ -283,8 +258,15 @@ func (f *EscapeFormatter) Format(vals []interface{}) ([]*Value, error) {
 				if err := enc.Encode(v); err != nil {
 					return nil, err
 				}
-
-				res[i] = f.escapeBytes(bytes.TrimSpace(buf.Bytes()))
+				if f.escapeJSON {
+					res[i] = &Value{
+						Buf: bytes.TrimSpace(buf.Bytes()),
+						Raw: true,
+					}
+				} else {
+					res[i] = FormatBytes(bytes.TrimSpace(buf.Bytes()), f.invalid, f.invalidWidth, false)
+					res[i].Raw = true
+				}
 			}
 		}
 	}
@@ -292,28 +274,22 @@ func (f *EscapeFormatter) Format(vals []interface{}) ([]*Value, error) {
 	return res, nil
 }
 
-// escape escapes buf.
-//
-// TODO: use a pool.
-func (f *EscapeFormatter) escapeString(src string) *Value {
-	return f.escapeBytes([]byte(src))
+// valueFromBuffer returns a value from a buffer known not to contain
+// characters to escape.
+func newValue(str string, align Align, raw bool) *Value {
+	v := &Value{Buf: []byte(str), Align: align, Raw: raw}
+	v.Width = len(v.Buf)
+	return v
 }
 
-// escapeBytes escapes bytes.
-//
-// TODO: use a pool.
-func (f *EscapeFormatter) escapeBytes(src []byte) *Value {
-	return escape(src, f.invalid, f.invalidWidth)
-}
-
-// escape parses src, saving escaped (encoded) and unescaped runes to a Value,
+// FormatBytes parses src, saving escaped (encoded) and unescaped runes to a Value,
 // along with tab and newline positions in the generated buf.
-func escape(src []byte, invalid []byte, invalidWidth int) *Value {
+func FormatBytes(src []byte, invalid []byte, invalidWidth int, esc bool) *Value {
 	res := &Value{
 		Tabs: make([][][2]int, 1),
 	}
 
-	var tmp [utf8.MaxRune]byte
+	var tmp [4]byte
 
 	var r rune
 	var l, w int
@@ -336,6 +312,28 @@ func escape(src []byte, invalid []byte, invalidWidth int) *Value {
 				res.Width += 4
 			}
 			continue
+		}
+
+		// escape special json chars
+		if esc {
+			switch r {
+			case '\t':
+				res.Buf = append(res.Buf, '\\', 't')
+				res.Width += 2
+				continue
+			case '\n':
+				res.Buf = append(res.Buf, '\\', 'n')
+				res.Width += 2
+				continue
+			case '\\':
+				res.Buf = append(res.Buf, '\\', '\\')
+				res.Width += 2
+				continue
+			case '"':
+				res.Buf = append(res.Buf, '\\', '"')
+				res.Width += 2
+				continue
+			}
 		}
 
 		// printable character
@@ -428,6 +426,9 @@ type Value struct {
 
 	// Align indicates value alignment.
 	Align Align
+
+	// Raw tracks whether or not the message should be encoded or not.
+	Raw bool
 }
 
 // LineWidth returns the line width (in runes) of line l.
@@ -448,10 +449,13 @@ func (v *Value) LineWidth(l, offset, tab int) int {
 // MaxWidth calculates the maximum width (in runes) of the longest line
 // contained in Buf, relative to starting offset and the tab width.
 func (v *Value) MaxWidth(offset, tab int) int {
-	var width int
+	// simple values do not have tabulations
+	width := v.Width
+
 	for l := 0; l < len(v.Tabs); l++ {
 		width = max(width, v.LineWidth(l, offset, tab))
 	}
+
 	return width
 }
 
@@ -515,6 +519,14 @@ func WithTimeFormat(timeFormat string) EscapeFormatterOption {
 func WithMarshaler(marshaler func(interface{}) ([]byte, error)) EscapeFormatterOption {
 	return func(f *EscapeFormatter) {
 		f.marshaler = marshaler
+	}
+}
+
+// WithEscapeJSON is an escape formatter option to escape special JSON
+// characters in non-complex values.
+func WithEscapeJSON(escapeJSON bool) EscapeFormatterOption {
+	return func(f *EscapeFormatter) {
+		f.escapeJSON = escapeJSON
 	}
 }
 

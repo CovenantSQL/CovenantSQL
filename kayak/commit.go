@@ -212,7 +212,7 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	req.tm.Add("write_wal")
 
 	// do commit, not wrapping underlying handler commit error
-	_, err = r.doCommit(req.ctx, req.data, false)
+	_, storageErr := r.doCommit(req.ctx, req.data, false)
 
 	req.tm.Add("db_write")
 
@@ -220,7 +220,8 @@ func (r *Runtime) followerDoCommit(req *commitReq) {
 	atomic.StoreUint64(&r.lastCommit, req.log.Index)
 
 	req.result.Set(&commitResult{
-		err: err,
+		err:        err,
+		storageErr: storageErr,
 	})
 
 	return

@@ -32,7 +32,6 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -152,8 +151,12 @@ func main() {
 	if conf.GConf.Miner.MaxReqTimeGap.Seconds() <= 0 {
 		log.Fatal("miner request time gap is invalid")
 	}
+	if conf.GConf.Miner.DiskUsageInterval.Seconds() <= 0 {
+		// set to default disk usage interval
+		log.Warning("miner disk usage interval not provided, set to default 10 minutes")
+		conf.GConf.Miner.DiskUsageInterval = time.Minute * 10
+	}
 
-	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
 
 	// init log
@@ -178,6 +181,8 @@ func main() {
 		log.WithError(err).Fatal("init node failed")
 	}
 
+	initMetrics()
+
 	// stop channel for all daemon routines
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -199,7 +204,7 @@ func main() {
 	// start prometheus collector
 	reg := metric.StartMetricCollector()
 
-	// start period provide service transaction generator
+	// start periodic provide service transaction generator
 	go func() {
 		tick := time.NewTicker(conf.GConf.Miner.ProvideServiceInterval)
 		defer tick.Stop()
@@ -215,15 +220,21 @@ func main() {
 		}
 	}()
 
-	// start dbms
-	var dbms *worker.DBMS
-	if dbms, err = startDBMS(server, direct, func() {
-		sendProvideService(reg)
-	}); err != nil {
-		log.WithError(err).Fatal("start dbms failed")
-	}
+	// start periodic disk usage metric update
+	go func() {
+		for {
+			err := collectDiskUsage()
+			if err != nil {
+				log.WithError(err).Error("collect disk usage failed")
+			}
 
-	defer dbms.Shutdown()
+			select {
+			case <-stopCh:
+				return
+			case <-time.After(conf.GConf.Miner.DiskUsageInterval):
+			}
+		}
+	}()
 
 	// start rpc server
 	go func() {
@@ -238,6 +249,16 @@ func main() {
 		}()
 		defer direct.Stop()
 	}
+
+	// start dbms
+	var dbms *worker.DBMS
+	if dbms, err = startDBMS(server, direct, func() {
+		sendProvideService(reg)
+	}); err != nil {
+		log.WithError(err).Fatal("start dbms failed")
+	}
+
+	defer dbms.Shutdown()
 
 	if metricLog {
 		go metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.StandardLogger())

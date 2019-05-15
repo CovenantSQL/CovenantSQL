@@ -67,7 +67,7 @@ const (
 	CommitTimeout = time.Minute
 
 	// LogWaitTimeout defines the missing log wait timeout config.
-	LogWaitTimeout = 1 * time.Second
+	LogWaitTimeout = 10 * time.Second
 
 	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
 	SlowQuerySampleSize = 1 << 10
@@ -175,9 +175,8 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return
-	} else if err = db.chain.Start(); err != nil {
-		return
 	}
+	db.chain.Start()
 
 	// init kayak config
 	kayakWalPath := filepath.Join(cfg.DataDir, KayakWalFileName)

@@ -12,7 +12,11 @@ clean() {
     if [ -n "${TEST_WD}" ]; then
         # Clean
         sudo ${TEST_WD}/GNTE/scripts/cleanupDB.sh
-        bash -x ${TEST_WD}/GNTE/generate.sh ${delay_file}
+        if [[ ${delay_file} =~ "eventual" ]]; then
+            bash -x ${TEST_WD}/GNTE/generate.sh ./scripts/gnte_200ms.yaml
+        else
+            bash -x ${TEST_WD}/GNTE/generate.sh ${delay_file}
+        fi
         sleep 5
     fi
 }
@@ -31,13 +35,14 @@ full() {
     echo "Full benchmarking with flags: $@"
     local cpus=("" 4 1) counts=(1 2 4 8)
     local cpu count caseflags
-    for cpu in "${cpus[@]}"; do
-        if [[ -z $cpu ]]; then
-            caseflags=("${flags[@]}")
-        else
-            caseflags=("-cpu=$cpu" "${flags[@]}")
-        fi
-        for count in "${counts[@]}"; do
+    for count in "${counts[@]}"; do
+        for cpu in "${cpus[@]}"; do
+            if [[ -z $cpu ]]; then
+                caseflags=("${flags[@]}")
+            else
+                caseflags=("-cpu=$cpu" "${flags[@]}")
+            fi
+
             clean
 
             go test "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log
@@ -57,11 +62,14 @@ full() {
 main() {
     rm -f gnte.log
     touch gnte.log
-    if [[ $# -gt 0 && $1 = "fast" ]]; then
+    if [[ $# -gt 0 && $1 == "fast" ]]; then
         fast
     else
-        full
-        full -bench-eventual-consistency
+        if [[ ${delay_file} =~ "eventual" ]]; then
+            full -bench-eventual-consistency
+        else
+            full
+        fi
     fi
 }
 

@@ -13,31 +13,36 @@ echo ${PROJECT_DIR}
 
 cd ${TEST_WD}
 
-echo -ne "y\n" | ${BIN}/cql generate -no-password config
+yes | ${BIN}/cql generate
+
+#label myself
+sed 's/0.0.0.0:15151/testnet_compatibility/g' ~/.cql/config.yaml > ~/.cql/config1.yaml
+
+mv ~/.cql/config1.yaml ~/.cql/config.yaml
 
 #get wallet addr
-${BIN}/cql wallet -no-password | tee wallet.txt
-wallet=$(awk '{print $3}' wallet.txt)
+wallet=$(grep "WalletAddress" ~/.cql/config.yaml | awk '{print $2}')
 
 #transfer some coin to above address
-${BIN}/cql transfer -config ${PROJECT_DIR}/conf/testnet/config.yaml -wait-tx-confirm -no-password \
-    '{"addr":"'${wallet}'", "amount":"100000000 Particle"}'
+${BIN}/cql transfer -config ${PROJECT_DIR}/conf/testnet/config.yaml -wait-tx-confirm \
+    -address ${wallet} -amount 100000000 -type Particle
 
-${BIN}/cql wallet -no-password -balance all
+${BIN}/cql wallet
 
-${BIN}/cql create -wait-tx-confirm -no-password '{"node":2}' | tee dsn.txt
+# create database only in miner00 and miner01
+${BIN}/cql create -wait-tx-confirm -node 2 \
+    -target-miners 'ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37,1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be'
 
 #get dsn
-dsn=$(cat dsn.txt)
+dsn=$(cat ~/.cql/.dsn | tail -n1)
 if [ -z "$dsn" ]; then
     exit 1
 fi
 
-${BIN}/cql console -no-password \
+${BIN}/cql console \
     -command 'create table test_for_new_account(column1 int);' \
-    -dsn ${dsn}
+    ${dsn}
 
-${BIN}/cql console -dsn ${dsn} -no-password \
-    -command 'show tables;' | tee result.log
+${BIN}/cql console -command 'show tables;' ${dsn} | tee result.log
 
 grep "1 row" result.log

@@ -27,26 +27,18 @@
 
 CovenantSQL(CQL) 是一个运行在公网上的 SQL 数据库，并具有 GDPR 合规与去中心化等特点。
 
-- **ServerLess 支持**: 为小程序、浏览器插件提供免部署维护，自动同步、高可用的数据库服务
+- **ServerLess 支持**: 为小程序、浏览器插件提供免部署维护、自动同步、高可用的数据库服务
 - **SQL 接口**: 支持 SQL-92 标准
-- **去中心化**: 基于共识算法 DH-RPC & Kayak 实现的去中心化
+- **去中心化**: 不依赖中心节点协调的高可用架构
 - **不可篡改**: CQL 中的 Query 历史是不可篡改且可追溯的
-- **隐私**: 使用列级 ACL 和 SQL 白名单模式授予权限
-- **权限**：列级别的权限限制，可以设定 SQL 白名单
-
-我们坚信 [在下一个互联网时代，每个人都应该有完整的**数据权利**](https://medium.com/@covenant_labs/covenantsql-the-sql-database-on-blockchain-db027aaf1e0e)
-
-
-**一行代码让数据上链**
-
-```go
-sql.Open("cql", dbURI)
-```
+- **隐私&权限**: 列级别的权限限制，可以设定 SQL 白名单
 
 ## CQL 是什么?
 
-- [Amazon QLDB](https://aws.amazon.com/qldb/)的开源版
-- 如果 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, 那么 CQL 就是去中心化的数据库
+- 对标 [Amazon QLDB](https://aws.amazon.com/qldb/) 的开源版
+- 免搭建、免维护、低成本的数据库服务（DBaaS）
+- 就像 [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) 是去中心化的文件系统, CQL 是去中心化的数据库
+
 
 ## 快速开始
 #### MacOS 平台
@@ -60,8 +52,7 @@ sql.Open("cql", dbURI)
 - 非 Homebrew，可以执行：
 
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.osx-amd64.tar.gz" | \
-     tar xzv -C /usr/local/bin/ --strip-components=1'
+    sudo bash -c 'curl -L "https://cutt.ly/cql050mac" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
 #### Linux 平台
@@ -69,18 +60,17 @@ sql.Open("cql", dbURI)
 - 在命令行中执行：
 
     ```bash
-    sudo bash -c 'curl -L "https://bintray.com/covenantsql/bin/download_file?file_path=CovenantSQL-v0.5.0.linux-amd64.tar.gz" | \
-    tar xzv -C /usr/local/bin/ --strip-components=1'
+    sudo bash -c 'curl -L "https://cutt.ly/cql050linux" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
-#### 继续请参见：[📚文档站](https://developers.covenantsql.io/docs/zh-CN/quickstart)
+#### 继续请参见：[测试网快速开始](https://developers.covenantsql.io/docs/zh-CN/quickstart)
 
 ## CQL 如何工作
 
 ### 3 层架构
 
 
-![CovenantSQL 3 Layer design](logo/arch.png)
+![CovenantSQL 3 Layer design](https://cdn.jsdelivr.net/gh/CovenantSQL/docs@b7143254adb804dff0e3bc1f2f6ab11ad9cd44f5/website/static/img/2layers.svg)
 
 - 第一层: **全局共识层**(主链，架构图中的中间环):
     - 整个网络中只有一个主链。

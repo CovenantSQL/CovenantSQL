@@ -19,6 +19,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"expvar"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -49,6 +50,12 @@ const (
 
 	// DefaultSlowQueryTime defines the default slow query log time
 	DefaultSlowQueryTime = time.Second * 5
+
+	mwMinerDBCount = "service:miner:db:count"
+)
+
+var (
+	dbCount = expvar.NewInt(mwMinerDBCount)
 )
 
 // DBMS defines a database management instance.
@@ -360,6 +367,8 @@ func (dbms *DBMS) initDatabases(
 	meta *DBMSMeta, profiles map[proto.DatabaseID]*types.SQLChainProfile) (err error,
 ) {
 	currentInstance := make(map[proto.DatabaseID]bool)
+	wg := &sync.WaitGroup{}
+	errCh := make(chan error, len(profiles))
 
 	for id, profile := range profiles {
 		currentInstance[id] = true
@@ -367,9 +376,21 @@ func (dbms *DBMS) initDatabases(
 		if instance, err = dbms.buildSQLChainServiceInstance(profile); err != nil {
 			return
 		}
-		if err = dbms.Create(instance, false); err != nil {
-			return
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := dbms.Create(instance, false); err != nil {
+				log.WithFields(log.Fields{
+					"id": instance.DatabaseID,
+				}).WithError(err).Error("failed to create database instance")
+				errCh <- errors.Wrapf(err, "failed to create database %s", instance.DatabaseID)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		return err // omit any other error after this instance
 	}
 
 	// calculate to drop databases
@@ -449,6 +470,9 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 	// add to meta
 	err = dbms.addMeta(instance.DatabaseID, db)
 
+	// update metrics
+	dbCount.Add(1)
+
 	return
 }
 
@@ -465,6 +489,8 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	if err = db.Destroy(); err != nil {
 		return
 	}
+
+	dbCount.Add(-1)
 
 	// remove meta
 	return dbms.removeMeta(dbID)

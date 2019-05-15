@@ -452,8 +452,7 @@ func TestQueryTypeStringer(t *testing.T) {
 func benchmarkEnc(b *testing.B, v interface{}) {
 	var (
 		h = &codec.MsgpackHandle{
-			WriteExt:    true,
-			RawToString: true,
+			WriteExt: true,
 		}
 		err error
 	)
@@ -471,8 +470,7 @@ func benchmarkDec(b *testing.B, v interface{}) {
 		err error
 
 		h = &codec.MsgpackHandle{
-			WriteExt:    true,
-			RawToString: true,
+			WriteExt: true,
 		}
 		enc   = codec.NewEncoderBytes(&r, h)
 		recvt = reflect.ValueOf(v).Elem().Type()

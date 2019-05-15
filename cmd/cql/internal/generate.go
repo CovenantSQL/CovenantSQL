@@ -26,39 +26,56 @@ import (
 	"path/filepath"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
+
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params] config | public",
-	Short:     "generate config related file or keys",
+	UsageLine: "cql generate [common params] [-source template_file] [-miner] [-private existing_private_key] [dest_path]",
+	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
+You can input a passphrase for local encrypt your private key file by set -no-password=false
 e.g.
-    cql generate config
+    cql generate
+
+or input a passphrase by
+
+    cql generate -no-password=false
 `,
 }
 
+var (
+	privateKeyParam string
+	source          string
+	minerListenAddr string
+)
+
 func init() {
 	CmdGenerate.Run = runGenerate
+	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
+	CmdGenerate.Flag.StringVar(&source, "source", "", "source config file template for config generation")
+	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "", "generate miner config with specified listen address")
 
 	addCommonFlags(CmdGenerate)
 }
 
-func askDeletePath(path string) {
-	if fileinfo, err := os.Stat(path); err == nil {
-		if !fileinfo.IsDir() {
-			path = filepath.Dir(path)
+func askDeleteFile(file string) {
+	if fileinfo, err := os.Stat(file); err == nil {
+		if fileinfo.IsDir() {
+			return
 		}
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Printf("\"%s\" already exists. \nDo you want to delete it? (y or n, press Enter for default n):\n",
-			path)
+			file)
 		t, err := reader.ReadString('\n')
 		t = strings.Trim(t, "\n")
 		if err != nil {
@@ -67,7 +84,7 @@ func askDeletePath(path string) {
 			Exit()
 		}
 		if strings.EqualFold(t, "y") || strings.EqualFold(t, "yes") {
-			err = os.RemoveAll(path)
+			err = os.Remove(file)
 			if err != nil {
 				ConsoleLog.WithError(err).Error("unexpected error")
 				SetExitStatus(1)
@@ -80,28 +97,17 @@ func askDeletePath(path string) {
 }
 
 func runGenerate(cmd *Command, args []string) {
-	if len(args) != 1 {
-		ConsoleLog.Error("Generate command need specific type as params")
-		SetExitStatus(1)
-		return
-	}
-	genType := args[0]
+	commonFlagsInit(cmd)
 
-	switch genType {
-	case "config":
-		configGen()
-	case "public":
-		publicKey := getPublicFromConfig()
-		fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
-	default:
-		cmd.Usage()
-		SetExitStatus(1)
-		return
+	var workingRoot string
+	if len(args) == 0 {
+		workingRoot = utils.HomeDirExpand("~/.cql")
+	} else if args[0] == "" {
+		workingRoot = utils.HomeDirExpand("~/.cql")
+	} else {
+		workingRoot = utils.HomeDirExpand(args[0])
 	}
-}
 
-func configGen() {
-	workingRoot := utils.HomeDirExpand(configFile)
 	if workingRoot == "" {
 		ConsoleLog.Error("config directory is required for generate config")
 		SetExitStatus(1)
@@ -112,29 +118,77 @@ func configGen() {
 		workingRoot = filepath.Dir(workingRoot)
 	}
 
-	askDeletePath(workingRoot)
-
 	privateKeyFileName := "private.key"
 	privateKeyFile := path.Join(workingRoot, privateKeyFileName)
 
-	err := os.Mkdir(workingRoot, 0755)
-	if err != nil {
+	var (
+		privateKey *asymmetric.PrivateKey
+		err        error
+	)
+
+	// detect customized private key
+	if privateKeyParam != "" {
+		var oldPassword string
+
+		if password == "" {
+			fmt.Println("Please enter the password of the existing private key")
+			oldPassword = readMasterKey(noPassword)
+		} else {
+			oldPassword = password
+		}
+
+		privateKey, err = kms.LoadPrivateKey(privateKeyParam, []byte(oldPassword))
+
+		if err != nil {
+			ConsoleLog.WithError(err).Error("load specified private key failed")
+			SetExitStatus(1)
+			return
+		}
+	}
+
+	var fileinfo os.FileInfo
+	if fileinfo, err = os.Stat(workingRoot); err == nil {
+		if fileinfo.IsDir() {
+			err = filepath.Walk(workingRoot, func(filepath string, f os.FileInfo, err error) error {
+				if f == nil {
+					return err
+				}
+				if f.IsDir() {
+					return nil
+				}
+				if strings.Contains(f.Name(), "config.yaml") ||
+					strings.Contains(f.Name(), "private.key") ||
+					strings.Contains(f.Name(), "public.keystore") ||
+					strings.Contains(f.Name(), ".dsn") {
+					askDeleteFile(filepath)
+				}
+				return nil
+			})
+		} else {
+			askDeleteFile(workingRoot)
+		}
+	}
+
+	err = os.Mkdir(workingRoot, 0755)
+	if err != nil && !os.IsExist(err) {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
 		return
 	}
 
-	fmt.Println("Generating key pair...")
-
+	fmt.Println("Generating private key...")
 	if password == "" {
+		fmt.Println("Please enter password for new private key")
 		password = readMasterKey(noPassword)
 	}
 
-	privateKey, _, err := asymmetric.GenSecp256k1KeyPair()
-	if err != nil {
-		ConsoleLog.WithError(err).Error("generate key pair failed")
-		SetExitStatus(1)
-		return
+	if privateKeyParam == "" {
+		privateKey, _, err = asymmetric.GenSecp256k1KeyPair()
+		if err != nil {
+			ConsoleLog.WithError(err).Error("generate key pair failed")
+			SetExitStatus(1)
+			return
+		}
 	}
 
 	if err = kms.SavePrivateKey(privateKeyFile, privateKey, []byte(password)); err != nil {
@@ -142,12 +196,17 @@ func configGen() {
 		SetExitStatus(1)
 		return
 	}
+	fmt.Println("Generated private key.")
 
-	fmt.Printf("Private key file: %s\n", privateKeyFile)
-	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(privateKey.PubKey().Serialize()))
 	publicKey := privateKey.PubKey()
+	keyHash, err := crypto.PubKeyHash(publicKey)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("unexpected error")
+		SetExitStatus(1)
+		return
+	}
 
-	fmt.Println("Generated key pair.")
+	walletAddr := keyHash.String()
 
 	fmt.Println("Generating nonce...")
 	nonce := nonceGen(publicKey)
@@ -155,30 +214,60 @@ func configGen() {
 	fmt.Println("Generated nonce.")
 
 	fmt.Println("Generating config file...")
-	// Load testnet config
-	testnetConfig := testnet.GetTestNetConfig()
-	// Add client config
-	testnetConfig.PrivateKeyFile = privateKeyFileName
-	testnetConfig.ThisNodeID = cliNodeID
-	if testnetConfig.KnownNodes == nil {
-		testnetConfig.KnownNodes = make([]proto.Node, 0, 1)
+
+	var rawConfig *conf.Config
+
+	if source == "" {
+		// Load testnet config
+		rawConfig = testnet.GetTestNetConfig()
+		if minerListenAddr != "" {
+			testnet.SetMinerConfig(rawConfig)
+		}
+	} else {
+		// Load from template file
+		sourceConfig, err := ioutil.ReadFile(source)
+		if err != nil {
+			ConsoleLog.WithError(err).Error("read config template failed")
+			SetExitStatus(1)
+			return
+		}
+		rawConfig = &conf.Config{}
+		if err = yaml.Unmarshal(sourceConfig, rawConfig); err != nil {
+			ConsoleLog.WithError(err).Error("load config template failed")
+			SetExitStatus(1)
+			return
+		}
 	}
-	testnetConfig.KnownNodes = append(testnetConfig.KnownNodes, proto.Node{
+
+	// Add client config
+	rawConfig.PrivateKeyFile = privateKeyFileName
+	rawConfig.WalletAddress = walletAddr
+	rawConfig.ThisNodeID = cliNodeID
+	if rawConfig.KnownNodes == nil {
+		rawConfig.KnownNodes = make([]proto.Node, 0, 1)
+	}
+	node := proto.Node{
 		ID:        cliNodeID,
 		Role:      proto.Client,
 		Addr:      "0.0.0.0:15151",
 		PublicKey: publicKey,
 		Nonce:     nonce.Nonce,
-	})
+	}
+	if minerListenAddr != "" {
+		node.Role = proto.Miner
+		node.Addr = minerListenAddr
+	}
+	rawConfig.KnownNodes = append(rawConfig.KnownNodes, node)
 
 	// Write config
-	out, err := yaml.Marshal(testnetConfig)
+	out, err := yaml.Marshal(rawConfig)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
 		return
 	}
-	err = ioutil.WriteFile(path.Join(workingRoot, "config.yaml"), out, 0644)
+	configFilePath := path.Join(workingRoot, "config.yaml")
+	err = ioutil.WriteFile(configFilePath, out, 0644)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)
@@ -186,4 +275,18 @@ func configGen() {
 	}
 	fmt.Println("Generated config.")
 
+	fmt.Printf("\nConfig file:      %s\n", configFilePath)
+	fmt.Printf("Private key file: %s\n", privateKeyFile)
+	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
+	fmt.Printf("Wallet address: %s\n", walletAddr)
+
+	fmt.Printf(`
+Any further command could costs PTC.
+You can get some free PTC from:
+	https://testnet.covenantsql.io/wallet/`)
+	fmt.Println(walletAddr)
+
+	if password != "" {
+		fmt.Println("Your private key had been encrypted by a passphrase, add -no-password=false in any further command")
+	}
 }

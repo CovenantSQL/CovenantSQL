@@ -20,8 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -52,26 +55,25 @@ var (
 )
 
 func addCommonFlags(cmd *Command) {
-	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
-		"Config file for covenantsql (Usually no need to set, default is enough.)")
+	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
+	cmd.Flag.BoolVar(&noPassword, "no-password", true,
+		"Use empty password for master key")
 
 	// debugging flags.
-	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
-		"Console log level: trace debug info warning error fatal panic")
 	cmd.Flag.StringVar(&password, "password", "",
 		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
-	cmd.Flag.BoolVar(&noPassword, "no-password", false,
-		"Use empty password for master key")
+	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
+		"Console log level: trace debug info warning error fatal panic")
 	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
 }
 
-func configInit(cmd *Command) {
+func commonFlagsInit(cmd *Command) {
 	if help {
 		_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
 		_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
 		_, _ = fmt.Fprintf(os.Stdout, "\nParams:\n")
+		cmd.Flag.SetOutput(os.Stdout)
 		cmd.Flag.PrintDefaults()
 		Exit()
 	}
@@ -81,7 +83,14 @@ func configInit(cmd *Command) {
 	} else {
 		ConsoleLog.SetLevel(lvl)
 	}
+}
 
+func addConfigFlag(cmd *Command) {
+	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
+		"Config file for covenantsql (Usually no need to set, default is enough.)")
+}
+
+func configInit() {
 	configFile = utils.HomeDirExpand(configFile)
 
 	if password == "" {
@@ -192,4 +201,32 @@ func getPublicFromConfig() *asymmetric.PublicKey {
 		ExitIfErrors()
 	}
 	return privateKey.PubKey()
+}
+
+func storeDSN(dsnArray []string) {
+	dsnFilePath := path.Join(conf.GConf.WorkingRoot, ".dsn")
+	dsns := strings.Join(dsnArray, "\n")
+	err := ioutil.WriteFile(dsnFilePath, []byte(dsns), 0644)
+	if err != nil {
+		ConsoleLog.WithError(err).Error("store dsn file failed")
+		return
+	}
+}
+
+func loadDSN() []string {
+	dsnFilePath := path.Join(conf.GConf.WorkingRoot, ".dsn")
+	dsns, err := ioutil.ReadFile(dsnFilePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			ConsoleLog.WithError(err).Error("load dsn file failed")
+		}
+		return nil
+	}
+	return strings.Split(string(dsns), "\n")
+}
+
+func storeOneDSN(dsn string) {
+	dsnArray := loadDSN()
+	dsnArray = append(dsnArray, dsn)
+	storeDSN(dsnArray)
 }

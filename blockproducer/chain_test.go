@@ -214,7 +214,9 @@ func TestChain(t *testing.T) {
 				_, loaded = chain.immutable.loadOrStoreProviderObject(addr1, &types.ProviderProfile{})
 				So(loaded, ShouldBeFalse)
 				_, loaded = chain.immutable.loadOrStoreSQLChainObject(dbid1, &types.SQLChainProfile{
-					Miners: []*types.MinerInfo{&types.MinerInfo{Address: addr2}},
+					ID:     dbid1,
+					Miners: []*types.MinerInfo{{Address: addr2}},
+					Users:  []*types.SQLChainUser{{Address: addr1, Permission: &types.UserPermission{Role: types.Admin}}},
 				})
 				So(loaded, ShouldBeFalse)
 				_, loaded = chain.immutable.loadOrStoreAccountObject(addr2, &types.Account{
@@ -222,6 +224,9 @@ func TestChain(t *testing.T) {
 					TokenBalance: [types.SupportTokenNumber]uint64{100, 100, 100, 100, 100},
 				})
 				So(loaded, ShouldBeFalse)
+
+				sps := chain.immutable.compileChanges(nil)
+				_ = store(chain.storage, sps, nil)
 				chain.immutable.commit()
 
 				err = rpcService.QuerySQLChainProfile(
@@ -237,6 +242,12 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(queryBalanceResp.OK, ShouldBeTrue)
 				So(queryBalanceResp.Balance, ShouldEqual, 100)
+
+				// query for account sqlchain profiles
+				var profilesResp = new(types.QueryAccountSQLChainProfilesResp)
+				_ = rpcService.QueryAccountSQLChainProfiles(&types.QueryAccountSQLChainProfilesReq{Addr: addr1}, profilesResp)
+				So(profilesResp.Profiles, ShouldNotBeEmpty)
+				So(profilesResp.Profiles[0].ID, ShouldEqual, dbid1)
 			})
 
 			Convey("Chain APIs should return correct result of tx state", func() {

@@ -190,6 +190,16 @@ build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapte
 release:
 	make -j$(JOBS) build-release
 
+android-release: status
+	docker build \
+		--tag $(BUILDER):android-$(VERSION) \
+		-f docker/android-builder.Dockerfile \
+		.
+	temp_container=$$(docker create $(BUILDER):android-$(VERSION)) ; \
+	docker cp $${temp_container}:/CovenantSQL.tar.gz CovenantSQL-android-$(VERSION).tar.gz && \
+	docker rm $${temp_container} && \
+	docker rmi $(BUILDER):android-$(VERSION)
+
 clean:
 	rm -rf bin/cql*
 	rm -f *.cover.out
@@ -197,4 +207,5 @@ clean:
 
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd \
-	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet \
+	release android-release

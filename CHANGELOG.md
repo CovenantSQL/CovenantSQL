@@ -1,5 +1,51 @@
 # Changelog
 
+## [v0.6.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.6.0) (2019-05-15)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.5.0...v0.6.0)
+
+**Fixed bugs:**
+
+- \[Document\] some Quickstart pages are outdated [\#309](https://github.com/CovenantSQL/CovenantSQL/issues/309)
+
+**Closed issues:**
+
+- signal SIGBUS: bus error code [\#151](https://github.com/CovenantSQL/CovenantSQL/issues/151)
+- truncate database cmd not found [\#149](https://github.com/CovenantSQL/CovenantSQL/issues/149)
+- Static build get some warnings about glibc [\#143](https://github.com/CovenantSQL/CovenantSQL/issues/143)
+- Panic while docker stop miner. [\#125](https://github.com/CovenantSQL/CovenantSQL/issues/125)
+
+**Merged pull requests:**
+
+- Fix incorrect log condition [\#334](https://github.com/CovenantSQL/CovenantSQL/pull/334) ([leventeliu](https://github.com/leventeliu))
+- Fix bug in provide service immutable tx apply height [\#333](https://github.com/CovenantSQL/CovenantSQL/pull/333) ([xq262144](https://github.com/xq262144))
+- Remove the initialization BP step [\#332](https://github.com/CovenantSQL/CovenantSQL/pull/332) ([744189447](https://github.com/744189447))
+- Fix provide service miner overcharge deposit bug [\#331](https://github.com/CovenantSQL/CovenantSQL/pull/331) ([xq262144](https://github.com/xq262144))
+-  Serve RPC server first to prevent connection issue  [\#330](https://github.com/CovenantSQL/CovenantSQL/pull/330) ([leventeliu](https://github.com/leventeliu))
+- Fix cql misunderstanding [\#329](https://github.com/CovenantSQL/CovenantSQL/pull/329) ([laodouya](https://github.com/laodouya))
+- Support android arm64 system compatible ELF binary release [\#328](https://github.com/CovenantSQL/CovenantSQL/pull/328) ([xq262144](https://github.com/xq262144))
+- Parallelize chain synchronization in startup [\#327](https://github.com/CovenantSQL/CovenantSQL/pull/327) ([leventeliu](https://github.com/leventeliu))
+- Add more metric vars of miner node [\#326](https://github.com/CovenantSQL/CovenantSQL/pull/326) ([xq262144](https://github.com/xq262144))
+- Query account database deposit and arrears [\#325](https://github.com/CovenantSQL/CovenantSQL/pull/325) ([xq262144](https://github.com/xq262144))
+- Faucet api update & cql command improvement [\#324](https://github.com/CovenantSQL/CovenantSQL/pull/324) ([xq262144](https://github.com/xq262144))
+- Feature/refactor cql [\#323](https://github.com/CovenantSQL/CovenantSQL/pull/323) ([laodouya](https://github.com/laodouya))
+- Lower memory consumption while rebuilding chain [\#322](https://github.com/CovenantSQL/CovenantSQL/pull/322) ([leventeliu](https://github.com/leventeliu))
+- Add service:DHT:NodeCount to metric web [\#321](https://github.com/CovenantSQL/CovenantSQL/pull/321) ([auxten](https://github.com/auxten))
+- Add bench chart in README.md [\#318](https://github.com/CovenantSQL/CovenantSQL/pull/318) ([laodouya](https://github.com/laodouya))
+- Add receipt for query and execute methods with context [\#317](https://github.com/CovenantSQL/CovenantSQL/pull/317) ([leventeliu](https://github.com/leventeliu))
+- Update README.md [\#315](https://github.com/CovenantSQL/CovenantSQL/pull/315) ([ConnorLi96](https://github.com/ConnorLi96))
+- Update CovenantSQL README-zh.md [\#314](https://github.com/CovenantSQL/CovenantSQL/pull/314) ([ConnorLi96](https://github.com/ConnorLi96))
+- Bring some improvements to the cql command line toolset [\#313](https://github.com/CovenantSQL/CovenantSQL/pull/313) ([leventeliu](https://github.com/leventeliu))
+-  Add bash zsh completion and homebrew for cql [\#312](https://github.com/CovenantSQL/CovenantSQL/pull/312) ([auxten](https://github.com/auxten))
+- Fix GNTE billingcount too large. Clean database before every single bench. [\#311](https://github.com/CovenantSQL/CovenantSQL/pull/311) ([laodouya](https://github.com/laodouya))
+- Fix cql command dsn parser bug [\#310](https://github.com/CovenantSQL/CovenantSQL/pull/310) ([xq262144](https://github.com/xq262144))
+- Provide more aggressive cache control for sqlchain [\#308](https://github.com/CovenantSQL/CovenantSQL/pull/308) ([leventeliu](https://github.com/leventeliu))
+- Add Comparison and use cases [\#307](https://github.com/CovenantSQL/CovenantSQL/pull/307) ([auxten](https://github.com/auxten))
+- Add direct-PRC server for cql-minerd [\#306](https://github.com/CovenantSQL/CovenantSQL/pull/306) ([leventeliu](https://github.com/leventeliu))
+- Remove boltdb dependency [\#305](https://github.com/CovenantSQL/CovenantSQL/pull/305) ([xq262144](https://github.com/xq262144))
+- Refactor ETLS/RPC/mux packages [\#303](https://github.com/CovenantSQL/CovenantSQL/pull/303) ([leventeliu](https://github.com/leventeliu))
+- Fix kayak memleak bugs [\#277](https://github.com/CovenantSQL/CovenantSQL/pull/277) ([xq262144](https://github.com/xq262144))
+
 ## [v0.5.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.5.0) (2019-03-28)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.4.0...v0.5.0)

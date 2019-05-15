@@ -509,11 +509,24 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 	return
 }
 
-func (s *metaState) updateProviderList(tx *types.ProvideService) (err error) {
+func (s *metaState) updateProviderList(tx *types.ProvideService, height uint32) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
 		err = errors.Wrap(err, "updateProviderList failed")
 		return
+	}
+
+	if height >= conf.BPHeightCIPFixProvideService {
+		// load previous provider object
+		po, loaded := s.loadProviderObject(sender)
+		if loaded {
+			// refund
+			if err = s.increaseAccountStableBalance(sender, po.Deposit); err != nil {
+				return
+			}
+
+			s.deleteProviderObject(sender)
+		}
 	}
 
 	// deposit
@@ -1113,7 +1126,7 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 	return
 }
 
-func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
+func (s *metaState) applyTransaction(tx pi.Transaction, height uint32) (err error) {
 	switch t := tx.(type) {
 	case *types.Transfer:
 		err = s.transferSQLChainTokenBalance(t)
@@ -1124,7 +1137,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 	case *types.BaseAccount:
 		err = s.storeBaseAccount(t.Address, &t.Account)
 	case *types.ProvideService:
-		err = s.updateProviderList(t)
+		err = s.updateProviderList(t, height)
 	case *types.CreateDatabase:
 		err = s.matchProvidersWithUser(t)
 	case *types.UpdatePermission:
@@ -1135,7 +1148,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction) (err error) {
 		err = s.updateBilling(t)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
-		err = s.applyTransaction(t.Unwrap())
+		err = s.applyTransaction(t.Unwrap(), height)
 	default:
 		err = ErrUnknownTransactionType
 	}
@@ -1159,7 +1172,7 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, tx *types.Create
 	return
 }
 
-func (s *metaState) apply(t pi.Transaction) (err error) {
+func (s *metaState) apply(t pi.Transaction, height uint32) (err error) {
 	log.Infof("get tx: %s", t.GetTransactionType())
 	// NOTE(leventeliu): bypass pool in this method.
 	var (
@@ -1184,7 +1197,7 @@ func (s *metaState) apply(t pi.Transaction) (err error) {
 		return
 	}
 	// Try to apply transaction to metaState
-	if err = s.applyTransaction(t); err != nil {
+	if err = s.applyTransaction(t, height); err != nil {
 		log.WithError(err).Debug("apply transaction failed")
 		return
 	}

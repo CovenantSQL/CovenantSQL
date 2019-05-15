@@ -25,3 +25,8 @@ const (
 const (
 	BPStartupRequiredReachableCount = 2 // NOTE: this includes myself
 )
+
+// Block producer chain improvements proposal heights.
+const (
+	BPHeightCIPFixProvideService = 675550 // inclusive, in 2019-5-15 16:11:40 +08:00
+)

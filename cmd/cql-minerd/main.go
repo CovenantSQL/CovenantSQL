@@ -236,16 +236,6 @@ func main() {
 		}
 	}()
 
-	// start dbms
-	var dbms *worker.DBMS
-	if dbms, err = startDBMS(server, direct, func() {
-		sendProvideService(reg)
-	}); err != nil {
-		log.WithError(err).Fatal("start dbms failed")
-	}
-
-	defer dbms.Shutdown()
-
 	// start rpc server
 	go func() {
 		server.Serve()
@@ -259,6 +249,16 @@ func main() {
 		}()
 		defer direct.Stop()
 	}
+
+	// start dbms
+	var dbms *worker.DBMS
+	if dbms, err = startDBMS(server, direct, func() {
+		sendProvideService(reg)
+	}); err != nil {
+		log.WithError(err).Fatal("start dbms failed")
+	}
+
+	defer dbms.Shutdown()
 
 	if metricLog {
 		go metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.StandardLogger())

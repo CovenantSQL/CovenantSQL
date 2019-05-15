@@ -74,9 +74,19 @@ func main() {
 		if !cmd.Runnable() {
 			continue
 		}
-		cmd.Flag.Usage = func() { cmd.Usage() }
-		cmd.Flag.Parse(args[1:])
-		args = cmd.Flag.Args()
+		var allFlags flag.FlagSet
+		allFlags.Usage = func() { cmd.Usage() }
+		cmd.Flag.VisitAll(func(flag *flag.Flag) {
+			allFlags.Var(flag.Value, flag.Name, flag.Usage)
+		})
+		cmd.CommonFlag.VisitAll(func(flag *flag.Flag) {
+			allFlags.Var(flag.Value, flag.Name, flag.Usage)
+		})
+		cmd.DebugFlag.VisitAll(func(flag *flag.Flag) {
+			allFlags.Var(flag.Value, flag.Name, flag.Usage)
+		})
+		allFlags.Parse(args[1:])
+		args = allFlags.Args()
 		cmd.Run(cmd, args)
 		internal.Exit()
 		return

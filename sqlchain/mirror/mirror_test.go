@@ -273,7 +273,6 @@ func TestFullProcess(t *testing.T) {
 			[]string{"-test.coverprofile", FJ(baseDir, "./cmd/cql/mirror.cover.out"),
 				"mirror",
 				"-config", FJ(testWorkingDir, "./mirror/node_mirror/config.yaml"),
-				"-no-password",
 				"-bg-log-level", "debug",
 				dsnCfg.DatabaseID,
 				"127.0.0.1:5663",

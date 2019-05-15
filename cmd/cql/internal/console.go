@@ -60,6 +60,9 @@ If those params are set, it will run SQL script and exit without staying console
 e.g.
     cql console -command "create table test1(test2 int);" covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c
 `,
+	Flag:       flag.NewFlagSet("Console params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 var (
@@ -326,6 +329,8 @@ func run(u *user.User) (err error) {
 func runConsole(cmd *Command, args []string) {
 	configFile = utils.HomeDirExpand(configFile)
 
+	commonFlagsInit(cmd)
+
 	var err error
 	// load config
 	if conf.GConf, err = conf.LoadConfig(configFile); err != nil {
@@ -375,11 +380,11 @@ func runConsole(cmd *Command, args []string) {
 		} else {
 			ConsoleLog.Error("neither local dsn storage exists nor a dsn string present")
 			SetExitStatus(1)
-			help = true
+			printCommandHelp(cmd)
+			Exit()
 		}
 	}
 
-	commonFlagsInit(cmd)
 	configInit()
 
 	usqlRegister()

@@ -19,6 +19,7 @@ package internal
 import (
 	"bufio"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -43,14 +44,17 @@ var CmdGenerate = &Command{
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
-You can input a passphrase for local encrypt your private key file by set -no-password=false
+You can input a passphrase for local encrypt your private key file by set -with-password
 e.g.
     cql generate
 
 or input a passphrase by
 
-    cql generate -no-password=false
+    cql generate -with-password
 `,
+	Flag:       flag.NewFlagSet("Generate params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 var (
@@ -61,9 +65,12 @@ var (
 
 func init() {
 	CmdGenerate.Run = runGenerate
-	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "", "custom private for config generation")
-	CmdGenerate.Flag.StringVar(&source, "source", "", "source config file template for config generation")
-	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "", "generate miner config with specified listen address")
+	CmdGenerate.Flag.StringVar(&privateKeyParam, "private", "",
+		"Generate config using an existing private key")
+	CmdGenerate.Flag.StringVar(&source, "source", "",
+		"Generate config using the specified config template")
+	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "",
+		"Generate miner config with specified miner address")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -131,8 +138,8 @@ func runGenerate(cmd *Command, args []string) {
 		var oldPassword string
 
 		if password == "" {
-			fmt.Println("Please enter the password of the existing private key")
-			oldPassword = readMasterKey(noPassword)
+			fmt.Println("Please enter the passphrase of the existing private key")
+			oldPassword = readMasterKey(!withPassword)
 		} else {
 			oldPassword = password
 		}
@@ -178,8 +185,8 @@ func runGenerate(cmd *Command, args []string) {
 
 	fmt.Println("Generating private key...")
 	if password == "" {
-		fmt.Println("Please enter password for new private key")
-		password = readMasterKey(noPassword)
+		fmt.Println("Please enter passphrase for new private key")
+		password = readMasterKey(!withPassword)
 	}
 
 	if privateKeyParam == "" {
@@ -278,8 +285,8 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Printf("\nConfig file:      %s\n", configFilePath)
 	fmt.Printf("Private key file: %s\n", privateKeyFile)
 	fmt.Printf("Public key's hex: %s\n", hex.EncodeToString(publicKey.Serialize()))
-	fmt.Printf("Wallet address: %s\n", walletAddr)
 
+	fmt.Printf("\nWallet address: %s\n", walletAddr)
 	fmt.Printf(`
 Any further command could costs PTC.
 You can get some free PTC from:
@@ -287,6 +294,6 @@ You can get some free PTC from:
 	fmt.Println(walletAddr)
 
 	if password != "" {
-		fmt.Println("Your private key had been encrypted by a passphrase, add -no-password=false in any further command")
+		fmt.Println("Your private key had been encrypted by a passphrase, add -with-password in any further command")
 	}
 }

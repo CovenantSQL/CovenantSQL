@@ -25,13 +25,13 @@ wallet=$(grep "WalletAddress" ~/.cql/config.yaml | awk '{print $2}')
 
 #transfer some coin to above address
 ${BIN}/cql transfer -config ${PROJECT_DIR}/conf/testnet/config.yaml -wait-tx-confirm \
-    -address ${wallet} -amount 100000000 -type Particle
+    -to-user ${wallet} -amount 100000000 -token Particle
 
 ${BIN}/cql wallet
 
 # create database only in miner00 and miner01
-${BIN}/cql create -wait-tx-confirm -node 2 \
-    -target-miners 'ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37,1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be'
+${BIN}/cql create -wait-tx-confirm -db-node 2 \
+    -db-target-miners 'ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37,1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be'
 
 #get dsn
 dsn=$(cat ~/.cql/.dsn | tail -n1)

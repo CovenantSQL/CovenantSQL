@@ -17,6 +17,7 @@
 package internal
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -49,6 +50,9 @@ e.g.
 
     cql wallet -dsn "covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c"
 `,
+	Flag:       flag.NewFlagSet("Wallet params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -57,7 +61,7 @@ func init() {
 	addCommonFlags(CmdWallet)
 	addConfigFlag(CmdWallet)
 
-	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token's balance of current account, e.g. Particle, Wave, All")
+	CmdWallet.Flag.StringVar(&tokenName, "token", "", "Get specific token balance of current account, e.g. Particle, Wave, All")
 	CmdWallet.Flag.StringVar(&databaseID, "dsn", "", "Show specified database deposit")
 }
 

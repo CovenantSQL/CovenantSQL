@@ -18,6 +18,7 @@ package internal
 
 import (
 	"context"
+	"flag"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter"
@@ -38,6 +39,9 @@ Adapter serves a SQLChain adapter.
 e.g.
     cql adapter 127.0.0.1:7784
 `,
+	Flag:       flag.NewFlagSet("Adapter params", flag.ExitOnError),
+	CommonFlag: flag.NewFlagSet("Common params", flag.ExitOnError),
+	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
 func init() {
@@ -74,13 +78,15 @@ func startAdapterServer(adapterAddr string, adapterUseMirrorAddr string) func() 
 }
 
 func runAdapter(cmd *Command, args []string) {
+	commonFlagsInit(cmd)
+
 	if len(args) != 1 {
 		ConsoleLog.Error("adapter command need listen address as param")
 		SetExitStatus(1)
-		help = true
+		printCommandHelp(cmd)
+		Exit()
 	}
 
-	commonFlagsInit(cmd)
 	configInit()
 	bgServerInit()
 

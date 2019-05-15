@@ -44,7 +44,7 @@ import (
 var (
 	configFile      string
 	password        string
-	noPassword      bool
+	withPassword    bool
 	consoleLogLevel string // foreground console log level
 
 	waitTxConfirmation bool // wait for transaction confirmation before exiting
@@ -55,26 +55,22 @@ var (
 )
 
 func addCommonFlags(cmd *Command) {
-	cmd.Flag.BoolVar(&help, "help", false, "Show help message")
-	cmd.Flag.BoolVar(&noPassword, "no-password", true,
-		"Use empty password for master key")
+	cmd.CommonFlag.BoolVar(&help, "help", false, "Show help message")
+	cmd.CommonFlag.BoolVar(&withPassword, "with-password", false,
+		"Enter the passphrase for private.key")
 
 	// debugging flags.
-	cmd.Flag.StringVar(&password, "password", "",
-		"Master key password for covenantsql (NOT SAFE, for debug or script only)")
-	cmd.Flag.StringVar(&consoleLogLevel, "log-level", "info",
+	cmd.DebugFlag.StringVar(&password, "password", "",
+		"Passphrase for encrypting private.key (NOT SAFE, for debug or script only)")
+	cmd.DebugFlag.StringVar(&consoleLogLevel, "log-level", "info",
 		"Console log level: trace debug info warning error fatal panic")
-	cmd.Flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
+	cmd.DebugFlag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
 }
 
 func commonFlagsInit(cmd *Command) {
 	if help {
-		_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
-		_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
-		_, _ = fmt.Fprintf(os.Stdout, "\nParams:\n")
-		cmd.Flag.SetOutput(os.Stdout)
-		cmd.Flag.PrintDefaults()
+		printCommandHelp(cmd)
 		Exit()
 	}
 
@@ -86,15 +82,15 @@ func commonFlagsInit(cmd *Command) {
 }
 
 func addConfigFlag(cmd *Command) {
-	cmd.Flag.StringVar(&configFile, "config", "~/.cql/config.yaml",
-		"Config file for covenantsql (Usually no need to set, default is enough.)")
+	cmd.CommonFlag.StringVar(&configFile, "config", "~/.cql/config.yaml",
+		"Config file for CovanantSQL (Usually no need to set, default is enough.)")
 }
 
 func configInit() {
 	configFile = utils.HomeDirExpand(configFile)
 
 	if password == "" {
-		password = readMasterKey(noPassword)
+		password = readMasterKey(!withPassword)
 	}
 
 	// init covenantsql driver
@@ -133,7 +129,7 @@ func wait(txHash hash.Hash) (err error) {
 
 func addBgServerFlag(cmd *Command) {
 	cmd.Flag.StringVar(&tmpPath, "tmp-path", "",
-		"Background service temp file path, use \"dirname `mktemp -u`\" to check it out")
+		"Background service temp file path, use \"dirname $(mktemp -u)\" to check it out")
 	cmd.Flag.StringVar(&bgLogLevel, "bg-log-level", "info",
 		"Background service log level: trace debug info warning error fatal panic")
 }

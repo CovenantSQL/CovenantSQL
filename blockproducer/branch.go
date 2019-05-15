@@ -78,7 +78,7 @@ func newBranch(
 			}
 			inst.packed[k] = v
 			// Apply to preview
-			if err = inst.preview.apply(v); err != nil {
+			if err = inst.preview.apply(v, bn.height); err != nil {
 				return
 			}
 		}
@@ -154,7 +154,7 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 		}
 		cpy.packed[k] = v
 		// Apply to preview
-		if err = cpy.preview.apply(v); err != nil {
+		if err = cpy.preview.apply(v, n.height); err != nil {
 			return
 		}
 	}
@@ -199,7 +199,7 @@ func (b *branch) produceBlock(
 	out := make([]pi.Transaction, 0, packCount)
 	for _, v := range txs {
 		var k = v.Hash()
-		if ierr = cpy.preview.apply(v); ierr != nil {
+		if ierr = cpy.preview.apply(v, h); ierr != nil {
 			continue
 		}
 		delete(cpy.unpacked, k)

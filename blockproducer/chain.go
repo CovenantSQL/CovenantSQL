@@ -168,7 +168,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	if !existed {
 		var init = newMetaState()
 		for _, v := range cfg.Genesis.Transactions {
-			if ierr = init.apply(v); ierr != nil {
+			if ierr = init.apply(v, 0); ierr != nil {
 				err = errors.Wrap(ierr, "failed to initialize immutable state")
 				return
 			}
@@ -723,7 +723,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	for _, b := range newIrres {
 		txCount += b.txCount
 		for _, tx := range b.load().Transactions {
-			if err := c.immutable.apply(tx); err != nil {
+			if err := c.immutable.apply(tx, newBranch.head.height); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
 			delete(resultTxPool, tx.Hash()) // Remove confirmed transaction

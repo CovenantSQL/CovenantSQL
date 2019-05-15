@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -119,8 +120,10 @@ func TestChain(t *testing.T) {
 			},
 			Transactions: []pi.Transaction{
 				types.NewBaseAccount(&types.Account{
-					Address:      addr1,
-					TokenBalance: [5]uint64{1000, 1000, 1000, 1000, 1000},
+					Address: addr1,
+					TokenBalance: [5]uint64{
+						1000000, 1000000, 1000000, 1000000, 1000000,
+					},
 				}),
 			},
 		}
@@ -300,6 +303,45 @@ func TestChain(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(resp.State, ShouldEqual, pi.TransactionStateConfirmed)
 			})
+		})
+
+		Convey("Multiple provide service", func() {
+			var (
+				nonce            pi.AccountNonce
+				t1, t2           pi.Transaction
+				loaded           bool
+				po1, po2         *types.ProviderProfile
+				bal1, bal2, bal3 uint64
+			)
+
+			// Create transaction for testing
+			bal1, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
+			So(loaded, ShouldBeTrue)
+			nonce, err = chain.nextNonce(addr1)
+			So(err, ShouldBeNil)
+			So(nonce, ShouldEqual, 1)
+			t1, err = newProvideService(nonce, priv1, addr1)
+			So(err, ShouldBeNil)
+			t2, err = newProvideService(nonce+1, priv1, addr1)
+			So(err, ShouldBeNil)
+			err = chain.storeTx(t1)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(chain.period * conf.BPHeightCIPFixProvideService).UTC())
+			So(err, ShouldBeNil)
+			bal2, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
+			So(loaded, ShouldBeTrue)
+			po1, loaded = chain.headBranch.preview.loadProviderObject(addr1)
+			So(loaded, ShouldBeTrue)
+			So(bal1-bal2, ShouldEqual, po1.Deposit)
+			err = chain.storeTx(t2)
+			So(err, ShouldBeNil)
+			err = chain.produceBlock(begin.Add(chain.period * (conf.BPHeightCIPFixProvideService + 1)).UTC())
+			So(err, ShouldBeNil)
+			bal3, loaded = chain.headBranch.preview.loadAccountTokenBalance(addr1, types.Particle)
+			So(bal3, ShouldEqual, bal2)
+			po2, loaded = chain.headBranch.preview.loadProviderObject(addr1)
+			So(po2, ShouldResemble, po1)
+			So(po2 == po1, ShouldBeFalse)
 		})
 
 		Convey("When transfer transactions are added", func() {

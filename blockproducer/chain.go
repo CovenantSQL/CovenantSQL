@@ -723,7 +723,7 @@ func (c *Chain) replaceAndSwitchToBranch(
 	for _, b := range newIrres {
 		txCount += b.txCount
 		for _, tx := range b.load().Transactions {
-			if err := c.immutable.apply(tx, newBranch.head.height); err != nil {
+			if err := c.immutable.apply(tx, b.height); err != nil {
 				log.WithError(err).Fatal("failed to apply block to immutable database")
 			}
 			delete(resultTxPool, tx.Hash()) // Remove confirmed transaction

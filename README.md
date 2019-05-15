@@ -65,7 +65,7 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
     sudo bash -c 'curl -L "https://cutt.ly/cql050linux" | tar xzv -C /usr/local/bin/ --strip-components=1'
     ```
 
-#### To continue [TestNet Quickstart](https://developers.covenantsql.io/docs/en/quickstart)
+#### To continue: [TestNet Quickstart](https://developers.covenantsql.io/docs/en/quickstart)
 
 ## How CQL works
 
@@ -121,6 +121,13 @@ CQL database consistency mode and node count can be selected in database creatio
   ```bash
   fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
   ```
+
+## Performance 
+
+Strong consistency bench result (2 miners, 8 core aws c5.2xlarge):
+![CovenantSQL bench](logo/bench.png)
+
+As seen above, the concurrency pressure on the database increased gradually in the first 5 hours, and the write TPS also increased. When the TPS no longer grows, the concurrent pressure is maintained for 100 hours.
 
 ## Demos
 

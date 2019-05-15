@@ -1173,16 +1173,22 @@ func (s *metaState) generateGenesisBlock(dbID proto.DatabaseID, tx *types.Create
 }
 
 func (s *metaState) apply(t pi.Transaction, height uint32) (err error) {
-	log.Infof("get tx: %s", t.GetTransactionType())
 	// NOTE(leventeliu): bypass pool in this method.
 	var (
 		addr  = t.GetAccountAddress()
 		nonce = t.GetAccountNonce()
+		ttype = t.GetTransactionType()
 	)
+	log.WithFields(log.Fields{
+		"type":  ttype,
+		"hash":  t.Hash(),
+		"addr":  addr,
+		"nonce": nonce,
+	}).Infof("apply tx")
 	// Check account nonce
 	var nextNonce pi.AccountNonce
 	if nextNonce, err = s.nextNonce(addr); err != nil {
-		if t.GetTransactionType() != pi.TransactionTypeBaseAccount {
+		if ttype != pi.TransactionTypeBaseAccount {
 			return
 		}
 		// Consider the first nonce 0

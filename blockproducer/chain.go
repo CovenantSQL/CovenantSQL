@@ -666,7 +666,7 @@ func (c *Chain) syncCurrentHead(ctx context.Context, requiredReachable uint32) (
 		log.Fatalf("unknown run mode: %v", c.mode)
 	}
 
-	if ok {
+	if !ok {
 		log.WithFields(log.Fields{
 			"peer":              c.getLocalBPInfo(),
 			"sync_head_height":  currentHeight,

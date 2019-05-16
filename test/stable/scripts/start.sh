@@ -15,6 +15,13 @@ fi
 
 cd ${WORKING_DIR}
 
+build_client(){
+    cd ${RUNNING_DIR}
+    go build -o 500million
+    docker cp covenantsql_bp_1:/app/cql ${RUNNING_DIR}
+    sleep 3s
+}
+
 case $role in
     bp)
         # start bp
@@ -46,16 +53,26 @@ case $role in
         docker-compose start covenantsql_miner_3
         ;;
     client)
-        cd ${RUNNING_DIR}
-        docker cp covenantsql_bp_1:/app/cql ${RUNNING_DIR}
-        sleep 3s
+        build_client
+
         ${RUNNING_DIR}/cql create -config ${RUNNING_DIR}/node_c/config.yaml \
             -wait-tx-confirm -db-node 4 -advance-payment 2000000000
         dsn=$(cat ${RUNNING_DIR}/node_c/.dsn | tail -n1)
 
         #Start client
-        go build -o 500million
-        nohup ${RUNNING_DIR}/500million -config ${RUNNING_DIR}/node_c/config.yaml -dsn ${dsn} > ${LOG_DIR}/client.log 2>&1 &
+        nohup ${RUNNING_DIR}/500million -config ${RUNNING_DIR}/node_c/config.yaml \
+            -dsn ${dsn} > ${LOG_DIR}/client.log 2>&1 &
+        ;;
+    client_eventual)
+        build_client
+
+        ${RUNNING_DIR}/cql create -config ${RUNNING_DIR}/node_c/config.yaml \
+            -wait-tx-confirm -db-node 4 -advance-payment 2000000000 -db-eventual-consistency
+        dsn_eventual=$(cat ${RUNNING_DIR}/node_c/.dsn | tail -n1)
+
+        #Start eventual client
+        nohup ${RUNNING_DIR}/500million -config ${RUNNING_DIR}/node_c/config.yaml \
+            -dsn ${dsn_eventual} > ${LOG_DIR}/client_eventual.log 2>&1 &
         ;;
 esac
 

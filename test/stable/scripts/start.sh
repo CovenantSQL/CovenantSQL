@@ -56,7 +56,7 @@ case $role in
         build_client
 
         ${RUNNING_DIR}/cql create -config ${RUNNING_DIR}/node_c/config.yaml \
-            -wait-tx-confirm -db-node 4 -advance-payment 2000000000
+            -wait-tx-confirm -db-node 4 -db-advance-payment 2000000000
         dsn=$(cat ${RUNNING_DIR}/node_c/.dsn | tail -n1)
 
         #Start client
@@ -67,7 +67,7 @@ case $role in
         build_client
 
         ${RUNNING_DIR}/cql create -config ${RUNNING_DIR}/node_c/config.yaml \
-            -wait-tx-confirm -db-node 4 -advance-payment 2000000000 -db-eventual-consistency
+            -wait-tx-confirm -db-node 4 -db-advance-payment 2000000000 -db-eventual-consistency
         dsn_eventual=$(cat ${RUNNING_DIR}/node_c/.dsn | tail -n1)
 
         #Start eventual client

@@ -3,9 +3,9 @@ set -euo pipefail
 
 declare pkg="github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd"
 declare flags=(
-    "-bench=^BenchmarkMinerGNTE$"
-    "-benchtime=10s"
-    "-run=^$"
+    "-test.bench=^BenchmarkMinerGNTE$"
+    "-test.benchtime=10s"
+    "-test.run=^$"
 )
 
 BENCH_BIN=${PROJECT_DIR}/bin/intergration.test

@@ -43,12 +43,12 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 
 ## Quick Start
 
-CQL clients supports:
+CQL client supports:
 
 - macOS X 10.9+
 - Linux 2.6.23+ (x86, x86_64, armeabi-v7a, arm64-v8a)
 
-<details><summary>Guide for Developers</summary>
+<details><summary>Developer Guide</summary>
 <p>
 
 #### MacOS

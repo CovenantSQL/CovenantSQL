@@ -30,7 +30,7 @@ fast() {
     clean
     ${BENCH_BIN}        "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
     clean
-    ${BENCH_BIN} -cpu=1 "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
+    ${BENCH_BIN} -test.cpu=1 "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
 }
 
 full() {
@@ -42,7 +42,7 @@ full() {
             if [[ -z $cpu ]]; then
                 caseflags=("${flags[@]}")
             else
-                caseflags=("-cpu=$cpu" "${flags[@]}")
+                caseflags=("-test.cpu=$cpu" "${flags[@]}")
             fi
 
             clean

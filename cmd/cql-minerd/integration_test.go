@@ -704,7 +704,6 @@ func makeBenchName(trailings ...string) string {
 }
 
 func benchDB(b *testing.B, db *sql.DB, createDB bool) {
-	var err error
 	if createDB {
 		prepareBenchTable(db)
 	}
@@ -725,7 +724,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 
 				ctx, task := trace.NewTask(context.Background(), "BenchInsert")
 
-				_, err = db.ExecContext(ctx, "INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
+				_, err := db.ExecContext(ctx, "INSERT INTO "+TABLENAME+" ( k, v1 ) VALUES"+
 					"(?, ?)", index, ii,
 				)
 				//log.Warnf("insert index = %d %v", index, time.Since(start))
@@ -754,7 +753,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 
 	rowCount := db.QueryRow("SELECT COUNT(1) FROM " + TABLENAME)
 	var count int64
-	err = rowCount.Scan(&count)
+	err := rowCount.Scan(&count)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -777,7 +776,7 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 				row := db.QueryRowContext(ctx, "SELECT v1 FROM "+TABLENAME+" WHERE k = ? LIMIT 1", index)
 				//log.Warnf("select index = %d %v", index, time.Since(start))
 				var result []byte
-				err = row.Scan(&result)
+				err := row.Scan(&result)
 				if err != nil || (len(result) == 0) {
 					log.Errorf("index = %d", index)
 					b.Fatal(err)

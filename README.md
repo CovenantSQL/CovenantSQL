@@ -194,7 +194,6 @@ As seen above, the concurrency pressure on the database increased gradually in t
 ## Demos
 
 - [CovenantForum](https://demo.covenantsql.io/forum/)
-- [Twitter Bot @iBlockPin](https://twitter.com/iblockpin)
 - [Weibo Bot @BlockPin](https://weibo.com/BlockPin)
 - [Markdown Editor with CovenantSQL sync](https://github.com/CovenantSQL/stackedit)
 - [Web Admin for CovenantSQL](https://github.com/CovenantSQL/adminer)

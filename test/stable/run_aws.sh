@@ -30,5 +30,14 @@ if [[ -z "$1" ]]; then
     ./scripts/start.sh miner3
     ./scripts/start.sh client
 else
-    ./scripts/start.sh $1
+    if [[ "$1" == "eventual" ]]; then
+        ./scripts/start.sh bp
+        ./scripts/start.sh miner0
+        ./scripts/start.sh miner1
+        ./scripts/start.sh miner2
+        ./scripts/start.sh miner3
+        ./scripts/start.sh client_eventual
+    else
+        ./scripts/start.sh $1
+    fi
 fi

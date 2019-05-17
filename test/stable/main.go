@@ -67,7 +67,7 @@ func insertData(db *sql.DB, tableName string, dataCount int64, pool *grpool.Pool
 				atomic.StoreInt32(&errCount, 0)
 			}
 		}
-		if i%1000 == 0 {
+		if i%10000 == 0 {
 			log.Infof("%v Inserted: %v %v\n", time.Now().Sub(start), tableName, i)
 		}
 		if errCount > 10000 {
@@ -109,7 +109,7 @@ func main() {
 
 	createSqliteTestTable(db, tableName)
 
-	pool := grpool.NewPool(16, 32)
+	pool := grpool.NewPool(64, 512)
 	defer pool.Release()
 	insertData(db, tableName, 500000000, pool)
 	pool.WaitAll()

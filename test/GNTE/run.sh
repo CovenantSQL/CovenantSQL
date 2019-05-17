@@ -11,7 +11,7 @@ else
 fi
 
 export TEST_WD=$(cd $(dirname $0)/; pwd)
-PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
+export PROJECT_DIR=$(cd ${TEST_WD}/../../; pwd)
 
 echo ${PROJECT_DIR}
 

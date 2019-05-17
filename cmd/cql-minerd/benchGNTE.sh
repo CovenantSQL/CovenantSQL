@@ -8,6 +8,8 @@ declare flags=(
     "-run=^$"
 )
 
+BENCH_BIN=${PROJECT_DIR}/bin/intergration.test
+
 clean() {
     if [ -n "${TEST_WD}" ]; then
         # Clean
@@ -24,11 +26,11 @@ clean() {
 fast() {
     echo "Fast benchmarking with flags: $@"
     clean
-    go test        "${flags[@]}" "$pkg" "$@"                      | tee -a gnte.log
+    ${BENCH_BIN}        "${flags[@]}" "$pkg" "$@"                      | tee -a gnte.log
     clean
-    go test        "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
+    ${BENCH_BIN}        "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
     clean
-    go test -cpu=1 "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
+    ${BENCH_BIN} -cpu=1 "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
 }
 
 full() {
@@ -45,7 +47,7 @@ full() {
 
             clean
 
-            go test "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log
+            ${BENCH_BIN} "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log
 
             ips=(2 3 4 5 6 7 8 9)
             cur_sec=`date '+%s'`

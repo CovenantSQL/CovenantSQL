@@ -177,13 +177,20 @@ bin/cql-faucet:
 		-o bin/cql-faucet \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 
+bin/intergration.test:
+	CGO_ENABLED=1 go test $(test_flags) -tags "$(tags)" \
+		-ldflags "$(ldflags_role_client)" \
+		-o bin/intergration.test \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
+
+
 bp: bin/cqld.test bin/cqld
 
 miner: bin/cql-minerd.test bin/cql-minerd
 
 client: bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
-all: bp miner client
+all: bp miner client bin/intergration.test
 
 build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 

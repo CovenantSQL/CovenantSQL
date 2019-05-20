@@ -30,11 +30,18 @@ import (
 // Test cases for all implementations.
 // Because iv is random, so Encrypted data is not always the same,
 // 	but Decrypt(possibleEncrypted) will get raw.
+//  `raw` and `possibleEncrypted` are in hex
+//  `pass` is raw string
 var testCases = []struct {
 	raw               string
 	pass              string
 	possibleEncrypted string
 }{
+	{
+		raw:               "11",
+		pass:              ";#K]As9C*6L",
+		possibleEncrypted: "a372ea2c158a2f99d386e309db4355a659a7a8dd3986fd1d94f7604256061609",
+	},
 	{
 		raw: "111282C128421286712857128C2128EF" +
 			"128B7671283C128571287512830128EC" +
@@ -50,10 +57,9 @@ var testCases = []struct {
 			"6278d7f5185c263440ec6fd940ffbb85",
 	},
 	{
-		raw:  "11",
-		pass: "",
-		possibleEncrypted: "9e7f70ac60f668a79f544ef196181a54" +
-			"ee4175b85a45b05f585d5e173456d281",
+		raw:               "11",
+		pass:              "'K]\"#'pi/1/JD2",
+		possibleEncrypted: "a83d152777ce3a1c0710b03676ae867c86ab0a47b3ca080f825683ac1079eb41",
 	},
 	{
 		raw:  "11111111111111111111111111111111",
@@ -63,23 +69,16 @@ var testCases = []struct {
 			"f70a3ac976a835b7bc3008e9ba43da74",
 	},
 	{
-		raw:  "11",
-		pass: "f70a3ac976a835b7bc3008e9ba43da74",
-		possibleEncrypted: "4fda87aba6b9b5ab0830c2adecb84fd7" +
-			"33ac7a9775cf60eca66a167a5615b340",
-	},
-	{
 		raw:  "11111111111111111111111111111111",
-		pass: "7dda438c4256a63c62d6816617fcbf",
-		possibleEncrypted: "01cbaa72a5c868b24deaf97fb0090cb4" +
-			"b965ceaa9853873236ca86700cee00bf" +
-			"3eab2734a87f638228315ad417717a62",
+		pass: "youofdas1312",
+		possibleEncrypted: "cab07967cf377dbc010fbf5f84d12bcb" +
+			"6f8b188e6965738cf9007a671b4bfeb9" +
+			"f52257aac3808048c341dcaa1c125ca7",
 	},
 	{
-		raw:  "11111111111111111111111111",
-		pass: "空のBottle",
-		possibleEncrypted: "c31dd46dd9d6eb107d78f5771e520b3b" +
-			"c0feef0b4215b98b3c5fd8d7bb718529",
+		raw:               "11111111111111111111111111",
+		pass:              "空のBottle😄",
+		possibleEncrypted: "4384874473945c5b70519ad5ace6305ef6b78c60c3c694add08a8b81899c4171",
 	},
 }
 
@@ -90,7 +89,7 @@ func TestEncryptDecryptCases(t *testing.T) {
 	Convey("encrypt & decrypt cases", t, func() {
 		for i, c := range testCases {
 			in, _ := hex.DecodeString(c.raw)
-			pass, _ := hex.DecodeString(c.pass)
+			pass := []byte(c.pass)
 			out, _ := hex.DecodeString(c.possibleEncrypted)
 			log.Infof("TestEncryptDecryptCases: %d", i)
 			enc, err := Encrypt(in, pass)

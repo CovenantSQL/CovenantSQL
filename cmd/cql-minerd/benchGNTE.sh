@@ -26,11 +26,11 @@ clean() {
 fast() {
     echo "Fast benchmarking with flags: $@"
     clean
-    ${BENCH_BIN}        "${flags[@]}" "$pkg" "$@"                      | tee -a gnte.log
+    ${BENCH_BIN} "$@" "${flags[@]}" "$pkg" | tee -a gnte.log
     clean
-    ${BENCH_BIN}        "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
+    ${BENCH_BIN} -bench-miner-count=2 "$@" "${flags[@]}" "$pkg" | tee -a gnte.log
     clean
-    ${BENCH_BIN} -test.cpu=1 "${flags[@]}" "$pkg" "$@" -bench-miner-count=2 | tee -a gnte.log
+    ${BENCH_BIN} -bench-miner-count=2 "$@" -test.cpu=1 "${flags[@]}" "$pkg" | tee -a gnte.log
 }
 
 full() {
@@ -47,7 +47,7 @@ full() {
 
             clean
 
-            ${BENCH_BIN} "${caseflags[@]}" "$pkg" "$@" -bench-miner-count=$count | tee -a gnte.log
+            ${BENCH_BIN} "$@" -bench-miner-count=$count "${caseflags[@]}" "$pkg" | tee -a gnte.log
 
             ips=(2 3 4 5 6 7 8 9)
             cur_sec=`date '+%s'`

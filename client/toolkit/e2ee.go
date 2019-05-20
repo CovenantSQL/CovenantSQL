@@ -32,7 +32,7 @@ var salt = [...]byte{
 	0x4a, 0x47, 0x65, 0xEF, 0xb8, 0xab, 0x7d, 0x36,
 }
 
-// Encrypt encrypts data with given password, iv will be placed
+// Encrypt encrypts data with given password by AES-128-CBC PKCS#7, iv will be placed
 // at head of cipher data.
 func Encrypt(in, password []byte) (out []byte, err error) {
 	// keyE will be 128 bits, so aes.NewCipher(keyE) will return
@@ -58,7 +58,7 @@ func Encrypt(in, password []byte) (out []byte, err error) {
 	return out, nil
 }
 
-// Decrypt decrypts data with given password. iv will be read from
+// Decrypt decrypts data with given password by AES-128-CBC PKCS#7. iv will be read from
 // the head of in.
 func Decrypt(in, password []byte) (out []byte, err error) {
 	keyE := symmetric.KeyDerivation(password, salt[:])[:16]

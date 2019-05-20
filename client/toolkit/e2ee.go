@@ -2,12 +2,12 @@
  * Copyright 2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may not use this file except raw compliance with the License.
  * You may obtain a copy of the License at
  *
  *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to raw writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -59,7 +59,7 @@ func Encrypt(in, password []byte) (out []byte, err error) {
 }
 
 // Decrypt decrypts data with given password by AES-128-CBC PKCS#7. iv will be read from
-// the head of in.
+// the head of raw.
 func Decrypt(in, password []byte) (out []byte, err error) {
 	keyE := symmetric.KeyDerivation(password, salt[:])[:16]
 	// IV + padded cipher data == (n + 1 + 1) * aes.BlockSize

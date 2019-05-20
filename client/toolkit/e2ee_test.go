@@ -30,7 +30,7 @@ import (
 // Test cases for all implementations.
 // Because iv is random, so Encrypted data is not always the same,
 // 	but Decrypt(possibleEncrypted) will get raw.
-var test_cases = []struct {
+var testCases = []struct {
 	raw               string
 	pass              string
 	possibleEncrypted string
@@ -78,11 +78,11 @@ var test_cases = []struct {
 }
 
 func TestEncryptDecryptCases(t *testing.T) {
-	default_level := log.GetLevel()
+	defaultLevel := log.GetLevel()
 	log.SetLevel(log.DebugLevel)
-	defer log.SetLevel(default_level)
+	defer log.SetLevel(defaultLevel)
 	Convey("encrypt & decrypt cases", t, func() {
-		for i, c := range test_cases {
+		for i, c := range testCases {
 			in, _ := hex.DecodeString(c.raw)
 			pass, _ := hex.DecodeString(c.pass)
 			out, _ := hex.DecodeString(c.possibleEncrypted)

@@ -75,6 +75,12 @@ var testCases = []struct {
 			"b965ceaa9853873236ca86700cee00bf" +
 			"3eab2734a87f638228315ad417717a62",
 	},
+	{
+		raw:  "11111111111111111111111111",
+		pass: "空のBottle",
+		possibleEncrypted: "c31dd46dd9d6eb107d78f5771e520b3b" +
+			"c0feef0b4215b98b3c5fd8d7bb718529",
+	},
 }
 
 func TestEncryptDecryptCases(t *testing.T) {

@@ -178,7 +178,7 @@ bin/cql-faucet:
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 
 bin/intergration.test:
-	CGO_ENABLED=1 go test -tags "$(tags)" \
+	CGO_ENABLED=1 go test -c -tags "$(tags)" \
 		-ldflags "$(ldflags_role_client)" \
 		-o bin/intergration.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd

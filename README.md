@@ -37,14 +37,21 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 
 ## What is CQL?
 
-- Open source alternative of [Amazon QLDB](https://aws.amazon.com/qldb/)
+- Open source alternative of Amazon QLDB
 - Low cost DBaaS
-- Just like [filecoin](https://filecoin.io/) + [IPFS](https://ipfs.io/) is the decentralized file system, CQL is the decentralized database
+- Just like filecoin + IPFS is the decentralized file system, CQL is the decentralized database
 
 ## Quick Start
 
-#### MacOS
+CQL client supports:
 
+- macOS X 10.9+
+- Linux 2.6.23+ (x86, x86_64, armeabi-v7a, arm64-v8a)
+
+<details><summary>Developer Guide</summary>
+<p>
+
+#### MacOS
 - 🍺 Homebrew users can just run:
 
     ```bash
@@ -67,6 +74,20 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 
 #### To continue: [TestNet Quickstart](https://developers.covenantsql.io/docs/en/quickstart)
 
+#### SDKs
+
+CovenantSQL Testnet is already released, [have a try](https://developers.covenantsql.io/docs/quickstart).
+
+- [Golang](client/)
+- [Java](https://github.com/CovenantSQL/covenant-connector)
+- [NodeJS](https://github.com/CovenantSQL/covenantsql-proxy-js)
+- [Python](https://github.com/CovenantSQL/python-driver)
+- [Microsoft Excel (by community)](https://github.com/melancholiaforever/CQL_Excel)
+
+</p>
+</details>
+
+
 ## How CQL works
 
 ### 3 Layers Arch
@@ -82,6 +103,10 @@ CovenantSQL(CQL) is a Decentralized, GDPR-compliant, Trusted, SQL database with 
 - Layer 3: **Datastore Layer** (database engine with SQL-92 support):
     - Each Database has its own independent distributed engine.
     - Mainly responsible for: database storage & encryption, query processing & signature, efficient indexing.
+
+
+<details><summary>For more details</summary>
+<p>
 
 ### Consensus Algorithm
 
@@ -122,6 +147,42 @@ CQL database consistency mode and node count can be selected in database creatio
   fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
   ```
 
+### Network Stack
+
+[DH-RPC](rpc/) := TLS - Cert + DHT
+
+| Layer              | Implementation |
+|:-------------------|:--------------:|
+| RPC                |     `net/rpc`    |
+| Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
+| Pooling            |  Session Pool  |
+| Multiplex          |      [smux](https://github.com/xtaci/smux)     |
+| Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
+| Network            |       TCP or KCP for optional later      |
+
+### Test Tools we use
+  - [**G**lobal **N**etwork **T**opology **E**mulator](https://github.com/CovenantSQL/GNTE) is used for network emulating.
+  - [Liner Consistency Test](https://github.com/anishathalye/porcupine)
+
+## Papers
+
+Our team members published:
+
+- [Thunder crystal: a novel crowdsourcing-based content distribution platform](https://dl.acm.org/citation.cfm?id=2736085)
+- [Analyzing streaming performance in crowdsourcing-based video service systems](https://ieeexplore.ieee.org/abstract/document/7114727/)
+- [Performance Analysis of Thunder Crystal: A Crowdsourcing-Based Video Distribution Platform](https://ieeexplore.ieee.org/abstract/document/7762143/)
+
+that inspired us:
+
+- [Bitcoin: A Peer-to-Peer Electronic Cash System](https://bitcoin.org/bitcoin.pdf)
+- [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
+    - [S/Kademlia: A practicable approach towards secure key-based routing](https://ieeexplore.ieee.org/document/4447808/)
+- [vSQL: Verifying arbitrary SQL queries over dynamic outsourced databases](https://ieeexplore.ieee.org/abstract/document/7958614/)
+
+
+</p>
+</details>
+
 ## Performance 
 
 Strong consistency bench result (2 miners, 8 core aws c5.2xlarge):
@@ -132,13 +193,15 @@ As seen above, the concurrency pressure on the database increased gradually in t
 ## Demos
 
 - [CovenantForum](https://demo.covenantsql.io/forum/)
-- [Twitter Bot @iBlockPin](https://twitter.com/iblockpin)
 - [Weibo Bot @BlockPin](https://weibo.com/BlockPin)
 - [Markdown Editor with CovenantSQL sync](https://github.com/CovenantSQL/stackedit)
 - [Web Admin for CovenantSQL](https://github.com/CovenantSQL/adminer)
 - [How CovenantSQL works(video)](https://youtu.be/2Mz5POxxaQM?t=106)
 
 ## Use cases
+
+<details><summary>Traditional App & ĐApp use cases</summary>
+<p>
 
 ### Traditional App
 
@@ -173,54 +236,8 @@ Thanks to the CQL data history is immutable, CQL can be used as a storage for se
 
 Storing data on Bitcoin or Ethereum is quite expensive ($4305 / MB on Ethereum 2018-05-15). Programming is very complicated due to the lack of support for structured data storage. CQL gives you a low-cost structured SQL database and also provides more room for ĐApp to exchange data with real-world.
 
-## Papers
-
-Our team members published:
-
-- [Thunder crystal: a novel crowdsourcing-based content distribution platform](https://dl.acm.org/citation.cfm?id=2736085)
-- [Analyzing streaming performance in crowdsourcing-based video service systems](https://ieeexplore.ieee.org/abstract/document/7114727/)
-- [Performance Analysis of Thunder Crystal: A Crowdsourcing-Based Video Distribution Platform](https://ieeexplore.ieee.org/abstract/document/7762143/)
-
-that inspired us:
-
-- [Bitcoin: A Peer-to-Peer Electronic Cash System](https://bitcoin.org/bitcoin.pdf)
-- [S/Kademlia](https://github.com/thunderdb/research/wiki/Secure-Kademlia)
-    - [S/Kademlia: A practicable approach towards secure key-based routing](https://ieeexplore.ieee.org/document/4447808/)
-- [vSQL: Verifying arbitrary SQL queries over dynamic outsourced databases](https://ieeexplore.ieee.org/abstract/document/7958614/)
-
-
-## Libs
-
-### Network Stack
-
-[DH-RPC](rpc/) := TLS - Cert + DHT
-
-| Layer              | Implementation |
-|:-------------------|:--------------:|
-| RPC                |     `net/rpc`    |
-| Naming             |      [**C**onsistent **S**ecure **DHT**](https://godoc.org/github.com/CovenantSQL/CovenantSQL/consistent)     |
-| Pooling            |  Session Pool  |
-| Multiplex          |      [smux](https://github.com/xtaci/smux)     |
-| Transport Security |      [**E**nhanced **TLS**](https://github.com/CovenantSQL/research/wiki/ETLS(Enhanced-Transport-Layer-Security))      |
-| Network            |       TCP or KCP for optional later      |
-
-
-#### Test Tools
-  - [**G**lobal **N**etwork **T**opology **E**mulator](https://github.com/CovenantSQL/GNTE) is used for network emulating.
-  - [Liner Consistency Test](https://github.com/anishathalye/porcupine)
-
-
-#### Connector
-
-CovenantSQL is still under construction and Testnet is already released, [have a try](https://developers.covenantsql.io/docs/quickstart).
-
-
-- [Golang](client/)
-- [Java](https://github.com/CovenantSQL/covenant-connector)
-- [NodeJS](https://github.com/CovenantSQL/covenantsql-proxy-js)
-- [Python](https://github.com/CovenantSQL/python-driver)
-- [Microsoft Excel (by community)](https://github.com/melancholiaforever/CQL_Excel)
-- Coding for more……
+</p>
+</details>
 
 
 ## TestNet
@@ -237,3 +254,4 @@ CovenantSQL is still under construction and Testnet is already released, [have a
 - [Mail](mailto:webmaster@covenantsql.io)
 - [Forum](https://demo.covenantsql.io/forum/)
 - <a href="https://twitter.com/intent/follow?screen_name=CovenantLabs"><img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40CovenantLabs" alt="follow on Twitter"></a>
+- [![Join the chat at https://gitter.im/CovenantSQL/CovenantSQL](https://badges.gitter.im/CovenantSQL/CovenantSQL.svg)](https://gitter.im/CovenantSQL/CovenantSQL?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)

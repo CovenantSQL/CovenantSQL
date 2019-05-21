@@ -79,9 +79,9 @@ CQL client supports:
 CovenantSQL Testnet is already released, [have a try](https://developers.covenantsql.io/docs/quickstart).
 
 - [Golang](client/)
-- [Java](https://github.com/CovenantSQL/covenant-connector)
+- [Java](https://github.com/CovenantSQL/cql-java-driver)
 - [NodeJS](https://github.com/CovenantSQL/covenantsql-proxy-js)
-- [Python](https://github.com/CovenantSQL/python-driver)
+- [Python](https://github.com/CovenantSQL/cql-python-driver)
 - [Microsoft Excel (by community)](https://github.com/melancholiaforever/CQL_Excel)
 
 </p>

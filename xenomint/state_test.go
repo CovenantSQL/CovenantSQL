@@ -210,12 +210,12 @@ func TestState(t *testing.T) {
 			})
 			Convey("The state should work properly with reading/writing queries", func() {
 				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
-					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[0]...),
+					buildQuery(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, values[0]...),
 				}), true)
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
 				_, resp, err = st1.Query(buildRequest(types.ReadQuery, []types.Query{
-					buildQuery(`SELECT v FROM t1 WHERE k=?`, values[0][0]),
+					buildQuery(`SELECT "v" FROM "t1" WHERE "k"=?`, values[0][0]),
 				}), true)
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 1)
@@ -227,7 +227,7 @@ func TestState(t *testing.T) {
 				st1.Stat(id1)
 
 				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
-					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[1]...),
+					buildQuery(`INSERT INTO t1 ("k", "v") VALUES (?, ?)`, values[1]...),
 					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?);
 INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 				}), true)

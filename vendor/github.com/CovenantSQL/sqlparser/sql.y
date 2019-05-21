@@ -194,7 +194,7 @@ func forceEOF(yylex interface{}) {
 %type <valTuple> row_tuple tuple_or_empty
 %type <expr> tuple_expression
 %type <subquery> subquery
-%type <colName> column_name
+%type <colName> column_name column_name_not_string
 %type <whens> when_expression_list
 %type <when> when_expression
 %type <expr> expression_opt else_expression_opt
@@ -397,13 +397,13 @@ table_column_list:
   }
 
 column_definition:
-  ID column_type null_opt column_default_opt auto_increment_opt column_key_opt
+  col_alias column_type null_opt column_default_opt auto_increment_opt column_key_opt
   {
     $2.NotNull = $3
     $2.Default = $4
     $2.Autoincrement = $5
     $2.KeyOpt = $6
-    $$ = &ColumnDefinition{Name: NewColIdent(string($1)), Type: $2}
+    $$ = &ColumnDefinition{Name: $1, Type: $2}
   }
 column_type:
   numeric_type unsigned_opt zero_fill_opt
@@ -989,11 +989,11 @@ table_name as_opt_id
   }
 
 column_list:
-  sql_id
+  col_alias
   {
     $$ = Columns{$1}
   }
-| column_list ',' sql_id
+| column_list ',' col_alias
   {
     $$ = append($$, $3)
   }
@@ -1094,7 +1094,7 @@ into_table_name:
   }
 
 table_name:
-  table_id
+  table_alias
   {
     $$ = TableName{Name: $1}
   }
@@ -1294,7 +1294,7 @@ value_expression:
   {
     $$ = $1
   }
-| column_name
+| column_name_not_string
   {
     $$ = $1
   }
@@ -1591,6 +1591,20 @@ else_expression_opt:
   }
 
 column_name:
+  col_alias
+  {
+    $$ = &ColName{Name: $1}
+  }
+| table_alias '.' reserved_sql_id
+  {
+    $$ = &ColName{Qualifier: TableName{Name: $1}, Name: $3}
+  }
+| table_alias '.' reserved_table_id '.' reserved_sql_id
+  {
+    $$ = &ColName{Qualifier: TableName{Qualifier: $1, Name: $3}, Name: $5}
+  }
+
+column_name_not_string:
   sql_id
   {
     $$ = &ColName{Name: $1}
@@ -1747,7 +1761,7 @@ insert_data:
   }
 
 ins_column_list:
-  sql_id
+  col_alias
   {
     $$ = Columns{$1}
   }
@@ -1755,7 +1769,7 @@ ins_column_list:
   {
     $$ = Columns{$3}
   }
-| ins_column_list ',' sql_id
+| ins_column_list ',' col_alias
   {
     $$ = append($$, $3)
   }

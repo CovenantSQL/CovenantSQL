@@ -18,6 +18,7 @@ package route
 
 import (
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/CovenantSQL/beacon/ipv6"
@@ -53,25 +54,28 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 	wg := new(sync.WaitGroup)
 	wg.Add(4)
 
+	f := func(host string) ([]net.IP, error) {
+		return net.LookupIP(host)
+	}
 	// Public key
 	go func() {
 		defer wg.Done()
-		pubBuf, pubErr = ipv6.FromDomain(PUBKEY + BPDomain)
+		pubBuf, pubErr = ipv6.FromDomain(PUBKEY+BPDomain, f)
 	}()
 	// Nonce
 	go func() {
 		defer wg.Done()
-		nonceBuf, nonceErr = ipv6.FromDomain(NONCE + BPDomain)
+		nonceBuf, nonceErr = ipv6.FromDomain(NONCE+BPDomain, f)
 	}()
 	// Addr
 	go func() {
 		defer wg.Done()
-		addrBuf, addrErr = ipv6.FromDomain(ADDR + BPDomain)
+		addrBuf, addrErr = ipv6.FromDomain(ADDR+BPDomain, f)
 	}()
 	// NodeID
 	go func() {
 		defer wg.Done()
-		nodeIDBuf, nodeIDErr = ipv6.FromDomain(ID + BPDomain)
+		nodeIDBuf, nodeIDErr = ipv6.FromDomain(ID+BPDomain, f)
 	}()
 
 	wg.Wait()

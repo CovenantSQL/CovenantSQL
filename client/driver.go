@@ -271,7 +271,8 @@ func WaitBPDatabaseCreation(
 		select {
 		case <-ticker.C:
 			count++
-			fmt.Printf("Waiting for miner confirmation %vs\r", count*int(period.Seconds()))
+			fmt.Printf("\rWaiting for miner confirmation %vs", count*int(period.Seconds()))
+			defer fmt.Printf("\n")
 
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, nil,
@@ -478,7 +479,8 @@ func WaitTxConfirmation(
 		state = resp.State
 
 		count++
-		fmt.Printf("\rWaiting blockproducers confirmation %vs, state: %v    \r", count, state)
+		fmt.Printf("\rWaiting blockproducers confirmation %vs, state: %v    ", count, state)
+		defer fmt.Printf("\n")
 		log.WithFields(log.Fields{
 			"tx_hash":  txHash,
 			"tx_state": state,

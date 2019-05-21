@@ -182,15 +182,16 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 		for {
 			select {
 			case <-stopCh:
+				fmt.Printf("\n")
 				break
 			case mined := <-progressCh:
 				if mined > current {
 					current = mined
-					fmt.Printf("nonce mining %v seconds, current difficulty: %v, target difficulty: %v \r", count, current, difficulty)
+					fmt.Printf("\rnonce mining %v seconds, current difficulty: %v, target difficulty: %v", count, current, difficulty)
 				}
 			case <-ticker.C:
 				count++
-				fmt.Printf("nonce mining %v seconds, current difficulty: %v, target difficulty: %v \r", count, current, difficulty)
+				fmt.Printf("nonce mining %v seconds, current difficulty: %v, target difficulty: %v", count, current, difficulty)
 			}
 		}
 	}()

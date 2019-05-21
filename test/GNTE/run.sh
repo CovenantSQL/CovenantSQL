@@ -6,7 +6,7 @@ if [ "fast" == "$param" ]; then
     yaml=./scripts/gnte_0ms.yaml
 else
     yaml=(
-        ./scripts/gnte_{0,50,bpminer50,inbp50,eventual}ms.yaml
+        ./scripts/gnte_{0,0.2,5,20,100,eventual}ms.yaml
     )
 fi
 
@@ -48,7 +48,7 @@ do
     export delay_file=${gnte_yaml}
 
     # Bench GNTE
-    cd ${PROJECT_DIR}/cmd/cql-minerd/
+    cd ${TEST_WD}
     ips=(2 3 4 5 6 7 8 9)
     if ! bash -x ./benchGNTE.sh $param; then
         for ip in "${ips[@]}"; do

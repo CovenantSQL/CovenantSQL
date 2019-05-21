@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"math/rand"
 	"strings"
 	"sync"
@@ -263,11 +264,15 @@ func WaitBPDatabaseCreation(
 		req    = &types.QuerySQLChainProfileReq{
 			DBID: dbID,
 		}
+		count = 0
 	)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			count++
+			fmt.Printf("Waiting for miner confirmation %vs\r", count*int(period.Seconds()))
+
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, nil,
 			); err != nil {
@@ -461,6 +466,7 @@ func WaitTxConfirmation(
 		method = route.MCCQueryTxState
 		req    = &types.QueryTxStateReq{Hash: txHash}
 		resp   = &types.QueryTxStateResp{}
+		count  = 0
 	)
 	defer ticker.Stop()
 	for {
@@ -470,6 +476,9 @@ func WaitTxConfirmation(
 		}
 
 		state = resp.State
+
+		count++
+		fmt.Printf("Waiting blockproducers confirmation %vs, state: %v    \r", count, state)
 		log.WithFields(log.Fields{
 			"tx_hash":  txHash,
 			"tx_state": state,

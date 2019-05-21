@@ -24,11 +24,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b8201c4d972fe3856d4bb2f97e6c53a558d90849f145a55f1028bedfe1929103"
+  digest = "1:6a48e665b3bb4e452b3c2d4af54be68d799c1bfb4054c8bf12bc33ee22747021"
   name = "github.com/CovenantSQL/beacon"
-  packages = ["ipv6"]
+  packages = [
+    ".",
+    "ipv6",
+  ]
   pruneopts = "UT"
-  revision = "9f84f37adc0c8ead41f8a1135bdedfd86403fb8b"
+  revision = "8402bfe07ece1f10324b445e5bf7be76082203ca"
 
 [[projects]]
   branch = "develop"
@@ -654,6 +657,7 @@
     "bazil.org/fuse/fs",
     "bazil.org/fuse/fs/fstestutil",
     "github.com/CovenantSQL/HashStablePack/marshalhash",
+    "github.com/CovenantSQL/beacon",
     "github.com/CovenantSQL/beacon/ipv6",
     "github.com/CovenantSQL/go-sqlite3-encrypt",
     "github.com/CovenantSQL/sqlparser",

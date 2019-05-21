@@ -46,10 +46,7 @@ group:
     nodes:
       - # node_c
         ip: 10.250.0.2/32
-        cmd: "ping -c3 g.cn"
-      - # node_adapter
-        ip: 10.250.0.254/32
-        cmd: "cd /scripts && ./bin/cql-adapter -config ./node_c/config.yaml"
+        cmd: "tail -f /dev/null"
     rate: "1000mbit"
 
 network:

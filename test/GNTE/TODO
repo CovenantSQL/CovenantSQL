@@ -1,0 +1,4 @@
+1. python yaml decode and replace delay
+2. refactor run.sh, replace yaml by python
+3. benchGNTE refactor, docker exec benchGNTE
+4. reduce yaml in one. replace client to 'tail -f /dev/null'

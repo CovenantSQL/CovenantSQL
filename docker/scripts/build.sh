@@ -16,7 +16,7 @@ main() {
     git clone https://github.com/CovenantSQL/meta-covenantsql.git "$workspace/sources/meta-covenantsql"
     echo 'ACCEPT_FSL_EULA = "1"' >>"$workspace/build/conf/local.conf"
     echo 'BBLAYERS += " ${BSPDIR}/sources/meta-covenantsql"' >>"$workspace/build/conf/bblayers.conf"
-    echo 'IMAGE_INSTALL_append = "covenantsql"' >>"$workspace/build/conf/local.conf"
+    echo 'IMAGE_INSTALL_append = "cql-minerd cql cqld"' >>"$workspace/build/conf/local.conf"
 
     bitbake core-image-base
 }

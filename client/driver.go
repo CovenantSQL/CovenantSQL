@@ -480,7 +480,7 @@ func WaitTxConfirmation(
 		state = resp.State
 
 		count++
-		fmt.Printf("\rWaiting blockproducers confirmation %vs, state: %v    ", count, state)
+		fmt.Printf("\rWaiting blockproducers confirmation %vs, state: %v\033[0K", count, state)
 		log.WithFields(log.Fields{
 			"tx_hash":  txHash,
 			"tx_state": state,

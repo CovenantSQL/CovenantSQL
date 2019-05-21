@@ -1,21 +1,20 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may not use this file except raw compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to raw writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-// Package symmetric implements Symmetric Encryption methods.
-package symmetric
+package toolkit
 
 import (
 	"crypto/aes"
@@ -25,26 +24,20 @@ import (
 	"io"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
 )
 
-var (
-	// ErrInputSize indicates cipher data size is not expected,
-	// maybe data is not encrypted by EncryptWithPassword in this package
-	ErrInputSize = errors.New("cipher data size not match")
-)
-
-// KeyDerivation does sha256 twice to password.
-func KeyDerivation(password []byte, salt []byte) (out []byte) {
-	return hash.DoubleHashB(append(password, salt...))
+var salt = [...]byte{
+	0x3f, 0xb8, 0x87, 0x7d, 0x37, 0xfd, 0xc0, 0x4e,
+	0x4a, 0x47, 0x65, 0xEF, 0xb8, 0xab, 0x7d, 0x36,
 }
 
-// EncryptWithPassword encrypts data with given password, iv will be placed
+// Encrypt encrypts data with given password by AES-128-CBC PKCS#7, iv will be placed
 // at head of cipher data.
-func EncryptWithPassword(in, password []byte, salt []byte) (out []byte, err error) {
-	// keyE will be 256 bits, so aes.NewCipher(keyE) will return
-	// AES-256 Cipher.
-	keyE := KeyDerivation(password, salt)
+func Encrypt(in, password []byte) (out []byte, err error) {
+	// keyE will be 128 bits, so aes.NewCipher(keyE) will return
+	// AES-128 Cipher.
+	keyE := symmetric.KeyDerivation(password, salt[:])[:16]
 	paddedIn := crypto.AddPKCSPadding(in)
 	// IV + padded cipher data
 	out = make([]byte, aes.BlockSize+len(paddedIn))
@@ -65,12 +58,13 @@ func EncryptWithPassword(in, password []byte, salt []byte) (out []byte, err erro
 	return out, nil
 }
 
-// DecryptWithPassword decrypts data with given password.
-func DecryptWithPassword(in, password []byte, salt []byte) (out []byte, err error) {
-	keyE := KeyDerivation(password, salt)
+// Decrypt decrypts data with given password by AES-128-CBC PKCS#7. iv will be read from
+// the head of raw.
+func Decrypt(in, password []byte) (out []byte, err error) {
+	keyE := symmetric.KeyDerivation(password, salt[:])[:16]
 	// IV + padded cipher data == (n + 1 + 1) * aes.BlockSize
 	if len(in)%aes.BlockSize != 0 || len(in)/aes.BlockSize < 2 {
-		return nil, ErrInputSize
+		return nil, errors.New("cipher data size not match")
 	}
 
 	// read IV

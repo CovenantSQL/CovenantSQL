@@ -191,7 +191,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 				}
 			case <-ticker.C:
 				count++
-				fmt.Printf("nonce mining %v seconds, current difficulty: %v, target difficulty: %v", count, current, difficulty)
+				fmt.Printf("\rnonce mining %v seconds, current difficulty: %v, target difficulty: %v", count, current, difficulty)
 			}
 		}
 	}()

@@ -72,7 +72,6 @@ config_user() {
     echo "$id ALL=(ALL:ALL) NOPASSWD:ALL" >>/etc/sudoers
 
     mv /root/scripts/build.sh /home/work/
-    mv /root/meta-covenantsql /home/work/meta-covenantsql
     chown -R work:work /home/work
 }
 

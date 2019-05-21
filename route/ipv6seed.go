@@ -18,6 +18,8 @@ package route
 
 import (
 	"fmt"
+	"net"
+	"sync"
 
 	"github.com/CovenantSQL/beacon/ipv6"
 	"github.com/pkg/errors"
@@ -47,10 +49,52 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 	// Public key
 	pubKeyBuf := make([]byte, asymmetric.PublicKeyBytesLen)
 	pubKeyBuf[0] = asymmetric.PublicKeyFormatHeader
-	var pubBuf, nonceBuf, addrBuf []byte
-	if pubBuf, err = ipv6.FromDomain(PUBKEY + BPDomain); err != nil {
+	var pubBuf, nonceBuf, addrBuf, nodeIDBuf []byte
+	var pubErr, nonceErr, addrErr, nodeIDErr error
+	wg := new(sync.WaitGroup)
+	wg.Add(4)
+
+	f := func(host string) ([]net.IP, error) {
+		return net.LookupIP(host)
+	}
+	// Public key
+	go func() {
+		defer wg.Done()
+		pubBuf, pubErr = ipv6.FromDomain(PUBKEY+BPDomain, f)
+	}()
+	// Nonce
+	go func() {
+		defer wg.Done()
+		nonceBuf, nonceErr = ipv6.FromDomain(NONCE+BPDomain, f)
+	}()
+	// Addr
+	go func() {
+		defer wg.Done()
+		addrBuf, addrErr = ipv6.FromDomain(ADDR+BPDomain, f)
+	}()
+	// NodeID
+	go func() {
+		defer wg.Done()
+		nodeIDBuf, nodeIDErr = ipv6.FromDomain(ID+BPDomain, f)
+	}()
+
+	wg.Wait()
+
+	switch {
+	case pubErr != nil:
+		err = pubErr
+		return
+	case nonceErr != nil:
+		err = nonceErr
+		return
+	case addrErr != nil:
+		err = addrErr
+		return
+	case nodeIDErr != nil:
+		err = nodeIDErr
 		return
 	}
+
 	if len(pubBuf) != asymmetric.PublicKeyBytesLen-1 {
 		return nil, errors.Errorf("error public key bytes len: %d", len(pubBuf))
 	}
@@ -61,30 +105,16 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 		return
 	}
 
-	// Nonce
-	if nonceBuf, err = ipv6.FromDomain(NONCE + BPDomain); err != nil {
-		return
-	}
 	nonce, err := cpuminer.Uint256FromBytes(nonceBuf)
 	if err != nil {
 		return
 	}
 
-	// Addr
-	addrBuf, err = ipv6.FromDomain(ADDR + BPDomain)
-	if err != nil {
-		return
-	}
 	addrBytes, err := crypto.RemovePKCSPadding(addrBuf)
 	if err != nil {
 		return
 	}
 
-	// NodeID
-	nodeIDBuf, err := ipv6.FromDomain(ID + BPDomain)
-	if err != nil {
-		return
-	}
 	var nodeID proto.RawNodeID
 	err = nodeID.SetBytes(nodeIDBuf)
 	if err != nil {

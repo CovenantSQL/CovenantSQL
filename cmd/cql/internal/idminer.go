@@ -182,7 +182,6 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 		for {
 			select {
 			case <-stopCh:
-				fmt.Printf("\n")
 				break
 			case mined := <-progressCh:
 				if mined > current {
@@ -198,6 +197,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 
 	nonce := <-nonceCh
 	close(stopCh)
+	fmt.Printf("\n")
 
 	// verify result
 	if !kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey) {

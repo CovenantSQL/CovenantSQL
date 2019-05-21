@@ -267,12 +267,12 @@ func WaitBPDatabaseCreation(
 		count = 0
 	)
 	defer ticker.Stop()
+	defer fmt.Printf("\n")
 	for {
 		select {
 		case <-ticker.C:
 			count++
 			fmt.Printf("\rWaiting for miner confirmation %vs", count*int(period.Seconds()))
-			defer fmt.Printf("\n")
 
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, nil,
@@ -470,6 +470,7 @@ func WaitTxConfirmation(
 		count  = 0
 	)
 	defer ticker.Stop()
+	defer fmt.Printf("\n")
 	for {
 		if err = requestBP(method, req, resp); err != nil {
 			err = errors.Wrapf(err, "failed to call %s", method)
@@ -480,7 +481,6 @@ func WaitTxConfirmation(
 
 		count++
 		fmt.Printf("\rWaiting blockproducers confirmation %vs, state: %v    ", count, state)
-		defer fmt.Printf("\n")
 		log.WithFields(log.Fields{
 			"tx_hash":  txHash,
 			"tx_state": state,

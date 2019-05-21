@@ -218,9 +218,9 @@ CovenantSQL仍在建设中，测试网已经发布，[尝试一下](https://deve
 
 
 - [Golang](client/)
-- [Java](https://github.com/CovenantSQL/covenant-connector)
+- [Java](https://github.com/CovenantSQL/cql-java-driver)
 - [NodeJS](https://github.com/CovenantSQL/node-covenantsql)
-- [Python](https://github.com/CovenantSQL/python-driver)
+- [Python](https://github.com/CovenantSQL/cql-python-driver)
 - [Microsoft Excel (来自社区)](https://github.com/melancholiaforever/CQL_Excel)
 - Coding for more……
 

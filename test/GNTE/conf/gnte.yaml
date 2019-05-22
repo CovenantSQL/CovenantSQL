@@ -51,18 +51,21 @@ group:
 
 network:
   -
+    name: bpminer
     groups:
       - bp
       - miner
     rate: "1000mbit"
 
   -
+    name: bpclient
     groups:
       - bp
       - client
     rate: "1000mbit"
 
   -
+    name: minerclient
     groups:
       - client
       - miner

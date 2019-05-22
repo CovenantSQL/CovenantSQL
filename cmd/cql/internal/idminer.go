@@ -131,6 +131,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	ConsoleLog.Infof("cpu: %#v\n", cpuCount)
 	stopCh := make(chan struct{})
 	nonceCh := make(chan mine.NonceInfo)
+	progressCh := make(chan int, 100)
 
 	rand.Seed(time.Now().UnixNano())
 	step := 256 / cpuCount
@@ -139,7 +140,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 			startBit := i * step
 			position := startBit / 64
 			shift := uint(startBit % 64)
-			ConsoleLog.Infof("position: %#v, shift: %#v, i: %#v", position, shift, i)
+			ConsoleLog.Debugf("position: %#v, shift: %#v, i: %#v", position, shift, i)
 			var start mine.Uint256
 			if position == 0 {
 				start = mine.Uint256{A: uint64(1<<shift) + uint64(rand.Uint32())}
@@ -158,6 +159,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 				default:
 					currentHash := mine.HashBlock(publicKeyBytes, j)
 					currentDifficulty := currentHash.Difficulty()
+					progressCh <- currentDifficulty
 					if currentDifficulty >= difficulty {
 						nonce := mine.NonceInfo{
 							Nonce:      j,
@@ -171,8 +173,31 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 		}(i)
 	}
 
+	go func() {
+		var count, current int
+
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stopCh:
+				break
+			case mined := <-progressCh:
+				if mined > current {
+					current = mined
+					fmt.Printf("\rnonce mining %v seconds, current difficulty: %v, target difficulty: %v", count, current, difficulty)
+				}
+			case <-ticker.C:
+				count++
+				fmt.Printf("\rnonce mining %v seconds, current difficulty: %v, target difficulty: %v", count, current, difficulty)
+			}
+		}
+	}()
+
 	nonce := <-nonceCh
 	close(stopCh)
+	fmt.Printf("\n")
 
 	// verify result
 	if !kms.IsIDPubNonceValid(&proto.RawNodeID{Hash: nonce.Hash}, &nonce.Nonce, publicKey) {

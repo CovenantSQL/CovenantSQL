@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"math/rand"
 	"strings"
 	"sync"
@@ -104,8 +105,8 @@ type ResourceMeta struct {
 	TargetMiners           []proto.AccountAddress `json:"target-miners,omitempty"`        // designated miners
 	Node                   uint16                 `json:"node,omitempty"`                 // reserved node count
 	Space                  uint64                 `json:"space,omitempty"`                // reserved storage space in bytes
-	Memory                 uint64                 `json:"memory",omitempty`               // reserved memory in bytes
-	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu",omitempty`     // max loadAvg15 per CPU
+	Memory                 uint64                 `json:"memory,omitempty"`               // reserved memory in bytes
+	LoadAvgPerCPU          float64                `json:"load-avg-per-cpu,omitempty"`     // max loadAvg15 per CPU
 	EncryptionKey          string                 `json:"encrypt-key,omitempty"`          // encryption key for database instance
 	UseEventualConsistency bool                   `json:"eventual-consistency,omitempty"` // use eventual consistency replication if enabled
 	ConsistencyLevel       float64                `json:"consistency-level,omitempty"`    // customized strong consistency level
@@ -263,11 +264,16 @@ func WaitBPDatabaseCreation(
 		req    = &types.QuerySQLChainProfileReq{
 			DBID: dbID,
 		}
+		count = 0
 	)
 	defer ticker.Stop()
+	defer fmt.Printf("\n")
 	for {
 		select {
 		case <-ticker.C:
+			count++
+			fmt.Printf("\rWaiting for miner confirmation %vs", count*int(period.Seconds()))
+
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, nil,
 			); err != nil {
@@ -461,8 +467,10 @@ func WaitTxConfirmation(
 		method = route.MCCQueryTxState
 		req    = &types.QueryTxStateReq{Hash: txHash}
 		resp   = &types.QueryTxStateResp{}
+		count  = 0
 	)
 	defer ticker.Stop()
+	defer fmt.Printf("\n")
 	for {
 		if err = requestBP(method, req, resp); err != nil {
 			err = errors.Wrapf(err, "failed to call %s", method)
@@ -470,6 +478,9 @@ func WaitTxConfirmation(
 		}
 
 		state = resp.State
+
+		count++
+		fmt.Printf("\rWaiting blockproducers confirmation %vs, state: %v\033[0K", count, state)
 		log.WithFields(log.Fields{
 			"tx_hash":  txHash,
 			"tx_state": state,

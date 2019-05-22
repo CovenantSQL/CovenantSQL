@@ -22,11 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"os"
 	"strings"
-	"time"
-
-	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -184,16 +180,18 @@ func runCreate(cmd *Command, args []string) {
 	ConsoleLog.Info("create database requested")
 
 	if waitTxConfirmation {
-		cancelLoading := printLoading(int(waitTxConfirmationMaxDuration / time.Second))
-		defer cancelLoading()
-
-		wait(txHash)
+		err = wait(txHash)
+		if err != nil {
+			ConsoleLog.WithError(err).Error("create database failed durating bp creation")
+			SetExitStatus(1)
+			return
+		}
 
 		var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 		defer cancel()
 		err = client.WaitDBCreation(ctx, dsn)
 		if err != nil {
-			ConsoleLog.WithError(err).Error("create database failed durating creation")
+			ConsoleLog.WithError(err).Error("create database failed durating miner creation")
 			SetExitStatus(1)
 			return
 		}
@@ -202,23 +200,4 @@ func runCreate(cmd *Command, args []string) {
 	fmt.Printf("\nThe newly created database is: %#v\n", dsn)
 	storeOneDSN(dsn)
 	fmt.Printf("The connecting string beginning with 'covenantsql://' could be used as a dsn for `cql console`\n or any command, or be used in website like https://web.covenantsql.io\n")
-}
-
-func printLoading(loadingMax int) func() {
-	var ctxLoading, cancelLoading = context.WithCancel(context.Background())
-	go func(ctx context.Context) {
-		bar := pb.StartNew(loadingMax)
-		bar.Output = os.Stderr
-		for {
-			select {
-			case <-ctx.Done():
-				bar.Finish()
-				return
-			default:
-				bar.Increment()
-				time.Sleep(time.Second)
-			}
-		}
-	}(ctxLoading)
-	return cancelLoading
 }

@@ -121,6 +121,7 @@ func runTransfer(cmd *Command, args []string) {
 	if waitTxConfirmation {
 		err = wait(txHash)
 		if err != nil {
+			ConsoleLog.WithError(err).Error("transfer token failed")
 			SetExitStatus(1)
 			return
 		}

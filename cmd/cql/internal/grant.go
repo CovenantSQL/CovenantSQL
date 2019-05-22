@@ -139,6 +139,7 @@ func runGrant(cmd *Command, args []string) {
 	if waitTxConfirmation {
 		err = wait(txHash)
 		if err != nil {
+			ConsoleLog.WithError(err).Error("update permission failed")
 			SetExitStatus(1)
 			return
 		}

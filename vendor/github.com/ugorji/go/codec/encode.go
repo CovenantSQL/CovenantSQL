@@ -364,9 +364,11 @@ func (z *bufioEncWriter) writestr(s string) {
 	// z.writeb(bytesView(s)) // inlined below
 LOOP:
 	a := len(z.buf) - z.n
+	fmt.Printf("copying %s to buffer: len=%d, n=%d, a=%d\n", s, len(z.buf), z.n, a)
 	if len(s) > a {
 		z.n += copy(z.buf[z.n:], s[:a])
 		s = s[a:]
+		fmt.Printf("copying %s to buffer result: n=%d\n", s, len(z.buf), z.n)
 		z.flush()
 		goto LOOP
 	}

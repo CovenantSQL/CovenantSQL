@@ -63,6 +63,8 @@ const (
 	Write
 	// Super defines the super user permission.
 	Super
+	// Invalid defines the invalid permission
+	Invalid
 
 	// ReadOnly defines the reader user permission.
 	ReadOnly = Read
@@ -172,7 +174,7 @@ func (up *UserPermission) HasSuperPermission() bool {
 
 // IsValid returns whether the permission object is valid or not.
 func (up *UserPermission) IsValid() bool {
-	return up != nil && up.Role != 0
+	return up != nil && (up.Role >= Void && up.Role < Invalid)
 }
 
 // HasDisallowedQueryPatterns returns whether the queries are permitted.

@@ -89,11 +89,13 @@ func TestUserPermission(t *testing.T) {
 		So(UserPermissionFromRole(Admin).HasSuperPermission(), ShouldBeTrue)
 	})
 	Convey("is valid", t, func() {
-		So(UserPermissionFromRole(Void).IsValid(), ShouldBeFalse)
+		So(UserPermissionFromRole(Void).IsValid(), ShouldBeTrue)
 		So(UserPermissionFromRole(Read).IsValid(), ShouldBeTrue)
 		So(UserPermissionFromRole(Write).IsValid(), ShouldBeTrue)
 		So(UserPermissionFromRole(ReadWrite).IsValid(), ShouldBeTrue)
 		So(UserPermissionFromRole(Admin).IsValid(), ShouldBeTrue)
+		So(UserPermissionFromRole(-1).IsValid(), ShouldBeFalse)
+		So(UserPermissionFromRole(Invalid).IsValid(), ShouldBeFalse)
 	})
 	Convey("query patterns", t, func() {
 		// empty patterns limitation

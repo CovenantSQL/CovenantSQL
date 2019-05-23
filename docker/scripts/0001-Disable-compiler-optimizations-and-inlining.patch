@@ -1,0 +1,25 @@
+From 9bb7f70eb442b0bae3a3508b119b17e04b127630 Mon Sep 17 00:00:00 2001
+From: Levente Liu <leventeliu@outlook.com>
+Date: Thu, 23 May 2019 10:56:58 +0000
+Subject: [PATCH] Disable compiler optimizations and inlining
+
+---
+ meta/classes/go.bbclass | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta/classes/go.bbclass b/meta/classes/go.bbclass
+index 09b01a8..76f6d81 100644
+--- a/meta/classes/go.bbclass
++++ b/meta/classes/go.bbclass
+@@ -40,7 +40,7 @@ GO_EXTLDFLAGS ?= "${HOST_CC_ARCH}${TOOLCHAIN_OPTIONS} ${GO_RPATH_LINK} ${LDFLAGS
+ GO_LINKMODE ?= ""
+ GO_LINKMODE_class-nativesdk = "--linkmode=external"
+ GO_LDFLAGS ?= '-ldflags="${GO_RPATH} ${GO_LINKMODE} -extldflags '${GO_EXTLDFLAGS}'"'
+-export GOBUILDFLAGS ?= "-v ${GO_LDFLAGS}"
++export GOBUILDFLAGS ?= "-v -gcflags='-N -l' ${GO_LDFLAGS}"
+ export GOPTESTBUILDFLAGS ?= "${GOBUILDFLAGS} -c"
+ export GOPTESTFLAGS ?= "-test.v"
+ GOBUILDFLAGS_prepend_task-compile = "${GO_PARALLEL_BUILD} "
+-- 
+1.9.1
+

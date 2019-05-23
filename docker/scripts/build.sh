@@ -12,12 +12,17 @@ main() {
     sed -i 's/^EULA_ACCEPTED=$/EULA_ACCEPTED=1/' "$workspace/sources/base/setup-environment"
     source ./fsl-setup-release.sh
 
+    # Patch go bbclass
+    cd "$workspace/sources/poky"
+    git apply /home/work/0001-Disable-compiler-optimizations-and-inlining.patch
+
     # Patch repo and add covenantsql layer
     git clone https://github.com/CovenantSQL/meta-covenantsql.git "$workspace/sources/meta-covenantsql"
     echo 'ACCEPT_FSL_EULA = "1"' >>"$workspace/build/conf/local.conf"
     echo 'BBLAYERS += " ${BSPDIR}/sources/meta-covenantsql"' >>"$workspace/build/conf/bblayers.conf"
     echo 'IMAGE_INSTALL_append = "cql-minerd cql cqld"' >>"$workspace/build/conf/local.conf"
 
+    cd "$workspace"
     bitbake core-image-base
 }
 

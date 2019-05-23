@@ -72,6 +72,7 @@ config_user() {
     echo "$id ALL=(ALL:ALL) NOPASSWD:ALL" >>/etc/sudoers
 
     mv /root/scripts/build.sh /home/work/
+    mv /root/scripts/0001-Disable-compiler-optimizations-and-inlining.patch /home/work
     chown -R work:work /home/work
 }
 

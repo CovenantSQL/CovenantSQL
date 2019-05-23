@@ -21,26 +21,19 @@ package internal
 import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestGenerate(t *testing.T) {
+func TestWallet(t *testing.T) {
 	FJ := filepath.Join
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("test generate", t, func(c C) {
-		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
-		privateKeyParam = FJ(testWorkingDir, "./integration/node_c/private.key")
-		source = FJ(testWorkingDir, "./integration/node_c/config.yaml")
-		minerListenAddr = "127.0.0.1"
-		runGenerate(CmdGenerate, []string{""})
+	Convey("test wallet", t, func(c C) {
+		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
+
+		runWallet(CmdWallet, []string{""})
 	})
 
-	Convey("test generate", t, func(c C) {
-		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
-		runGenerate(CmdGenerate, []string{""})
-	})
 }

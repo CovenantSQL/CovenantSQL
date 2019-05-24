@@ -158,6 +158,11 @@ func Init(configFile string, masterKey []byte) (err error) {
 	return
 }
 
+// Just for unit test
+func UnInit() {
+	driverInitialized = 0
+}
+
 // Create sends create database operation to block producer.
 func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 	if atomic.LoadUint32(&driverInitialized) == 0 {

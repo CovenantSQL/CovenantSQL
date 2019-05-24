@@ -27,17 +27,16 @@ import (
 const (
 	// CQLConfigYAML is the config string in YAML format of the CovenantSQL TestNet.
 	CQLConfigYAML = `
+SQLChainPeriod: 60s
 DNSSeed:
   Domain: "testnet.gridb.io"
   BPCount: 6
 `
 	// CQLMinerYAML is the config string in YAML format of the CovenantSQL TestNet for miner.
 	CQLMinerYAML = `
-ListenAddr: 0.0.0.0:4661
 BillingBlockCount: 60
 BPPeriod: 10s
 BPTick: 3s
-SQLChainPeriod: 60s
 SQLChainTick: 10s
 SQLChainTTL: 10
 ChainBusPeriod: 10s

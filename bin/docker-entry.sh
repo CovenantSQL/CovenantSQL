@@ -11,11 +11,11 @@ miner)
 blockproducer)
     exec /app/cqld -config "${COVENANT_CONF}" -metric-web "${METRIC_WEB_ADDR}" "${@}"
     ;;
-observer)
-    exec /app/cql explorer -config "${COVENANT_CONF}" "${COVENANTSQL_OBSERVER_ADDR}" "${@}"
+explorer)
+    exec /app/cql explorer -config "${COVENANT_CONF}" "${@}" "${COVENANTSQL_OBSERVER_ADDR}"
     ;;
 adapter)
-    exec /app/cql adapter -config "${COVENANT_CONF}" "${COVENANTSQL_ADAPTER_ADDR}" "${@}"
+    exec /app/cql adapter -config "${COVENANT_CONF}" "${@}" "${COVENANTSQL_ADAPTER_ADDR}"
     ;;
 mysql-adapter)
     exec /app/cql-mysql-adapter -config "${COVENANT_CONF}" "${@}"

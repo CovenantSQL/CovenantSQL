@@ -19,6 +19,7 @@
 package internal
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
 	"path/filepath"
@@ -30,10 +31,27 @@ func TestWallet(t *testing.T) {
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("test wallet", t, func(c C) {
+	Convey("wallet", t, func() {
+		client.UnInit()
+		databaseID = "covenantsql://658f90f678a90207ab7f442e259f915192188c2f4a4efe7bbf0d69311841766c"
+		tokenName = ""
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-
 		runWallet(CmdWallet, []string{""})
 	})
 
+	Convey("wallet", t, func() {
+		client.UnInit()
+		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
+		databaseID = ""
+		tokenName = ""
+		runWallet(CmdWallet, []string{""})
+	})
+
+	Convey("wallet", t, func() {
+		client.UnInit()
+		tokenName = "Particle"
+		databaseID = ""
+		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
+		runWallet(CmdWallet, []string{""})
+	})
 }

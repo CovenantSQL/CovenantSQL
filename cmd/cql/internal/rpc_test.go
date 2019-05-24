@@ -26,28 +26,17 @@ import (
 	"testing"
 )
 
-func TestCreate(t *testing.T) {
+func TestRpc(t *testing.T) {
 	FJ := filepath.Join
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("create", t, func() {
+	Convey("rpc", t, func() {
 		client.UnInit()
-		//targetMiners = List{[]string{"000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade", "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"}}
-		node32 = 1
-		waitTxConfirmation = true
+		rpcName = "MCC.QuerySQLChainProfile"
+		rpcEndpoint = "000000fd2c8f68d54d55d97d0ad06c6c0d91104e4e51a7247f3629cc2a0127cf"
+		rpcReq = "{\"DBID\": \"c8328272ba9377acdf1ee8e73b17f2b0f7430c798141080d0282195507eb94e7\"}"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-		jsonStr := `
-			{
-					"loadavgpercpu": 0,
-					"encryptionkey": "",
-					"useeventualconsistency": false,
-					"consistencylevel": 1,
-					"isolationlevel": 1,
-					"gasprice": 1,
-					"advancepayment": 20000000
-			}
-		`
-		runCreate(CmdCreate, []string{jsonStr})
+		runRPC(CmdRPC, []string{})
 	})
 }

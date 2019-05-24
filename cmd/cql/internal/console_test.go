@@ -19,6 +19,7 @@
 package internal
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
 	"path/filepath"
@@ -30,39 +31,13 @@ func TestConsole(t *testing.T) {
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("test console", t, func(c C) {
-		targetMiners = List{[]string{"000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade", "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"}}
-		node32 = 2
-		//meta.Space = 1
-		//meta.Memory = 1000
-		//meta.LoadAvgPerCPU = 1
-		//meta.EncryptionKey = "111"
-		//meta.UseEventualConsistency = true
-		//meta.ConsistencyLevel = 1
-		//meta.IsolationLevel = 1
-		//meta.GasPrice = 1
-		//meta.AdvancePayment = 1
-		waitTxConfirmation = true
+	Convey("console", t, func() {
+		client.UnInit()
+		adapterAddr = ""
+		explorerAddr = ""
+		dsn = "covenantsql://c9e8b381aa466a8d9955701967ad5535e7899ab138b8674ab14b31b75c64b656"
+		command = "select 1 from test1;"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-		runCreate(CmdCreate, []string{""})
+		runConsole(CmdConsole, []string{dsn})
 	})
-
-	//Convey("test create", t, func(c C) {
-	//	//targetMiners = List{[]string{"000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade", "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"}}
-	//	node32 = 2
-	//	waitTxConfirmation = true
-	//	configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-	//			jsonStr := `
-	//		{
-	//				"loadavgpercpu": "1",
-	//				"encryptionkey": "123",
-	//				"useeventualconsistency": true,
-	//				"consistencylevel": 1,
-	//				"isolationlevel": 1,
-	//				"gasprice": 100,
-	//				"advancepayment": 100
-	//		}
-	//	`
-	//	runCreate(CmdCreate, []string{jsonStr})
-	//})
 }

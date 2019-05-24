@@ -1,7 +1,7 @@
 // +build !testbinary
 
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,28 +19,36 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
-func TestGenerate(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
+func TestBase(t *testing.T) {
+	cmd := Command{
+		UsageLine: "cql generate",
+	}
 
-	Convey("generate", t, func(c C) {
-		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
-		privateKeyParam = FJ(testWorkingDir, "./integration/node_c/private.key")
-		source = FJ(testWorkingDir, "./integration/node_c/config.yaml")
-		minerListenAddr = "127.0.0.1"
-		runGenerate(CmdGenerate, []string{""})
+	Convey("LongName", t, func() {
+		longName := cmd.LongName()
+		So(longName, ShouldResemble, "generate")
 	})
 
-	Convey("generate", t, func(c C) {
-		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
-		runGenerate(CmdGenerate, []string{""})
+	Convey("Name", t, func() {
+		name := cmd.Name()
+		So(name, ShouldResemble, "generate")
 	})
+
+	//Convey("Usage", t, func() {
+	//	go cmd.Usage()
+	//	time.Sleep(1 * time.Second)
+	//})
+
+	//Convey("Exit", t, func() {
+	//	go func() {
+	//		SetExitStatus(1)
+	//		AtExit(func() {})
+	//		ExitIfErrors()
+	//	}()
+	//	time.Sleep(1 * time.Second)
+	//})
 }

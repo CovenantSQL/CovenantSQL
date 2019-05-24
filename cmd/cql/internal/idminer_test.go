@@ -30,7 +30,7 @@ func TestIDMiner(t *testing.T) {
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("test generate", t, func(c C) {
+	Convey("idminer", t, func(c C) {
 		difficulty = 24
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runIDMiner(CmdIDMiner, []string{""})

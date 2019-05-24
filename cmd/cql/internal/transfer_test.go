@@ -1,7 +1,7 @@
 // +build !testbinary
 
 /*
- * Copyright 2018-2019 The CovenantSQL Authors.
+ * Copyright 2018 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,28 +26,36 @@ import (
 	"testing"
 )
 
-func TestCreate(t *testing.T) {
+func TestTransferToUser(t *testing.T) {
 	FJ := filepath.Join
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("create", t, func() {
+	Convey("transfer", t, func() {
 		client.UnInit()
-		//targetMiners = List{[]string{"000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade", "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"}}
-		node32 = 1
+		toUser = "43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40"
+		toDSN = ""
+		amount = 100
+		tokenType = "Particle"
 		waitTxConfirmation = true
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-		jsonStr := `
-			{
-					"loadavgpercpu": 0,
-					"encryptionkey": "",
-					"useeventualconsistency": false,
-					"consistencylevel": 1,
-					"isolationlevel": 1,
-					"gasprice": 1,
-					"advancepayment": 20000000
-			}
-		`
-		runCreate(CmdCreate, []string{jsonStr})
+		runTransfer(CmdTransfer, []string{})
+	})
+}
+
+func TestTransferToDSN(t *testing.T) {
+	FJ := filepath.Join
+	baseDir := utils.GetProjectSrcDir()
+	testWorkingDir := FJ(baseDir, "./test/")
+
+	Convey("transfer", t, func() {
+		client.UnInit()
+		toDSN = "covenantsql://02a8ad1419fb2033cef8cf6f97ec16a784d90e654380eac7ce76b965e27c9e5c"
+		toUser = ""
+		amount = 100
+		tokenType = "Particle"
+		waitTxConfirmation = true
+		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
+		runTransfer(CmdTransfer, []string{})
 	})
 }

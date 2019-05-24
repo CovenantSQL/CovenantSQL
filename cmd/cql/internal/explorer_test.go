@@ -26,28 +26,19 @@ import (
 	"testing"
 )
 
-func TestCreate(t *testing.T) {
+func TestExplorer(t *testing.T) {
 	FJ := filepath.Join
 	baseDir := utils.GetProjectSrcDir()
 	testWorkingDir := FJ(baseDir, "./test/")
 
-	Convey("create", t, func() {
-		client.UnInit()
-		//targetMiners = List{[]string{"000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade", "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"}}
-		node32 = 1
-		waitTxConfirmation = true
+	Convey("explorer", t, func() {
+		explorerAddr = "127.0.0.1:9002"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-		jsonStr := `
-			{
-					"loadavgpercpu": 0,
-					"encryptionkey": "",
-					"useeventualconsistency": false,
-					"consistencylevel": 1,
-					"isolationlevel": 1,
-					"gasprice": 1,
-					"advancepayment": 20000000
-			}
-		`
-		runCreate(CmdCreate, []string{jsonStr})
+		client.UnInit()
+		configInit()
+		bgServerInit()
+		cancelFunc := startExplorerServer(explorerAddr)
+		ExitIfErrors()
+		defer cancelFunc()
 	})
 }

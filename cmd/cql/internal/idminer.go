@@ -131,7 +131,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	cpuCount := runtime.NumCPU()
 	ConsoleLog.Infof("cpu: %#v\n", cpuCount)
 	stopCh := make(chan struct{})
-	nonceCh := make(chan mine.NonceInfo)
+	nonceCh := make(chan mine.NonceInfo, cpuCount)
 	progressCh := make(chan int, 100)
 	var wg sync.WaitGroup
 
@@ -171,6 +171,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 							Hash:       currentHash,
 						}
 						nonceCh <- nonce
+						return
 					}
 				}
 			}

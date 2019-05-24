@@ -22,6 +22,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -130,13 +131,16 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	cpuCount := runtime.NumCPU()
 	ConsoleLog.Infof("cpu: %#v\n", cpuCount)
 	stopCh := make(chan struct{})
-	nonceCh := make(chan mine.NonceInfo)
+	nonceCh := make(chan mine.NonceInfo, cpuCount)
 	progressCh := make(chan int, 100)
+	var wg sync.WaitGroup
 
 	rand.Seed(time.Now().UnixNano())
 	step := 256 / cpuCount
 	for i := 0; i < cpuCount; i++ {
+		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
 			startBit := i * step
 			position := startBit / 64
 			shift := uint(startBit % 64)
@@ -155,7 +159,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 			for j := start; ; j.Inc() {
 				select {
 				case <-stopCh:
-					break
+					return
 				default:
 					currentHash := mine.HashBlock(publicKeyBytes, j)
 					currentDifficulty := currentHash.Difficulty()
@@ -167,13 +171,16 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 							Hash:       currentHash,
 						}
 						nonceCh <- nonce
+						return
 					}
 				}
 			}
 		}(i)
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		var count, current int
 
 		ticker := time.NewTicker(1 * time.Second)
@@ -182,7 +189,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 		for {
 			select {
 			case <-stopCh:
-				break
+				return
 			case mined := <-progressCh:
 				if mined > current {
 					current = mined
@@ -197,6 +204,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 
 	nonce := <-nonceCh
 	close(stopCh)
+	wg.Wait()
 	fmt.Printf("\n")
 
 	// verify result

@@ -110,12 +110,5 @@ KnownNodes:
     Role: Client
 Adapter:
   ListenAddr: 0.0.0.0:4661
-  CertificatePath: ./server.test.covenantsql.io.pem
-  PrivateKeyPath: ./server.test.covenantsql.io-key.pem
-  VerifyCertificate: true
-  ClientCAPath: ./rootCA.pem
-  AdminCerts:
-    - ./admin.test.covenantsql.io.pem
-  WriteCerts:
-    - ./write.test.covenantsql.io.pem
+  VerifyCertificate: false
   StorageDriver: covenantsql

@@ -40,7 +40,7 @@ import (
 
 // CmdGenerate is cql generate command entity.
 var CmdGenerate = &Command{
-	UsageLine: "cql generate [common params] [-source template_file] [-miner] [-private existing_private_key] [dest_path]",
+	UsageLine: "cql generate [common params] [-source template_file] [-miner listen_addr] [-private existing_private_key] [dest_path]",
 	Short:     "generate a folder contains config file and private key",
 	Long: `
 Generate generates private.key and config.yaml for CovenantSQL.
@@ -153,6 +153,42 @@ func runGenerate(cmd *Command, args []string) {
 		}
 	}
 
+	var port string
+	if minerListenAddr != "" {
+		minerListenAddrSplit := strings.Split(minerListenAddr, ":")
+		if len(minerListenAddrSplit) != 2 {
+			ConsoleLog.Error("-miner only accepts listen address in ip:port format. e.g. 127.0.0.1:7458")
+			SetExitStatus(1)
+			return
+		}
+		port = minerListenAddrSplit[1]
+	}
+
+	var rawConfig *conf.Config
+
+	if source == "" {
+		// Load testnet config
+		rawConfig = testnet.GetTestNetConfig()
+		if minerListenAddr != "" {
+			testnet.SetMinerConfig(rawConfig)
+			rawConfig.ListenAddr = "0.0.0.0:" + port
+		}
+	} else {
+		// Load from template file
+		sourceConfig, err := ioutil.ReadFile(source)
+		if err != nil {
+			ConsoleLog.WithError(err).Error("read config template failed")
+			SetExitStatus(1)
+			return
+		}
+		rawConfig = &conf.Config{}
+		if err = yaml.Unmarshal(sourceConfig, rawConfig); err != nil {
+			ConsoleLog.WithError(err).Error("load config template failed")
+			SetExitStatus(1)
+			return
+		}
+	}
+
 	var fileinfo os.FileInfo
 	if fileinfo, err = os.Stat(workingRoot); err == nil {
 		if fileinfo.IsDir() {
@@ -221,30 +257,6 @@ func runGenerate(cmd *Command, args []string) {
 	fmt.Println("Generated nonce.")
 
 	fmt.Println("Generating config file...")
-
-	var rawConfig *conf.Config
-
-	if source == "" {
-		// Load testnet config
-		rawConfig = testnet.GetTestNetConfig()
-		if minerListenAddr != "" {
-			testnet.SetMinerConfig(rawConfig)
-		}
-	} else {
-		// Load from template file
-		sourceConfig, err := ioutil.ReadFile(source)
-		if err != nil {
-			ConsoleLog.WithError(err).Error("read config template failed")
-			SetExitStatus(1)
-			return
-		}
-		rawConfig = &conf.Config{}
-		if err = yaml.Unmarshal(sourceConfig, rawConfig); err != nil {
-			ConsoleLog.WithError(err).Error("load config template failed")
-			SetExitStatus(1)
-			return
-		}
-	}
 
 	// Add client config
 	rawConfig.PrivateKeyFile = privateKeyFileName

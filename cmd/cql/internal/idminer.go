@@ -22,6 +22,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -132,11 +133,14 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	stopCh := make(chan struct{})
 	nonceCh := make(chan mine.NonceInfo)
 	progressCh := make(chan int, 100)
+	var wg sync.WaitGroup
 
 	rand.Seed(time.Now().UnixNano())
 	step := 256 / cpuCount
 	for i := 0; i < cpuCount; i++ {
+		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
 			startBit := i * step
 			position := startBit / 64
 			shift := uint(startBit % 64)
@@ -173,7 +177,9 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 		}(i)
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		var count, current int
 
 		ticker := time.NewTicker(1 * time.Second)
@@ -197,6 +203,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 
 	nonce := <-nonceCh
 	close(stopCh)
+	wg.Wait()
 	fmt.Printf("\n")
 
 	// verify result

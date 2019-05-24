@@ -159,7 +159,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 			for j := start; ; j.Inc() {
 				select {
 				case <-stopCh:
-					break
+					return
 				default:
 					currentHash := mine.HashBlock(publicKeyBytes, j)
 					currentDifficulty := currentHash.Difficulty()
@@ -188,7 +188,7 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 		for {
 			select {
 			case <-stopCh:
-				break
+				return
 			case mined := <-progressCh:
 				if mined > current {
 					current = mined

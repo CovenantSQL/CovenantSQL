@@ -11,7 +11,7 @@ miner)
 blockproducer)
     exec /app/cqld -config "${COVENANT_CONF}" -metric-web "${METRIC_WEB_ADDR}" "${@}"
     ;;
-observer)
+explorer)
     exec /app/cql explorer -config "${COVENANT_CONF}" "${@}" "${COVENANTSQL_OBSERVER_ADDR}"
     ;;
 adapter)

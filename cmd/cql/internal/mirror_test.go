@@ -39,7 +39,6 @@ func TestMirror(t *testing.T) {
 		configInit()
 		bgServerInit()
 		cancelFunc := startMirrorServer(mirrorDatabase, mirrorAddr)
-		ExitIfErrors()
-		defer cancelFunc()
+		cancelFunc()
 	})
 }

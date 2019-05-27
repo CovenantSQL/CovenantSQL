@@ -38,7 +38,6 @@ func TestExplorer(t *testing.T) {
 		configInit()
 		bgServerInit()
 		cancelFunc := startExplorerServer(explorerAddr)
-		ExitIfErrors()
-		defer cancelFunc()
+		cancelFunc()
 	})
 }

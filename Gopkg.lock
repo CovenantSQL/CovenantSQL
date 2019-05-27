@@ -24,12 +24,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6a48e665b3bb4e452b3c2d4af54be68d799c1bfb4054c8bf12bc33ee22747021"
+  digest = "1:04bef3559447d5e41c51da8539bb5e7b056d2ec7f8c9bdfce4348e7194cfe219"
   name = "github.com/CovenantSQL/beacon"
-  packages = [
-    ".",
-    "ipv6",
-  ]
+  packages = ["ipv6"]
   pruneopts = "UT"
   revision = "8402bfe07ece1f10324b445e5bf7be76082203ca"
 
@@ -172,11 +169,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:48c0fa64e80c089a88d30ab5b826c106af79eb3c65d48e2280f22aa4d61d7a84"
+  digest = "1:45f82b0ba49aeb6088777b5780d9484f79d4472a8e2c577d4bb13904e90419d3"
   name = "github.com/gohxs/readline"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a780388e6e7cb475327da556ecfda0edbb374d80"
+  revision = "f20a41472b0d99999a4b6fc379307acc9cef61c3"
+  source = "github.com/CovenantSQL/readline"
 
 [[projects]]
   digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
@@ -634,14 +632,6 @@
   revision = "4b34438f7a67ee5f45cc6132e2bad873a20324e9"
 
 [[projects]]
-  digest = "1:d219400f09c151f0ada918bab650ef46f7ebdb1ff4fea923fdcb839481ec7ec1"
-  name = "gopkg.in/cheggaaa/pb.v1"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f907f6f5dd81f77c2bbc1cde92e4c5a04720cb11"
-  version = "v1.0.28"
-
-[[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -657,7 +647,6 @@
     "bazil.org/fuse/fs",
     "bazil.org/fuse/fs/fstestutil",
     "github.com/CovenantSQL/HashStablePack/marshalhash",
-    "github.com/CovenantSQL/beacon",
     "github.com/CovenantSQL/beacon/ipv6",
     "github.com/CovenantSQL/go-sqlite3-encrypt",
     "github.com/CovenantSQL/sqlparser",
@@ -709,7 +698,6 @@
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
-    "gopkg.in/cheggaaa/pb.v1",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"

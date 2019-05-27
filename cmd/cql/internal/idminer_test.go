@@ -31,7 +31,7 @@ func TestIDMiner(t *testing.T) {
 	testWorkingDir := FJ(baseDir, "./test/")
 
 	Convey("idminer", t, func(c C) {
-		difficulty = 24
+		loop = false
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runIDMiner(CmdIDMiner, []string{""})
 	})

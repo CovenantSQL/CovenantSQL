@@ -37,7 +37,7 @@ func TestTransferToUser(t *testing.T) {
 		toDSN = ""
 		amount = 100
 		tokenType = "Particle"
-		waitTxConfirmation = true
+		// waitTxConfirmation = true
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runTransfer(CmdTransfer, []string{})
 	})
@@ -54,7 +54,7 @@ func TestTransferToDSN(t *testing.T) {
 		toUser = ""
 		amount = 100
 		tokenType = "Particle"
-		waitTxConfirmation = true
+		// waitTxConfirmation = true
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runTransfer(CmdTransfer, []string{})
 	})

@@ -38,7 +38,6 @@ func TestAdapter(t *testing.T) {
 		configInit()
 		bgServerInit()
 		cancelFunc := startAdapterServer(adapterAddr, adapterUseMirrorAddr)
-		ExitIfErrors()
-		defer cancelFunc()
+		cancelFunc()
 	})
 }

@@ -158,9 +158,13 @@ func Init(configFile string, masterKey []byte) (err error) {
 	return
 }
 
-// Just for unit test
+// UnInit is just for unit test. Do not use it!
 func UnInit() {
-	driverInitialized = 0
+	if !atomic.CompareAndSwapUint32(&driverInitialized, 1, 0) {
+		return
+	}
+
+	stopPeersUpdater()
 }
 
 // Create sends create database operation to block producer.

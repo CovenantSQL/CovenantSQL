@@ -19,19 +19,24 @@
 package internal
 
 import (
+	"os"
+	"testing"
+
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	. "github.com/smartystreets/goconvey/convey"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
-func TestGenerate(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
+func testGenerateReset() {
+	// reset
+	commonVarsReset()
+	privateKeyParam = ""
+	source = ""
+	minerListenAddr = ""
+}
 
+func TestGenerate(t *testing.T) {
 	Convey("generate", t, func(c C) {
+		testGenerateReset()
 		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
 		privateKeyParam = FJ(testWorkingDir, "./integration/node_c/private.key")
 		source = FJ(testWorkingDir, "./integration/node_c/config.yaml")
@@ -39,7 +44,8 @@ func TestGenerate(t *testing.T) {
 		runGenerate(CmdGenerate, []string{""})
 	})
 
-	Convey("generate", t, func(c C) {
+	Convey("clean generate", t, func(c C) {
+		testGenerateReset()
 		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
 		runGenerate(CmdGenerate, []string{""})
 	})

@@ -19,17 +19,18 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCreate(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
+	// reset
+	commonVarsReset()
+	targetMiners = List{}
+	node32 = 0
+	meta = client.ResourceMeta{}
 
 	Convey("create", t, func() {
 		client.UnInit()

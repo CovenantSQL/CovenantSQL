@@ -19,17 +19,19 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestRpc(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
+	// reset
+	commonVarsReset()
+	rpcName = ""
+	rpcEndpoint = ""
+	callBP = false
+	rpcReq = ""
 
 	Convey("rpc", t, func() {
 		client.UnInit()

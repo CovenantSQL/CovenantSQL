@@ -49,6 +49,9 @@ func commonVarsReset() {
 	// bg server flags
 	tmpPath = ""
 	bgLogLevel = "info"
+
+	// reset exit status
+	SetExitStatus(0)
 }
 
 func TestBase(t *testing.T) {

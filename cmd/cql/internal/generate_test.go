@@ -41,7 +41,7 @@ func TestGenerate(t *testing.T) {
 		os.RemoveAll(utils.HomeDirExpand("~/.cql"))
 		privateKeyParam = FJ(testWorkingDir, "./integration/node_c/private.key")
 		source = FJ(testWorkingDir, "./integration/node_c/config.yaml")
-		minerListenAddr = "127.0.0.1"
+		minerListenAddr = "127.0.0.1:12313"
 		runGenerate(CmdGenerate, []string{""})
 	})
 

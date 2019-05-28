@@ -568,51 +568,81 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	return
 }
 
-func (c *Chain) syncHead() {
+func (c *Chain) syncHead() (err error) {
 	// Try to fetch if the block of the current turn is not advised yet
-	if h := c.rt.getNextTurn() - 1; c.rt.getHead().Height < h {
-		var err error
-		req := &MuxFetchBlockReq{
-			Envelope: proto.Envelope{
-				// TODO(leventeliu): Add fields.
-			},
-			DatabaseID: c.databaseID,
-			FetchBlockReq: FetchBlockReq{
-				Height: h,
-			},
-		}
-		resp := &MuxFetchBlockResp{}
-		peers := c.rt.getPeers()
-		l := len(peers.Servers)
-		succ := false
-		le := c.logEntryWithHeadState()
-
-		for i, s := range peers.Servers {
-			ile := le.WithFields(log.Fields{"remote": fmt.Sprintf("[%d/%d] %s", i, l, s)})
-			if s != c.rt.getServer() {
-				if err = c.cl.CallNode(
-					s, route.SQLCFetchBlock.String(), req, resp,
-				); err != nil || resp.Block == nil {
-					ile.WithError(err).Debug("failed to fetch block from peer")
-				} else {
-					select {
-					case c.blocks <- resp.Block:
-					case <-c.rt.ctx.Done():
-						err = c.rt.ctx.Err()
-						le.WithError(err).Info("abort head block synchronizing")
-						return
-					}
-					ile.Debug("fetch block from remote peer successfully")
-					succ = true
-					break
-				}
-			}
-		}
-
-		if !succ {
-			le.Debug("cannot get block from any peer")
-		}
+	h := c.rt.getNextTurn() - 1
+	if c.rt.getHead().Height >= h {
+		return
 	}
+
+	var (
+		peers = c.rt.getPeers()
+		l     = len(peers.Servers)
+		le    = c.logEntryWithHeadState()
+
+		child, cancel = context.WithTimeout(c.rt.ctx, c.rt.tick)
+		wg            = &sync.WaitGroup{}
+
+		succCount uint32
+	)
+	defer func() {
+		wg.Wait()
+		cancel()
+
+		if succCount == 0 {
+			// Set error if all RPC calls are failed
+			err = errors.New("all remote peers are unreachable")
+		}
+	}()
+
+	for i, s := range peers.Servers {
+		// Skip local server
+		if s == c.rt.getServer() {
+			continue
+		}
+
+		wg.Add(1)
+		go func(i int, node proto.NodeID) {
+			defer wg.Done()
+			var (
+				ile = le.WithFields(log.Fields{"remote": fmt.Sprintf("[%d/%d] %s", i, l, node)})
+				req = &MuxFetchBlockReq{
+					DatabaseID: c.databaseID,
+					FetchBlockReq: FetchBlockReq{
+						Height: h,
+					},
+				}
+				resp = &MuxFetchBlockResp{}
+			)
+
+			if err := c.cl.CallNodeWithContext(
+				child, node, route.SQLCFetchBlock.String(), req, resp,
+			); err != nil {
+				ile.WithError(err).Error("failed to fetch block from peer")
+				return
+			}
+
+			if resp.Block == nil {
+				atomic.AddUint32(&succCount, 1)
+				ile.Debug("fetch block request reply: no such block")
+				return
+			}
+
+			ile.WithFields(log.Fields{
+				"parent": resp.Block.ParentHash().Short(4),
+				"hash":   resp.Block.BlockHash().Short(4),
+			}).Debug("fetch block request reply: found block")
+			select {
+			case c.blocks <- resp.Block:
+				atomic.AddUint32(&succCount, 1)
+			case <-child.Done():
+				le.WithError(child.Err()).Info("abort head block synchronizing")
+				return
+			}
+		}(i, s)
+	}
+
+	return
 }
 
 // runCurrentTurn does the check and runs block producing if its my turn.
@@ -656,7 +686,9 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			c.logEntry().WithError(ctx.Err()).Info("abort main cycle")
 			return
 		default:
-			c.syncHead()
+			if err := c.syncHead(); err != nil {
+				c.logEntry().WithError(err).Error("failed to sync head")
+			}
 			if t, d := c.rt.nextTick(); d > 0 {
 				time.Sleep(d)
 			} else {
@@ -667,7 +699,7 @@ func (c *Chain) mainCycle(ctx context.Context) {
 }
 
 // sync synchronizes blocks and queries from the other peers.
-func (c *Chain) sync() {
+func (c *Chain) sync() (err error) {
 	le := c.logEntry()
 	le.Debug("synchronizing chain state")
 	defer func() {
@@ -686,10 +718,14 @@ func (c *Chain) sync() {
 			break
 		}
 		for c.rt.getNextTurn() <= height {
-			c.syncHead()
+			if err = c.syncHead(); err != nil {
+				le.WithError(err).Errorf("failed to sync block at height %d", height)
+				return
+			}
 			c.rt.setNextTurn()
 		}
 	}
+	return
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
@@ -792,11 +828,15 @@ func (c *Chain) processBlocks(ctx context.Context) {
 }
 
 // Start starts the main process of the sql-chain.
-func (c *Chain) Start() {
+func (c *Chain) Start() (err error) {
 	c.rt.goFunc(c.processBlocks)
-	c.sync()
+	if err = c.sync(); err != nil {
+		_ = c.Stop()
+		return
+	}
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
+	return
 }
 
 // Stop stops the main process of the sql-chain.

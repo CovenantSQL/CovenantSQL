@@ -275,7 +275,9 @@ func TestMultiChain(t *testing.T) {
 
 	// Start all chain instances
 	for _, v := range chains {
-		v.chain.Start()
+		if err = v.chain.Start(); err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
 		defer func(c *Chain) {
 			// Stop chain main process before exit
 			_ = c.Stop()

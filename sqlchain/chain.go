@@ -23,6 +23,7 @@ import (
 	"encoding/binary"
 	"expvar"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -602,7 +603,6 @@ func (c *Chain) syncHead() (err error) {
 		}
 
 		wg.Add(1)
-		totalCount++
 		go func(i int, node proto.NodeID) {
 			defer wg.Done()
 			var (
@@ -620,8 +620,14 @@ func (c *Chain) syncHead() (err error) {
 				child, node, route.SQLCFetchBlock.String(), req, resp,
 			); err != nil {
 				ile.WithError(err).Error("failed to fetch block from peer")
+				if strings.Contains(err.Error(), ErrUnknownMuxRequest.Error()) {
+					// TODO(leventeliu): this omits initiating peers. Need redesign.
+					return
+				}
+				atomic.AddUint32(&totalCount, 1)
 				return
 			}
+			atomic.AddUint32(&totalCount, 1)
 
 			if resp.Block == nil {
 				atomic.AddUint32(&succCount, 1)

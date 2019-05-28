@@ -36,6 +36,7 @@ func TestWallet(t *testing.T) {
 	Convey("wallet", t, func() {
 		testWalletReset()
 		client.UnInit()
+
 		databaseID = "covenantsql://658f90f678a90207ab7f442e259f915192188c2f4a4efe7bbf0d69311841766c"
 		tokenName = ""
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
@@ -45,6 +46,7 @@ func TestWallet(t *testing.T) {
 	Convey("wallet", t, func() {
 		testWalletReset()
 		client.UnInit()
+
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		databaseID = ""
 		tokenName = ""
@@ -54,6 +56,7 @@ func TestWallet(t *testing.T) {
 	Convey("wallet", t, func() {
 		testWalletReset()
 		client.UnInit()
+
 		tokenName = "Particle"
 		databaseID = ""
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")

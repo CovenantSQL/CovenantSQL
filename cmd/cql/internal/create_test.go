@@ -26,14 +26,14 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	// reset
-	commonVarsReset()
-	targetMiners = List{}
-	node32 = 0
-	meta = client.ResourceMeta{}
-
 	Convey("create", t, func() {
+		// reset
+		commonVarsReset()
+		targetMiners = List{}
+		node32 = 0
+		meta = client.ResourceMeta{}
 		client.UnInit()
+
 		//targetMiners = List{[]string{"000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade", "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"}}
 		node32 = 1
 		// waitTxConfirmation = true

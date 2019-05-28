@@ -32,13 +32,13 @@ func testTransferReset() {
 	tokenType = ""
 }
 
-func TestTransferToUser(t *testing.T) {
-	// reset
-	commonVarsReset()
-	testTransferReset()
-
+func TestTransfer(t *testing.T) {
 	Convey("transfer", t, func() {
+		// reset
+		commonVarsReset()
+		testTransferReset()
 		client.UnInit()
+
 		toUser = "43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40"
 		toDSN = ""
 		amount = 100
@@ -47,15 +47,13 @@ func TestTransferToUser(t *testing.T) {
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runTransfer(CmdTransfer, []string{})
 	})
-}
-
-func TestTransferToDSN(t *testing.T) {
-	// reset
-	commonVarsReset()
-	testTransferReset()
 
 	Convey("transfer", t, func() {
+		// reset
+		commonVarsReset()
+		testTransferReset()
 		client.UnInit()
+
 		toDSN = "covenantsql://02a8ad1419fb2033cef8cf6f97ec16a784d90e654380eac7ce76b965e27c9e5c"
 		toUser = ""
 		amount = 100

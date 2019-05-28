@@ -26,20 +26,20 @@ import (
 )
 
 func TestConsole(t *testing.T) {
-	// reset
-	commonVarsReset()
-	variables = varsFlag{}
-	dsn = ""
-	outFile = ""
-	noRC = false
-	singleTransaction = false
-	command = ""
-	fileName = ""
-	adapterAddr = ""
-	explorerAddr = ""
-
 	Convey("console", t, func() {
+		// reset
+		commonVarsReset()
+		variables = varsFlag{}
+		dsn = ""
+		outFile = ""
+		noRC = false
+		singleTransaction = false
+		command = ""
+		fileName = ""
+		adapterAddr = ""
+		explorerAddr = ""
 		client.UnInit()
+
 		dsn = "covenantsql://c9e8b381aa466a8d9955701967ad5535e7899ab138b8674ab14b31b75c64b656"
 		command = "select 1 from test1;"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")

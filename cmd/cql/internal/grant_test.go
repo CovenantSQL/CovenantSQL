@@ -26,14 +26,14 @@ import (
 )
 
 func TestGrant(t *testing.T) {
-	// reset
-	commonVarsReset()
-	perm = ""
-	toUser = ""
-	toDSN = ""
-
 	Convey("grant", t, func() {
+		// reset
+		commonVarsReset()
+		perm = ""
+		toUser = ""
+		toDSN = ""
 		client.UnInit()
+
 		toUser = "43602c17adcc96acf2f68964830bb6ebfbca6834961c0eca0915fcc5270e0b40"
 		toDSN = "covenantsql://02a8ad1419fb2033cef8cf6f97ec16a784d90e654380eac7ce76b965e27c9e5c"
 		perm = "Read,Write"

@@ -26,11 +26,11 @@ import (
 )
 
 func TestDrop(t *testing.T) {
-	// reset
-	commonVarsReset()
-
 	Convey("drop", t, func() {
+		// reset
+		commonVarsReset()
 		client.UnInit()
+
 		dsn = "covenantsql://c9e8b381aa466a8d9955701967ad5535e7899ab138b8674ab14b31b75c64b656"
 		waitTxConfirmation = true
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")

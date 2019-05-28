@@ -25,13 +25,12 @@ import (
 )
 
 func TestIDMiner(t *testing.T) {
-	// reset
-	commonVarsReset()
-	difficulty = 10
-	loop = false
-
 	Convey("idminer", t, func(c C) {
+		// reset
+		commonVarsReset()
+		difficulty = 10
 		loop = false
+
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runIDMiner(CmdIDMiner, []string{""})
 	})

@@ -26,16 +26,16 @@ import (
 )
 
 func TestExplorer(t *testing.T) {
-	// reset
-	commonVarsReset()
-	explorerAddr = ""
-	explorerService = nil
-	explorerHTTPServer = nil
-
 	Convey("explorer", t, func() {
+		// reset
+		commonVarsReset()
+		explorerAddr = ""
+		explorerService = nil
+		explorerHTTPServer = nil
+		client.UnInit()
+
 		explorerAddr = "127.0.0.1:9002"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-		client.UnInit()
 		configInit()
 		bgServerInit()
 		cancelFunc := startExplorerServer(explorerAddr)

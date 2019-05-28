@@ -32,6 +32,7 @@ func testGenerateReset() {
 	privateKeyParam = ""
 	source = ""
 	minerListenAddr = ""
+	difficulty = 10
 }
 
 func TestGenerate(t *testing.T) {

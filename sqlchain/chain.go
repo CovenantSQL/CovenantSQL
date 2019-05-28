@@ -583,13 +583,13 @@ func (c *Chain) syncHead() (err error) {
 		child, cancel = context.WithTimeout(c.rt.ctx, c.rt.tick)
 		wg            = &sync.WaitGroup{}
 
-		succCount uint32
+		totalCount, succCount uint32
 	)
 	defer func() {
 		wg.Wait()
 		cancel()
 
-		if succCount == 0 {
+		if totalCount > 0 && succCount == 0 {
 			// Set error if all RPC calls are failed
 			err = errors.New("all remote peers are unreachable")
 		}
@@ -602,6 +602,7 @@ func (c *Chain) syncHead() (err error) {
 		}
 
 		wg.Add(1)
+		totalCount++
 		go func(i int, node proto.NodeID) {
 			defer wg.Done()
 			var (

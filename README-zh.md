@@ -236,6 +236,10 @@ CovenantSQL仍在建设中，测试网已经发布，[尝试一下](https://deve
 ## 联系我们
 
 - 添加微信: `CovenantSQL` 加入交流群
+<p align="left">
+    <img src="logo/wechat.jpeg" height="100">
+</p>
+
 - [博客](https://medium.com/@covenant_labs)
 - [YouTube](https://www.youtube.com/channel/UCe9P_TMiexSHW2GGV5qBmZw)
 - [邮箱地址](mailto:webmaster@covenantsql.io)

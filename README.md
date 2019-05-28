@@ -249,6 +249,12 @@ Storing data on Bitcoin or Ethereum is quite expensive ($4305 / MB on Ethereum 2
 
 ## Contact
 
+
+- Add `CovenantSQL` to join WeChat group
+<p align="left">
+    <img src="logo/wechat.jpeg" height="100">
+</p>
+
 - [Blog](https://medium.com/@covenant_labs)
 - [YouTube](https://www.youtube.com/channel/UCe9P_TMiexSHW2GGV5qBmZw)
 - [Mail](mailto:webmaster@covenantsql.io)

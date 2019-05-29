@@ -47,6 +47,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	rrpc "github.com/CovenantSQL/CovenantSQL/rpc"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -962,7 +963,7 @@ func benchOutsideMinerWithTargetMinerList(
 			Node:                   minerCount,
 			UseEventualConsistency: benchEventualConsistency,
 			IsolationLevel:         int(sql.LevelReadUncommitted),
-			AdvancePayment:         1000000000,
+			AdvancePayment:         testAdvancePayment,
 		}
 		// wait for chain service
 		var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
@@ -996,6 +997,8 @@ func benchOutsideMinerWithTargetMinerList(
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)
+	rrpc.Stat()
+	rpc.Stat()
 }
 
 func BenchmarkClientOnly(b *testing.B) {

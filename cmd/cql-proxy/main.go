@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"net/http"
 	"os"
 	"runtime"
@@ -31,7 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-const name = "cql-faucet"
+const name = "cql-proxy"
 
 var (
 	version     = "unknown"
@@ -72,29 +73,28 @@ func main() {
 		return
 	}
 
-	// load faucet config from same config file
-	var cfg *Config
+	// load proxy config from same config file
+	var cfg *config.Config
 
-	if cfg, err = LoadConfig(listenAddr, configFile); err != nil {
-		log.WithError(err).Error("read faucet config failed")
+	if cfg, err = config.LoadConfig(listenAddr, configFile); err != nil {
+		log.WithError(err).Error("read config failed")
 		os.Exit(-1)
 		return
 	}
 
-	// init persistence
-	var p *Persistence
-	if p, err = NewPersistence(cfg); err != nil {
-		log.WithError(err).Error("init persistence storage failed")
-		return
-	}
-
-	// init faucet api
+	// init server
 	var server *http.Server
-	if server, err = startAPI(p, cfg.ListenAddr); err != nil {
+	if server, err = initServer(cfg); err != nil {
+		log.WithError(err).Error("init server failed")
+		os.Exit(-1)
 		return
 	}
 
-	log.Info("started faucet")
+	go func() {
+		_ = server.ListenAndServe()
+	}()
+
+	log.Info("started proxy")
 
 	<-utils.WaitForExit()
 
@@ -102,6 +102,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	server.Shutdown(ctx)
-	log.Info("stopped faucet")
+	_ = server.Shutdown(ctx)
+	log.Info("stopped proxy")
 }

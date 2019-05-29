@@ -213,31 +213,31 @@ bin/cql-mysql-adapter.static:
 		-o bin/cql-mysql-adapter \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
 
-bin/cql-faucet:
+bin/cql-proxy:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
-		-o bin/cql-faucet \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
+		-o bin/cql-proxy \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy
 
-bin/cql-faucet.static:
+bin/cql-proxy.static:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client) $(static_flags)" \
-		-o bin/cql-faucet \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
+		-o bin/cql-proxy \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy
 
 bp: bin/cqld.test bin/cqld
 
 miner: bin/cql-minerd.test bin/cql-minerd
 
-client: bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+client: bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy
 
 all: bp miner client
 
-build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy
 
 # This should only called in alpine docker builder
 build-release-static: bin/cqld.static bin/cql-minerd.static bin/cql.static \
-	bin/cql-fuse.static bin/cql-mysql-adapter.static bin/cql-faucet.static
+	bin/cql-fuse.static bin/cql-mysql-adapter.static bin/cql-proxy.static
 
 release:
 ifeq ($(unamestr),Linux)
@@ -248,7 +248,7 @@ ifeq ($(unamestr),Linux)
 	fi
 else
 	make -j$(JOBS) build-release
-	tar czvf app-bin.tgz bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+	tar czvf app-bin.tgz bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy
 endif
 
 android-release: status
@@ -268,5 +268,5 @@ clean:
 
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd \
-	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet \
+	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy \
 	release android-release

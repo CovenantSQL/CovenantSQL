@@ -28,6 +28,7 @@ func AddRoutes(e *gin.Engine) {
 	{
 		v3Admin.GET("/auth/authorize", adminOAuthAuthorize)
 		v3Admin.POST("/auth/callback", adminOAuthCallback)
+		v3Admin.GET("/auth/callback", adminOAuthCallback)
 		v3Admin.GET("/tx/:tx/wait", waitTx)
 		v3Admin.POST("/tx", waitTx)
 

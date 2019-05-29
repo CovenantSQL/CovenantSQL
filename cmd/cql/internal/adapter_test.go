@@ -19,19 +19,19 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestAdapter(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
-
 	Convey("adapter", t, func() {
+		// reset
+		commonVarsReset()
+		adapterAddr = ""
+		adapterUseMirrorAddr = ""
+
 		adapterAddr = "127.0.0.1:9001"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		client.UnInit()

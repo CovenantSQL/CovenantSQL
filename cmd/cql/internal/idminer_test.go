@@ -19,19 +19,18 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestIDMiner(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
-
 	Convey("idminer", t, func(c C) {
+		// reset
+		commonVarsReset()
+		difficulty = 10
 		loop = false
+
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
 		runIDMiner(CmdIDMiner, []string{""})
 	})

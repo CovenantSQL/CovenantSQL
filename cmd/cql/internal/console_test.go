@@ -19,22 +19,27 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestConsole(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
-
 	Convey("console", t, func() {
-		client.UnInit()
+		// reset
+		commonVarsReset()
+		variables = varsFlag{}
+		dsn = ""
+		outFile = ""
+		noRC = false
+		singleTransaction = false
+		command = ""
+		fileName = ""
 		adapterAddr = ""
 		explorerAddr = ""
+		client.UnInit()
+
 		dsn = "covenantsql://c9e8b381aa466a8d9955701967ad5535e7899ab138b8674ab14b31b75c64b656"
 		command = "select 1 from test1;"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")

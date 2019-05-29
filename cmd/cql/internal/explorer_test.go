@@ -19,22 +19,23 @@
 package internal
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/client"
-	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestExplorer(t *testing.T) {
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
-
 	Convey("explorer", t, func() {
+		// reset
+		commonVarsReset()
+		explorerAddr = ""
+		explorerService = nil
+		explorerHTTPServer = nil
+		client.UnInit()
+
 		explorerAddr = "127.0.0.1:9002"
 		configFile = FJ(testWorkingDir, "./bench_testnet/node_c/config.yaml")
-		client.UnInit()
 		configInit()
 		bgServerInit()
 		cancelFunc := startExplorerServer(explorerAddr)

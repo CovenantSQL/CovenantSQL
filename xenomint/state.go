@@ -422,7 +422,7 @@ func (s *State) write(
 			var res sql.Result
 			if res, ierr = s.writeSingle(ctx, &v); ierr != nil {
 				err = errors.Wrapf(ierr, "execute at #%d failed", i)
-				// TODO(leventeliu): request may actually be partial successed without
+				// TODO(leventeliu): request may actually be partial succeed without
 				// rolling back.
 				s.pool.setFailed(req)
 				return

@@ -19,9 +19,40 @@
 package internal
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
+	"path/filepath"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	. "github.com/smartystreets/goconvey/convey"
 )
+
+var (
+	FJ             = filepath.Join
+	baseDir        = utils.GetProjectSrcDir()
+	testWorkingDir = FJ(baseDir, "./test/")
+)
+
+func commonVarsReset() {
+	// common flags
+	help = false
+	withPassword = false
+	password = ""
+	consoleLogLevel = "info"
+
+	// config flags
+	configFile = "~/.cql/config.yaml"
+	waitTxConfirmationMaxDuration = 0
+
+	// wait flag
+	waitTxConfirmation = false
+
+	// bg server flags
+	tmpPath = ""
+	bgLogLevel = "info"
+
+	// reset exit status
+	SetExitStatus(0)
+}
 
 func TestBase(t *testing.T) {
 	cmd := Command{

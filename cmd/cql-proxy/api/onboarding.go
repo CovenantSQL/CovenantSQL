@@ -517,6 +517,10 @@ func databaseBalance(c *gin.Context) {
 	abortWithError(c, http.StatusForbidden, errors.New("unauthorized access"))
 }
 
+func databasePricing(c *gin.Context) {
+
+}
+
 func waitTx(c *gin.Context) {
 	r := struct {
 		Tx string `json:"tx" form:"tx" uri:"tx" binding:"required,len=64"`

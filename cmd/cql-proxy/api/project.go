@@ -18,10 +18,42 @@ package api
 
 import "github.com/gin-gonic/gin"
 
-func userOAuthAuthorize(c *gin.Context) {
+func createProject(c *gin.Context) {
 
 }
 
-func userOAuthCallback(c *gin.Context) {
+func queryProjectUser(c *gin.Context) {
+
+}
+
+func updateProjectUser(c *gin.Context) {
+
+}
+
+func updateProjectConfig(c *gin.Context) {
+
+}
+
+func updateProjectConfigItem(c *gin.Context) {
+
+}
+
+func getProjectConfig(c *gin.Context) {
+
+}
+
+func getProjectAudits(c *gin.Context) {
+
+}
+
+func createProjectTable(c *gin.Context) {
+
+}
+
+func addFieldsToProjectTable(c *gin.Context) {
+
+}
+
+func dropProjectTable(c *gin.Context) {
 
 }

@@ -54,6 +54,7 @@ type conn struct {
 
 // pconn represents a connection to a peer.
 type pconn struct {
+	wg      *sync.WaitGroup
 	parent  *conn
 	ackCh   chan *types.Ack
 	pCaller rpc.PCaller
@@ -147,8 +148,10 @@ func newConn(cfg *Config) (c *conn, err error) {
 }
 
 func (c *pconn) startAckWorkers(workerCount int) (err error) {
+	c.wg = &sync.WaitGroup{}
 	c.ackCh = make(chan *types.Ack, workerCount*4)
 	for i := 0; i < workerCount; i++ {
+		c.wg.Add(1)
 		go c.ackWorker()
 	}
 	return
@@ -165,6 +168,8 @@ func (c *pconn) stopAckWorkers() {
 }
 
 func (c *pconn) ackWorker() {
+	defer c.wg.Done()
+
 	var (
 		oneTime sync.Once
 		pc      rpc.PCaller
@@ -202,6 +207,7 @@ ackWorkerLoop:
 
 func (c *pconn) close() error {
 	c.stopAckWorkers()
+	c.wg.Wait()
 	if c.pCaller != nil {
 		c.pCaller.Close()
 	}

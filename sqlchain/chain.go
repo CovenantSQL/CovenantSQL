@@ -528,43 +528,36 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 	}
 	le.Debug("produced new block")
 	// Advise new block to the other peers
-	var (
-		req = &MuxAdviseNewBlockReq{
-			Envelope: proto.Envelope{
-				// TODO(leventeliu): Add fields.
-			},
-			DatabaseID: c.databaseID,
-			AdviseNewBlockReq: AdviseNewBlockReq{
-				Block: block,
-				Count: func() int32 {
-					if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
-						return nd.count
-					}
-					if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
-						return pn.count + 1
-					}
-					return -1
-				}(),
-			},
-		}
-		peers = c.rt.getPeers()
-		wg    = &sync.WaitGroup{}
-	)
+	peers := c.rt.getPeers()
 	for _, s := range peers.Servers {
 		if s != c.rt.getServer() {
-			wg.Add(1)
-			go func(id proto.NodeID) {
-				defer wg.Done()
-				resp := &MuxAdviseNewBlockResp{}
-				if err := c.cl.CallNodeWithContext(
-					c.rt.ctx, id, route.SQLCAdviseNewBlock.String(), req, resp,
-				); err != nil {
-					le.WithError(err).Error("failed to advise new block")
-				}
+			func(remote proto.NodeID) { // bind remote node id to closure
+				c.rt.goFuncWithTimeout(func(ctx context.Context) {
+					req := &MuxAdviseNewBlockReq{
+						DatabaseID: c.databaseID,
+						AdviseNewBlockReq: AdviseNewBlockReq{
+							Block: block,
+							Count: func() int32 {
+								if nd := c.bi.lookupNode(block.BlockHash()); nd != nil {
+									return nd.count
+								}
+								if pn := c.bi.lookupNode(block.ParentHash()); pn != nil {
+									return pn.count + 1
+								}
+								return -1
+							}(),
+						},
+					}
+					resp := &MuxAdviseNewBlockResp{}
+					if err := c.cl.CallNodeWithContext(
+						ctx, remote, route.SQLCAdviseNewBlock.String(), req, resp,
+					); err != nil {
+						le.WithError(err).Error("failed to advise new block")
+					}
+				}, c.rt.tick)
 			}(s)
 		}
 	}
-	wg.Wait()
 
 	return
 }

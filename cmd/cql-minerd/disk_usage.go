@@ -62,15 +62,15 @@ func collectDiskUsage() (err error) {
 		return
 	}
 
-	err = cmd.Wait()
-	if err != nil {
-		log.WithError(err).Error("run disk usage command failed")
-		return
-	}
-
 	duResult, err := ioutil.ReadAll(duOutput)
 	if err != nil {
 		log.WithError(err).Error("get disk usage result failed")
+		return
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		log.WithError(err).Error("run disk usage command failed")
 		return
 	}
 

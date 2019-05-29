@@ -28,6 +28,8 @@ func AddRoutes(e *gin.Engine) {
 	{
 		v3Admin.GET("/auth/authorize", adminOAuthAuthorize)
 		v3Admin.POST("/auth/callback", adminOAuthCallback)
+		v3Admin.GET("/tx/:tx/wait", waitTx)
+		v3Admin.POST("/tx", waitTx)
 
 		// after admin login
 		v3AdminLogin := v3Admin.Group("/")
@@ -40,8 +42,10 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.GET("/keypair/:account", downloadKeyPair)
 			v3AdminLogin.POST("/keypair/main", setMainAccount)
 
+			v3AdminLogin.GET("/database", databaseList)
+			v3AdminLogin.POST("/database", createDB)
 			v3AdminLogin.POST("/database/:db/topup", topUp)
-			v3AdminLogin.GET("/database/:db", getDBBalance)
+			v3AdminLogin.GET("/database/:db", databaseBalance)
 			v3AdminLogin.POST("/account/apply", applyToken)
 			v3AdminLogin.GET("/account/main", getBalance)
 		}

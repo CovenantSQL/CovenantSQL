@@ -18,6 +18,10 @@ package api
 
 import (
 	"errors"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -26,12 +30,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/gin-gonic/gin"
-
-	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
-	"net/http"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 func genKeyPair(c *gin.Context) {
@@ -329,8 +329,8 @@ func getBalance(c *gin.Context) {
 
 func createDB(c *gin.Context) {
 	r := struct {
-		Account   utils.AccountAddress `json:"account" form:"account" binding:"required,len=64"`
-		NodeCount uint16               `json:"node" form:"node" binding:"gt=0"`
+		Password  string `json:"password" form:"password" binding:"required"`
+		NodeCount uint16 `json:"node" form:"node" binding:"gt=0"`
 	}{}
 
 	if err := c.ShouldBind(&r); err != nil {
@@ -339,64 +339,82 @@ func createDB(c *gin.Context) {
 	}
 
 	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
-	_, err := model.GetAccount(c, developer, r.Account)
+	p, err := model.GetMainAccount(c, developer)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
 	}
 
+	if err = p.LoadPrivateKey([]byte(r.Password)); err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	accountAddr, err := p.Account.Get()
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = accountAddr
+
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	meta := client.ResourceMeta{}
 	meta.Node = r.NodeCount
+	meta.GasPrice = client.DefaultGasPrice
+	meta.AdvancePayment = client.DefaultAdvancePayment
 
 	var (
-		addr             proto.AccountAddress
-		txCreateHash     hash.Hash
-		txCreateState    pi.TransactionState
-		dsn              string
-		dbID             proto.DatabaseID
-		dbAccountAddr    proto.AccountAddress
-		cfg              *client.Config
-		txUpdatePermHash hash.Hash
+		txReq  = new(types.AddTxReq)
+		txResp = new(types.AddTxResp)
 	)
 
-	if txCreateHash, dsn, err = client.Create(meta); err != nil {
+	txReq.TTL = 1
+	txReq.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner: accountAddr,
+		ResourceMeta: types.ResourceMeta{
+			TargetMiners:           meta.TargetMiners,
+			Node:                   meta.Node,
+			Space:                  meta.Space,
+			Memory:                 meta.Memory,
+			LoadAvgPerCPU:          meta.LoadAvgPerCPU,
+			EncryptionKey:          meta.EncryptionKey,
+			UseEventualConsistency: meta.UseEventualConsistency,
+			ConsistencyLevel:       meta.ConsistencyLevel,
+			IsolationLevel:         meta.IsolationLevel,
+		},
+		GasPrice:       meta.GasPrice,
+		AdvancePayment: meta.AdvancePayment,
+		TokenType:      types.Particle,
+		Nonce:          nonceResp.Nonce,
+	})
+
+	if err = txReq.Tx.Sign(p.Key); err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	if cfg, err = client.ParseDSN(dsn); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-	}
-
-	dbID = proto.DatabaseID(cfg.DatabaseID)
-
-	if txCreateState, err = client.WaitTxConfirmation(c, txCreateHash); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	} else if txCreateState != pi.TransactionStateConfirmed {
-		abortWithError(c, http.StatusInternalServerError, errors.New("create database failed"))
-		return
-	}
-
-	if dbAccountAddr, err = dbID.AccountAddress(); err != nil {
+	if err = rpc.RequestBP(route.MCCAddTx.String(), txReq, txResp); err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	if txUpdatePermHash, err = client.UpdatePermission(
-		addr, dbAccountAddr, types.UserPermissionFromRole(types.Admin)); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
+	dbID := proto.FromAccountAndNonce(accountAddr, uint32(nonceResp.Nonce))
 
 	responseWithData(c, http.StatusOK, map[string]interface{}{
-		"tx_create":            txCreateHash.String(),
-		"tx_update_permission": txUpdatePermHash.String(),
-		"db":                   dbID,
+		"tx": txReq.Tx.Hash(),
+		"db": dbID,
 	})
 }
 
-func getDBBalance(c *gin.Context) {
+func databaseBalance(c *gin.Context) {
 	r := struct {
 		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required"`
 	}{}
@@ -447,86 +465,26 @@ func getDBBalance(c *gin.Context) {
 	abortWithError(c, http.StatusForbidden, errors.New("unauthorized access"))
 }
 
-func privatizeDB(c *gin.Context) {
-	r := struct {
-		Database proto.DatabaseID `json:"db" form:"db" binding:"required"`
-	}{}
-
-	if err := c.ShouldBind(&r); err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	// query account belongings
-	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
-	p, err := model.GetMainAccount(c, developer)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
-	}
-
-	var (
-		dbAccountAddr proto.AccountAddress
-		req           = new(types.QuerySQLChainProfileReq)
-		resp          = new(types.QuerySQLChainProfileResp)
-		txHash        hash.Hash
-	)
-
-	req.DBID = r.Database
-
-	if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-	}
-
-	found := false
-
-	accountAddr, err := p.Account.Get()
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	for _, user := range resp.Profile.Users {
-		if user.Address == accountAddr && user.Permission.HasSuperPermission() {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		abortWithError(c, http.StatusBadRequest, errors.New("invalid database"))
-		return
-	}
-
-	if dbAccountAddr, err = r.Database.AccountAddress(); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	var rootAddr proto.AccountAddress
-
-	if txHash, err = client.UpdatePermission(rootAddr, dbAccountAddr,
-		types.UserPermissionFromRole(types.Void)); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	responseWithData(c, http.StatusOK, gin.H{
-		argTx: txHash.String(),
-	})
-}
-
 func waitTx(c *gin.Context) {
 	r := struct {
-		Tx hash.Hash `json:"tx" form:"tx" binding:"required"`
+		Tx string `json:"tx" form:"tx" uri:"tx" binding:"required,len=64"`
 	}{}
+
+	_ = c.ShouldBindUri(&r)
 
 	if err := c.ShouldBind(&r); err != nil {
 		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	txState, err := client.WaitTxConfirmation(c, r.Tx)
+	var h hash.Hash
+
+	if err := hash.Decode(&h, r.Tx); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	txState, err := client.WaitTxConfirmation(c, h)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -537,19 +495,11 @@ func waitTx(c *gin.Context) {
 	})
 }
 
-func accountDatabaseList(c *gin.Context) {
-	r := struct {
-		Account utils.AccountAddress `json:"account" form:"account" binding:"required,len=64"`
-	}{}
-
-	if err := c.ShouldBind(&r); err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
+func databaseList(c *gin.Context) {
 	// query account belongings
 	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
-	_, err := model.GetAccount(c, developer, r.Account)
+
+	p, err := model.GetMainAccount(c, developer)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -558,7 +508,7 @@ func accountDatabaseList(c *gin.Context) {
 	req := new(types.QueryAccountSQLChainProfilesReq)
 	resp := new(types.QueryAccountSQLChainProfilesResp)
 
-	accountAddr, err := r.Account.Get()
+	accountAddr, err := p.Account.Get()
 	if err != nil {
 		abortWithError(c, http.StatusBadRequest, err)
 		return
@@ -574,10 +524,7 @@ func accountDatabaseList(c *gin.Context) {
 	var profiles []gin.H
 
 	for _, p := range resp.Profiles {
-		var (
-			privatized = true
-			profile    = gin.H{}
-		)
+		var profile = gin.H{}
 
 		for _, user := range p.Users {
 			if user.Address == accountAddr && user.Permission.HasSuperPermission() {
@@ -585,14 +532,9 @@ func accountDatabaseList(c *gin.Context) {
 				profile["deposit"] = user.Deposit
 				profile["arrears"] = user.Arrears
 				profile["advance_payment"] = user.AdvancePayment
-			} else if user.Permission.HasSuperPermission() {
-				privatized = false
-			}
-		}
 
-		if len(profile) > 0 {
-			profile["privatized"] = privatized
-			profiles = append(profiles, profile)
+				profiles = append(profiles, profile)
+			}
 		}
 	}
 

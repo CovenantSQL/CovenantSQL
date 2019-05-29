@@ -60,7 +60,7 @@ func genKeyPair(c *gin.Context) {
 		return
 	}
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		argAccount: p.Account,
 		argKey:     string(p.RawKey),
 	})
@@ -93,7 +93,7 @@ func uploadKeyPair(c *gin.Context) {
 		return
 	}
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		argAccount: p.Account,
 	})
 }
@@ -158,7 +158,7 @@ func downloadKeyPair(c *gin.Context) {
 		return
 	}
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		argKey: string(privateKeyBytes),
 	})
 }
@@ -236,7 +236,7 @@ func topUp(c *gin.Context) {
 		return
 	}
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		argTx:     tx.Hash().String(),
 		argAmount: r.Amount,
 	})
@@ -291,11 +291,63 @@ func applyToken(c *gin.Context) {
 		return
 	}
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		argID:     ar.ID,
 		argTx:     txHash.String(),
 		argAmount: amount,
 	})
+}
+
+func showAllAccounts(c *gin.Context) {
+	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
+	d, err := model.GetDeveloper(c, developer)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	accounts, err := model.GetAllAccounts(c, developer)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	var (
+		apiResp = gin.H{}
+		keys    []gin.H
+	)
+
+	for _, account := range accounts {
+		var (
+			req     = new(types.QueryAccountTokenBalanceReq)
+			resp    = new(types.QueryAccountTokenBalanceResp)
+			keyData = gin.H{}
+		)
+
+		req.Addr, err = account.Account.Get()
+		if err != nil {
+			abortWithError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if account.ID == d.MainAccount {
+			apiResp["main"] = req.Addr.String()
+		}
+
+		keyData["account"] = req.Addr.String()
+
+		if err = rpc.RequestBP(route.MCCQueryAccountTokenBalance.String(), req, resp); err == nil {
+			keyData["balance"] = resp.Balance
+		} else {
+			err = nil
+		}
+
+		keys = append(keys, keyData)
+	}
+
+	apiResp["keypairs"] = keys
+
+	responseWithData(c, http.StatusOK, apiResp)
 }
 
 func getBalance(c *gin.Context) {
@@ -322,7 +374,7 @@ func getBalance(c *gin.Context) {
 		return
 	}
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		argBalance: resp.Balance,
 	})
 }
@@ -408,7 +460,7 @@ func createDB(c *gin.Context) {
 
 	dbID := proto.FromAccountAndNonce(accountAddr, uint32(nonceResp.Nonce))
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		"tx": txReq.Tx.Hash(),
 		"db": dbID,
 	})
@@ -453,7 +505,7 @@ func databaseBalance(c *gin.Context) {
 
 	for _, user := range resp.Profile.Users {
 		if user.Address == accountAddr {
-			responseWithData(c, http.StatusOK, map[string]interface{}{
+			responseWithData(c, http.StatusOK, gin.H{
 				"deposit":         user.Deposit,
 				"arrears":         user.Arrears,
 				"advance_payment": user.AdvancePayment,

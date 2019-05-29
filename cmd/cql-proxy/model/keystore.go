@@ -17,13 +17,15 @@
 package model
 
 import (
+	"time"
+
+	"github.com/gin-gonic/gin"
+	gorp "gopkg.in/gorp.v1"
+
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/gorp.v1"
-	"time"
 )
 
 type DeveloperPrivateKey struct {
@@ -148,7 +150,7 @@ func GetAccount(c *gin.Context, developer int64, account utils.AccountAddress) (
 
 func GetAllAccounts(c *gin.Context, developer int64) (keys []*DeveloperPrivateKey, err error) {
 	_, err = c.MustGet(keyDB).(*gorp.DbMap).Select(&keys,
-		`SELECT * FROM "private_keys" WHERE "developer_id" = ?`)
+		`SELECT * FROM "private_keys" WHERE "developer_id" = ?`, developer)
 	return
 }
 

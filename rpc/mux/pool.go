@@ -20,6 +20,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
@@ -27,6 +28,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+)
+
+var (
+	openSession       uint32
+	openStreamAttempt uint32
+	openStreamSucc    uint32
 )
 
 // Session is the Session type of SessionPool.
@@ -91,6 +99,7 @@ func (s *Session) Get() (conn rpc.Client, err error) {
 			if err != nil {
 				return
 			}
+			atomic.AddUint32(&openSession, 1)
 			s.sess = append(s.sess, sess)
 			s.offset = len(s.sess) - 1
 		} else {
@@ -98,9 +107,11 @@ func (s *Session) Get() (conn rpc.Client, err error) {
 		}
 
 		// open connection
+		atomic.AddUint32(&openStreamAttempt, 1)
 		stream, err = sess.OpenStream()
 		if err != nil {
 			// invalidate session
+			log.WithError(err).Debug("fail to open stream")
 			sessions = nil
 			sessions = append(sessions, s.sess[0:s.offset]...)
 			sessions = append(sessions, s.sess[s.offset+1:]...)
@@ -108,8 +119,17 @@ func (s *Session) Get() (conn rpc.Client, err error) {
 			continue
 		}
 
+		atomic.AddUint32(&openStreamSucc, 1)
 		return rpc.NewClient(stream), nil
 	}
+}
+
+func Stat() {
+	log.WithFields(log.Fields{
+		"open_session":        openSession,
+		"open_stream_attempt": openStreamAttempt,
+		"open_stream_succ":    openStreamSucc,
+	}).Info("session pool stat")
 }
 
 // Len returns physical connection count.
@@ -203,10 +223,13 @@ func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn rpc.Client,
 		if sess, err = newSession(id, true); err != nil {
 			return
 		}
+		atomic.AddUint32(&openSession, 1)
+		atomic.AddUint32(&openStreamAttempt, 1)
 		if stream, err = sess.OpenStream(); err != nil {
 			err = errors.Wrapf(err, "open new session to %s failed", id)
 			return
 		}
+		atomic.AddUint32(&openStreamSucc, 1)
 		return rpc.NewClient(&oneOffMuxConn{
 			sess:   sess,
 			Stream: stream,

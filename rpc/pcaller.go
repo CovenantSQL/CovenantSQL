@@ -21,12 +21,19 @@ import (
 	"net/rpc"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+)
+
+var (
+	dialCount  uint32
+	closeCount uint32
 )
 
 // PersistentCaller is a wrapper for session pooling and RPC calling.
@@ -57,9 +64,21 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 			err = errors.Wrap(err, "dial to node failed")
 			return
 		}
+		log.WithFields(log.Fields{
+			"is_anonymous": isAnonymous,
+			"node":         c.TargetID,
+		}).Info("dial node with pool")
+		atomic.AddUint32(&dialCount, 1)
 		//c.TargetAddr = conn.RemoteAddr().String()
 	}
 	return
+}
+
+func Stat() {
+	log.WithFields(log.Fields{
+		"dial_count":  dialCount,
+		"close_count": closeCount,
+	}).Info("pcaller stat")
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
@@ -100,6 +119,10 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 func (c *PersistentCaller) ResetClient() (err error) {
 	c.Lock()
 	if c.client != nil {
+		log.WithFields(log.Fields{
+			"node": c.TargetID,
+		}).Info("close node")
+		atomic.AddUint32(&closeCount, 1)
 		_ = c.client.Close()
 	}
 	c.client = nil
@@ -112,6 +135,10 @@ func (c *PersistentCaller) Close() {
 	c.Lock()
 	defer c.Unlock()
 	if c.client != nil {
+		log.WithFields(log.Fields{
+			"node": c.TargetID,
+		}).Info("close node")
+		atomic.AddUint32(&closeCount, 1)
 		_ = c.client.Close()
 	}
 }

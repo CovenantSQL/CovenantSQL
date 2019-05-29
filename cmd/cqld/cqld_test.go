@@ -22,7 +22,6 @@ import (
 	"context"
 	"github.com/CovenantSQL/CovenantSQL/metric"
 	"os"
-	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -100,10 +99,6 @@ func TestCQLD(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(resp.Count, ShouldEqual, lastBlockCount)
 	})
-
-	FJ := filepath.Join
-	baseDir := utils.GetProjectSrcDir()
-	testWorkingDir := FJ(baseDir, "./test/")
 
 	Convey("Test cqld run", t, func() {
 		configFile = FJ(testWorkingDir, "./node_standalone/config.yaml")

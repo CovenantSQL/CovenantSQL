@@ -5,8 +5,7 @@ set -o pipefail
 set -o nounset
 
 main() {
-  go test -v -tags "${UNITTESTTAGS:-}" -race -failfast -parallel 16 -cpu 16 -coverprofile cql.internal.cover.out ./cmd/cql/internal
-  go test -tags "${UNITTESTTAGS:-}" -race -failfast -parallel 16 -cpu 16 -coverprofile main.cover.out $(go list ./... | grep -v CovenantSQL/api |grep -v CovenantSQL/cmd/cql/internal)
+  go test -tags "${UNITTESTTAGS:-}" -race -failfast -parallel 16 -cpu 16 -coverprofile main.cover.out $(go list ./... | grep -v CovenantSQL/api)
   go test -tags "${UNITTESTTAGS:-}" -race -failfast -parallel 16 -cpu 16 -coverpkg ./api/...,./rpc/jsonrpc -coverprofile api.cover.out ./api/...
 
   set -x

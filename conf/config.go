@@ -114,15 +114,16 @@ type Config struct {
 	StartupSyncHoles bool `yaml:"StartupSyncHoles,omitempty"`
 	GenerateKeyPair  bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
-	WorkingRoot      string            `yaml:"WorkingRoot"`
-	PubKeyStoreFile  string            `yaml:"PubKeyStoreFile"`
-	PrivateKeyFile   string            `yaml:"PrivateKeyFile"`
-	WalletAddress    string            `yaml:"WalletAddress"`
-	DHTFileName      string            `yaml:"DHTFileName"`
-	ListenAddr       string            `yaml:"ListenAddr"`
-	ListenDirectAddr string            `yaml:"ListenDirectAddr",omitempty`
-	ThisNodeID       proto.NodeID      `yaml:"ThisNodeID"`
-	ValidDNSKeys     map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
+	WorkingRoot        string            `yaml:"WorkingRoot"`
+	PubKeyStoreFile    string            `yaml:"PubKeyStoreFile"`
+	PrivateKeyFile     string            `yaml:"PrivateKeyFile"`
+	WalletAddress      string            `yaml:"WalletAddress"`
+	DHTFileName        string            `yaml:"DHTFileName"`
+	ListenAddr         string            `yaml:"ListenAddr"`
+	ListenDirectAddr   string            `yaml:"ListenDirectAddr,omitempty"`
+	ExternalListenAddr string            `yaml:"-"` // for metric purpose
+	ThisNodeID         proto.NodeID      `yaml:"ThisNodeID"`
+	ValidDNSKeys       map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 	// Check By BP DHT.Ping
 	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
 
@@ -206,10 +207,10 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
 	}
 
-	if config.WalletAddress != "" {
+	if len(config.KnownNodes) > 0 {
 		for _, node := range config.KnownNodes {
 			if node.ID == config.ThisNodeID {
-				if node.PublicKey != nil {
+				if config.WalletAddress == "" && node.PublicKey != nil {
 					var walletHash proto.AccountAddress
 
 					if walletHash, err = crypto.PubKeyHash(node.PublicKey); err != nil {
@@ -218,6 +219,12 @@ func LoadConfig(configPath string) (config *Config, err error) {
 
 					config.WalletAddress = walletHash.String()
 				}
+
+				if config.ExternalListenAddr == "" {
+					config.ExternalListenAddr = node.Addr
+				}
+
+				break
 			}
 		}
 	}

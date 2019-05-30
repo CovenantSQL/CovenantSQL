@@ -36,6 +36,7 @@ func AddRoutes(e *gin.Engine) {
 		v3AdminLogin := v3Admin.Group("/")
 		v3AdminLogin.Use(adminCheck)
 		{
+			v3AdminLogin.GET("/userinfo", getDeveloperInfo)
 			v3AdminLogin.POST("/keypair", genKeyPair)
 			v3AdminLogin.POST("/keypair/upload", uploadKeyPair)
 			v3AdminLogin.DELETE("/keypair/:account", deleteKeyPair)

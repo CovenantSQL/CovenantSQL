@@ -127,7 +127,3 @@ func SaveAdminSession(c *gin.Context, s *AdminSession, expire int64) (r *AdminSe
 	_, err = c.MustGet(keyDB).(*gorp.DbMap).Update(r)
 	return
 }
-
-func init() {
-	RegisterModel("admin_session", AdminSession{}, "ID", false)
-}

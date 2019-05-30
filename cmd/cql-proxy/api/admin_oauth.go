@@ -43,7 +43,7 @@ func adminOAuthAuthorize(c *gin.Context) {
 	state := uuid.Must(uuid.NewV4()).String()
 	url := authz.AuthURL(state, r.Callback)
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		"state":         state,
 		"url":           url,
 		"oauth_enabled": authz.OAuthEnabled(),
@@ -83,12 +83,12 @@ func adminOAuthCallback(c *gin.Context) {
 	}
 
 	s.Set("admin", true)
-	c.Set("developer_id", d.ID)
+	s.Set("developer_id", d.ID)
 	s.Set("github_id", userInfo.ID)
 	s.Set("name", userInfo.Name)
 	s.Set("email", userInfo.Email)
 
-	responseWithData(c, http.StatusOK, map[string]interface{}{
+	responseWithData(c, http.StatusOK, gin.H{
 		"token": s.ID,
 		"name":  d.Name,
 		"email": d.Email,
@@ -104,4 +104,19 @@ func adminCheck(c *gin.Context) {
 	}
 
 	abortWithError(c, http.StatusForbidden, errors.New("unauthorized access"))
+}
+
+func getDeveloperInfo(c *gin.Context) {
+	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
+	d, err := model.GetDeveloper(c, developer)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"name":  d.Name,
+		"email": d.Email,
+		"extra": d.Extra,
+	})
 }

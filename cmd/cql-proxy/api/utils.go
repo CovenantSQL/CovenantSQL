@@ -22,7 +22,7 @@ import (
 
 func abortWithError(c *gin.Context, code int, err error) {
 	if err != nil {
-		c.AbortWithStatusJSON(code, map[string]interface{}{
+		c.AbortWithStatusJSON(code, gin.H{
 			"success": false,
 			"msg":     err.Error(),
 		})
@@ -31,7 +31,7 @@ func abortWithError(c *gin.Context, code int, err error) {
 }
 
 func responseWithData(c *gin.Context, code int, data interface{}) {
-	c.JSON(code, map[string]interface{}{
+	c.JSON(code, gin.H{
 		"success": true,
 		"msg":     "",
 		"data":    data,

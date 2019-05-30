@@ -76,7 +76,3 @@ func AddTokenApplyRecord(c *gin.Context, developer int64, account utils.AccountA
 	err = c.MustGet(keyDB).(*gorp.DbMap).Insert(r)
 	return
 }
-
-func init() {
-	RegisterModel("token_apply", TokenApply{}, "ID", false)
-}

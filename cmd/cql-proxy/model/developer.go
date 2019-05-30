@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	gorp "gopkg.in/gorp.v1"
+	"gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
@@ -50,7 +50,7 @@ func (d *Developer) LoadExtra() (err error) {
 
 func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string, extra map[string]interface{}) (d *Developer, err error) {
 	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
-	err = dbMap.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`)
+	err = dbMap.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`, githubID)
 	exists := true
 	now := time.Now().Unix()
 
@@ -66,6 +66,7 @@ func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string, 
 		}
 
 		exists = false
+		err = nil
 	} else {
 		d.LastLogin = now
 		d.Name = name
@@ -152,8 +153,4 @@ func GetMainAccount(c *gin.Context, developerID int64) (p *DeveloperPrivateKey, 
 	}
 
 	return
-}
-
-func init() {
-	RegisterModel("developer", Developer{}, "ID", true)
 }

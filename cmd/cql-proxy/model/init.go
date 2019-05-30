@@ -18,37 +18,18 @@ package model
 
 import (
 	"gopkg.in/gorp.v1"
-	"sync"
 )
 
-var tableMapping sync.Map
-
-type regTable struct {
-	name       string
-	object     interface{}
-	pk         string
-	isAutoIncr bool
-}
-
-func RegisterModel(tableName string, object interface{}, pk string, isAutoIncr bool) {
-	tableMapping.Store(tableName, &regTable{
-		name:       tableName,
-		object:     object,
-		pk:         pk,
-		isAutoIncr: isAutoIncr,
-	})
-}
-
 func AddTables(dbMap *gorp.DbMap) {
-	tableMapping.Range(func(_, value interface{}) bool {
-		table := value.(*regTable)
-		tableMap := dbMap.AddTableWithName(table.object, table.name)
-		if table.pk != "" {
-			tableMap.SetKeys(table.isAutoIncr, table.pk)
-		}
-
-		return true
-	})
+	dbMap.AddTableWithName(Developer{}, "developer").
+		SetKeys(true, "ID").
+		ColMap("GithubID").SetUnique(true)
+	dbMap.AddTableWithName(AdminSession{}, "admin_session").
+		SetKeys(false, "ID")
+	dbMap.AddTableWithName(TokenApply{}, "token_apply").
+		SetKeys(false, "ID")
+	dbMap.AddTableWithName(DeveloperPrivateKey{}, "private_keys").
+		SetKeys(true, "ID")
 
 	return
 }

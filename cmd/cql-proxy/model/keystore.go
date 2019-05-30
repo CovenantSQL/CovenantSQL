@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	gorp "gopkg.in/gorp.v1"
+	"gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -159,8 +159,4 @@ func GetAccountByID(c *gin.Context, developer int64, id int64) (p *DeveloperPriv
 		`SELECT * FROM "private_keys" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`,
 		id, developer)
 	return
-}
-
-func init() {
-	RegisterModel("private_keys", DeveloperPrivateKey{}, "ID", true)
 }

@@ -17,14 +17,16 @@
 package api
 
 import (
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
-	"net/http"
-	"time"
 )
 
 func adminOAuthAuthorize(c *gin.Context) {
@@ -66,7 +68,7 @@ func adminOAuthCallback(c *gin.Context) {
 		return
 	}
 
-	d, err := model.UpdateDeveloper(c, userInfo.ID, userInfo.Name, userInfo.Email)
+	d, err := model.UpdateDeveloper(c, userInfo.ID, userInfo.Name, userInfo.Email, userInfo.Extra)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -90,6 +92,7 @@ func adminOAuthCallback(c *gin.Context) {
 		"token": s.ID,
 		"name":  d.Name,
 		"email": d.Email,
+		"extra": d.Extra,
 	})
 }
 

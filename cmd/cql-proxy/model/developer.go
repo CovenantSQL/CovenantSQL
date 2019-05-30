@@ -17,25 +17,40 @@
 package model
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/gorp.v1"
+	"encoding/json"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	gorp "gopkg.in/gorp.v1"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
 
 type Developer struct {
-	ID          int64  `db:"id"`
-	Name        string `db:"name"`
-	Email       string `db:"email"`
-	Created     int64  `db:"created"`
-	MainAccount int64  `db:"main_account"`
-	LastLogin   int64  `db:"last_login"`
-	GithubID    int64  `db:"github_id"`
+	ID          int64                  `db:"id"`
+	Name        string                 `db:"name"`
+	Email       string                 `db:"email"`
+	RawExtra    []byte                 `db:"extra"`
+	Created     int64                  `db:"created"`
+	MainAccount int64                  `db:"main_account"`
+	LastLogin   int64                  `db:"last_login"`
+	GithubID    int64                  `db:"github_id"`
+	Extra       map[string]interface{} `db:"-"`
 }
 
-func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string) (d *Developer, err error) {
+func (d *Developer) SaveExtra() (err error) {
+	d.RawExtra, err = json.Marshal(d.Extra)
+	return
+}
+
+func (d *Developer) LoadExtra() (err error) {
+	err = json.Unmarshal(d.RawExtra, &d.Extra)
+	return
+}
+
+func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string, extra map[string]interface{}) (d *Developer, err error) {
 	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
-	err = dbMap.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMT 1`)
+	err = dbMap.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`)
 	exists := true
 	now := time.Now().Unix()
 
@@ -47,6 +62,7 @@ func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string) 
 			Created:   now,
 			LastLogin: now,
 			GithubID:  githubID,
+			Extra:     extra,
 		}
 
 		exists = false
@@ -54,6 +70,13 @@ func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string) 
 		d.LastLogin = now
 		d.Name = name
 		d.Email = email
+		d.Extra = extra
+	}
+
+	// encode extra
+	err = d.SaveExtra()
+	if err != nil {
+		return
 	}
 
 	// update user info
@@ -108,6 +131,11 @@ func FixDeletedMainAccount(c *gin.Context, developerID int64, account int64) (er
 func GetDeveloper(c *gin.Context, developerID int64) (d *Developer, err error) {
 	err = c.MustGet(keyDB).(*gorp.DbMap).SelectOne(&d,
 		`SELECT * FROM "developer" WHERE "id" = ? LIMIT 1`, developerID)
+	if err != nil {
+		return
+	}
+
+	err = d.LoadExtra()
 	return
 }
 

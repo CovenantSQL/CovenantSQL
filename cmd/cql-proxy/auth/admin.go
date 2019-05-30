@@ -19,11 +19,14 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
+	"io"
+	"io/ioutil"
+	"net/http"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
-	"io"
-	"net/http"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 )
 
 const (
@@ -38,9 +41,10 @@ type AdminAuth struct {
 }
 
 type UserInfo struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID    int64                  `json:"id"`
+	Name  string                 `json:"name"`
+	Email string                 `json:"email"`
+	Extra map[string]interface{} `json:"-"`
 }
 
 func NewAdminAuth(cfg *config.AdminAuthConfig) (a *AdminAuth) {
@@ -107,7 +111,19 @@ func (a *AdminAuth) HandleLogin(ctx context.Context, auth string) (userInfo *Use
 			return
 		}
 
-		if err = json.NewDecoder(io.LimitReader(resp.Body, MaxGithubResponseSize)).Decode(&userInfo); err != nil || userInfo == nil {
+		var respBytes []byte
+		respBytes, err = ioutil.ReadAll(io.LimitReader(resp.Body, MaxGithubResponseSize))
+		if err != nil {
+			return
+		}
+
+		// decode necessary fields to struct
+		if err = json.Unmarshal(respBytes, &userInfo); err != nil || userInfo == nil {
+			return
+		}
+
+		// decode all fields to extra
+		if err = json.Unmarshal(respBytes, &userInfo.Extra); err != nil {
 			return
 		}
 

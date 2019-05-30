@@ -114,15 +114,16 @@ type Config struct {
 	StartupSyncHoles bool `yaml:"StartupSyncHoles,omitempty"`
 	GenerateKeyPair  bool `yaml:"-"`
 	//TODO(auxten): set yaml key for config
-	WorkingRoot      string            `yaml:"WorkingRoot"`
-	PubKeyStoreFile  string            `yaml:"PubKeyStoreFile"`
-	PrivateKeyFile   string            `yaml:"PrivateKeyFile"`
-	WalletAddress    string            `yaml:"WalletAddress"`
-	DHTFileName      string            `yaml:"DHTFileName"`
-	ListenAddr       string            `yaml:"ListenAddr"`
-	ListenDirectAddr string            `yaml:"ListenDirectAddr",omitempty`
-	ThisNodeID       proto.NodeID      `yaml:"ThisNodeID"`
-	ValidDNSKeys     map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
+	WorkingRoot        string            `yaml:"WorkingRoot"`
+	PubKeyStoreFile    string            `yaml:"PubKeyStoreFile"`
+	PrivateKeyFile     string            `yaml:"PrivateKeyFile"`
+	WalletAddress      string            `yaml:"WalletAddress"`
+	DHTFileName        string            `yaml:"DHTFileName"`
+	ListenAddr         string            `yaml:"ListenAddr"`
+	ListenDirectAddr   string            `yaml:"ListenDirectAddr,omitempty"`
+	ExternalListenAddr string            `yaml:"-"` // for metric purpose
+	ThisNodeID         proto.NodeID      `yaml:"ThisNodeID"`
+	ValidDNSKeys       map[string]string `yaml:"ValidDNSKeys"` // map[DNSKEY]domain
 	// Check By BP DHT.Ping
 	MinNodeIDDifficulty int `yaml:"MinNodeIDDifficulty"`
 
@@ -217,6 +218,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 					}
 
 					config.WalletAddress = walletHash.String()
+					config.ExternalListenAddr = node.Addr
 				}
 			}
 		}

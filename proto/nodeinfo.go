@@ -114,7 +114,7 @@ type Node struct {
 	ID         NodeID                `yaml:"ID"`
 	Role       ServerRole            `yaml:"Role"`
 	Addr       string                `yaml:"Addr"`
-	DirectAddr string                `yaml:"DirectAddr",omitempty`
+	DirectAddr string                `yaml:"DirectAddr,omitempty"`
 	PublicKey  *asymmetric.PublicKey `yaml:"PublicKey"`
 	Nonce      mine.Uint256          `yaml:"Nonce"`
 }

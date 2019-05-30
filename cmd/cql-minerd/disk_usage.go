@@ -24,12 +24,14 @@ import (
 	"strconv"
 	"strings"
 
+	mw "github.com/zserge/metric"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
-	diskUsageMetric = expvar.NewInt("service:miner:disk:usage")
+	diskUsageMetric = mw.NewGauge("5m1m")
 )
 
 func collectDiskUsage() (err error) {
@@ -86,7 +88,11 @@ func collectDiskUsage() (err error) {
 		return
 	}
 
-	diskUsageMetric.Set(usedKiloBytes)
+	diskUsageMetric.Add(float64(usedKiloBytes))
 
 	return
+}
+
+func init() {
+	expvar.Publish("service:miner:disk:usage", diskUsageMetric)
 }

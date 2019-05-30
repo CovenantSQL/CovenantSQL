@@ -53,7 +53,6 @@ const (
 	mwMinerChainBlockHeight    = "head:height"
 	mwMinerChainBlockHash      = "head:hash"
 	mwMinerChainBlockTimestamp = "head:timestamp"
-	mwMinerChainRequestsFreq   = "requests:freq"
 	mwMinerChainRequestsCount  = "requests:count"
 )
 
@@ -221,7 +220,6 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	chain.expVars.Set(mwMinerChainBlockHeight, new(expvar.Int))
 	chain.expVars.Set(mwMinerChainBlockHash, new(expvar.String))
 	chain.expVars.Set(mwMinerChainBlockTimestamp, new(expvar.String))
-	chain.expVars.Set(mwMinerChainRequestsFreq, mw.NewGauge("5m1m"))
 	chain.expVars.Set(mwMinerChainRequestsCount, mw.NewCounter("5m1m"))
 
 	chainVars.Set(string(c.DatabaseID), chain.expVars)
@@ -966,7 +964,6 @@ func (c *Chain) Query(
 	// cancelling will be propagated to this context before chain instance stops.
 	// update metrics
 	c.expVars.Get(mwMinerChainRequestsCount).(mw.Metric).Add(1)
-	c.expVars.Get(mwMinerChainRequestsFreq).(mw.Metric).Add(1)
 
 	return c.st.QueryWithContext(req.GetContext(), req, isLeader)
 }

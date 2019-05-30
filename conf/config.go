@@ -207,10 +207,10 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
 	}
 
-	if config.WalletAddress != "" {
+	if len(config.KnownNodes) > 0 {
 		for _, node := range config.KnownNodes {
 			if node.ID == config.ThisNodeID {
-				if node.PublicKey != nil {
+				if config.WalletAddress == "" && node.PublicKey != nil {
 					var walletHash proto.AccountAddress
 
 					if walletHash, err = crypto.PubKeyHash(node.PublicKey); err != nil {
@@ -218,8 +218,13 @@ func LoadConfig(configPath string) (config *Config, err error) {
 					}
 
 					config.WalletAddress = walletHash.String()
+				}
+
+				if config.ExternalListenAddr == "" {
 					config.ExternalListenAddr = node.Addr
 				}
+
+				break
 			}
 		}
 	}

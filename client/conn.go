@@ -159,11 +159,7 @@ func (c *pconn) startAckWorkers(workerCount int) (err error) {
 
 func (c *pconn) stopAckWorkers() {
 	if c.ackCh != nil {
-		select {
-		case <-c.ackCh:
-		default:
-			close(c.ackCh)
-		}
+		close(c.ackCh)
 	}
 }
 

@@ -644,10 +644,12 @@ func (c *Chain) syncHead() (err error) {
 }
 
 // runCurrentTurn does the check and runs block producing if its my turn.
-func (c *Chain) runCurrentTurn(now time.Time) {
+func (c *Chain) runCurrentTurn(now time.Time, d time.Duration) {
+	elapsed := -d
 	h := c.rt.getNextTurn()
 	le := c.logEntryWithHeadState().WithFields(log.Fields{
 		"using_timestamp": now.Format(time.RFC3339Nano),
+		"elapsed_seconds": elapsed.Seconds(),
 	})
 
 	defer func() {
@@ -671,6 +673,10 @@ func (c *Chain) runCurrentTurn(now time.Time) {
 	if !c.rt.isMyTurn() {
 		return
 	}
+	if elapsed+c.rt.tick > c.rt.period {
+		le.Warn("too much time elapsed in the new period, skip this block")
+		return
+	}
 	if err := c.produceBlock(now); err != nil {
 		le.WithError(err).Error("failed to produce block")
 	}
@@ -686,11 +692,12 @@ func (c *Chain) mainCycle(ctx context.Context) {
 		default:
 			if err := c.syncHead(); err != nil {
 				c.logEntry().WithError(err).Error("failed to sync head")
+				continue
 			}
 			if t, d := c.rt.nextTick(); d > 0 {
 				time.Sleep(d)
 			} else {
-				c.runCurrentTurn(t)
+				c.runCurrentTurn(t, d)
 			}
 		}
 	}

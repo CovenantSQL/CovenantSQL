@@ -746,13 +746,6 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		})
 	})
 
-	routineCount := runtime.NumGoroutine()
-	if routineCount > 500 {
-		b.Errorf("go routine count: %d", routineCount)
-	} else {
-		log.Infof("go routine count: %d", routineCount)
-	}
-
 	rowCount := db.QueryRow("SELECT COUNT(1) FROM " + TABLENAME)
 	var count int64
 	err = rowCount.Scan(&count)
@@ -788,13 +781,6 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 		})
 	})
 
-	routineCount = runtime.NumGoroutine()
-	if routineCount > 500 {
-		b.Errorf("go routine count: %d", routineCount)
-	} else {
-		log.Infof("go routine count: %d", routineCount)
-	}
-
 	//row := db.QueryRow("SELECT nonIndexedColumn FROM test LIMIT 1")
 
 	//var result int
@@ -804,6 +790,13 @@ func benchDB(b *testing.B, db *sql.DB, createDB bool) {
 
 	err = db.Close()
 	So(err, ShouldBeNil)
+
+	routineCount := runtime.NumGoroutine()
+	if routineCount > 500 {
+		b.Errorf("go routine count: %d", routineCount)
+	} else {
+		log.Infof("go routine count: %d", routineCount)
+	}
 }
 
 func benchMiner(b *testing.B, minerCount uint16) {

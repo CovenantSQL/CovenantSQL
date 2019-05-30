@@ -34,7 +34,10 @@ import (
 func initServer(cfg *config.Config) (server *http.Server, err error) {
 	e := gin.Default()
 	e.Use(gin.Recovery())
-	e.Use(cors.Default())
+	corsCfg := cors.DefaultConfig()
+	corsCfg.AllowAllOrigins = true
+	corsCfg.AddAllowHeaders("X-CQL-Token")
+	e.Use(cors.New(corsCfg))
 
 	// init admin auth
 	_ = initAuth(e, cfg)

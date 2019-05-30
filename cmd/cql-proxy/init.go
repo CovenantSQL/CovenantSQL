@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/contrib/cors"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	gorp "gopkg.in/gorp.v1"
 

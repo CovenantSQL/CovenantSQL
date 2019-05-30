@@ -361,7 +361,7 @@ create_statement:
     $1.TableSpec = $2
     $$ = $1
   }
-| CREATE constraint_opt INDEX not_exists_opt ID ON table_name ddl_force_eof
+| CREATE constraint_opt INDEX not_exists_opt table_name ON table_name ddl_force_eof
   {
     // Change this to an alter statement
     $$ = &DDL{Action: CreateIndexStr, Table: $7, NewName:$7}

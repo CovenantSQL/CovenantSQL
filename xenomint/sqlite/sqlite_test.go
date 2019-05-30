@@ -60,6 +60,9 @@ func TestStorage(t *testing.T) {
 			_, err = st.Writer().Exec(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`)
 			So(err, ShouldBeNil)
 
+			_, err = st.Writer().Exec(`CREATE INDEX "a.b.c" ON "t1" ("v")`)
+			So(err, ShouldBeNil)
+
 			Convey("Test custom encrypt decrypt func", func() {
 				_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, encrypt(?, "pass", "salt"))`, 0, "v0enc")
 				So(err, ShouldBeNil)

@@ -97,19 +97,38 @@ func initAuth(e *gin.Engine, cfg *config.Config) (authz *auth.AdminAuth) {
 func initSession(e *gin.Engine, cfg *config.Config) {
 	e.Use(func(c *gin.Context) {
 		// load session
-		r := struct {
-			Cookie string `json:"token" form:"token"`
-		}{}
+		var token string
 
-		r.Cookie, _ = c.Cookie("token")
-		_ = c.ShouldBind(&r)
-
-		if r.Cookie != "" {
-			// load
-			if _, err := model.GetAdminSession(c, r.Cookie); err != nil {
-				_ = model.NewEmptySession(c)
+		for i := 0; i != 4; i++ {
+			switch i {
+			case 0:
+				// header
+				token = c.GetHeader("X-CQL-Token")
+			case 1:
+				// cookie
+				token, _ = c.Cookie("token")
+			case 2:
+				// get query
+				token = c.Query("token")
+			case 3:
+				// embed in form
+				r := struct {
+					Token string `json:"token" form:"token"`
+				}{}
+				_ = c.ShouldBind(&r)
+				token = r.Token
 			}
-		} else {
+
+			if token != "" {
+				if _, err := model.GetAdminSession(c, token); err == nil {
+					break
+				} else {
+					token = ""
+				}
+			}
+		}
+
+		if token == "" {
 			_ = model.NewEmptySession(c)
 		}
 

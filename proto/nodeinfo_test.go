@@ -21,10 +21,42 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
+
+func TestAccountAddress_DatabaseID(t *testing.T) {
+	target := []string{
+		"1224a1e9f72eb00d08afa4030dc642edefb6e3249aafe20cf1a5f9d46d0c0bbe",
+		"5b0b8fd3b0700bd0858f3d61ff0a1b621dbbeb2013a3aab5df2885dc10ccf6ce",
+		"b90f502d8aa95573cdc3c50ea1552aa1c163b567980e2555fe84cfd1d5e78765",
+	}
+
+	Convey("DatabaseID Convert", t, func() {
+		for i := range target {
+			dbID := DatabaseID(target[i])
+			a, err := dbID.AccountAddress()
+			So(err, ShouldBeNil)
+			d := a.DatabaseID()
+			So(d, ShouldEqual, dbID)
+			So(string(d), ShouldEqual, target[i])
+		}
+	})
+
+	Convey("AccountAddress JSON Convert", t, func() {
+		for i := range target {
+			var a AccountAddress
+			dbIDJson := []byte("\"" + target[i] + "\"")
+			err := a.UnmarshalJSON(dbIDJson)
+			So(err, ShouldBeNil)
+			d := a.DatabaseID()
+			So(string(d), ShouldEqual, target[i])
+		}
+	})
+
+}
 
 func TestNode_InitNodeCryptoInfo(t *testing.T) {
 	Convey("InitNodeCryptoInfo", t, func() {
@@ -77,7 +109,7 @@ func TestServerRoles_Contains(t *testing.T) {
 	})
 }
 
-func unmarshalAndMarshal(str string) string {
+func unmarshalAndMarshalServerRole(str string) string {
 	var role ServerRole
 	yaml.Unmarshal([]byte(str), &role)
 	ret, _ := yaml.Marshal(role)
@@ -85,16 +117,31 @@ func unmarshalAndMarshal(str string) string {
 	return strings.TrimSpace(string(ret))
 }
 
+func unmarshalAndMarshalAccountAddress(str string) string {
+	var addr AccountAddress
+	yaml.Unmarshal([]byte(str), &addr)
+	ret, _ := yaml.Marshal(addr)
+
+	return strings.TrimSpace(string(ret))
+}
+
+func TestAccountAddress_MarshalYAML(t *testing.T) {
+	Convey("marshal unmarshal yaml", t, func() {
+		So(unmarshalAndMarshalAccountAddress("6d5e7b36f5fa83d538539f31cf46682b0df3e0ecd192f2331dcf73e7e5ab5686"),
+			ShouldEqual, "6d5e7b36f5fa83d538539f31cf46682b0df3e0ecd192f2331dcf73e7e5ab5686")
+	})
+}
+
 func TestServerRole_MarshalYAML(t *testing.T) {
 	Convey("marshal unmarshal yaml", t, func() {
 		var role ServerRole
 		s, _ := role.MarshalYAML()
 		So(s, ShouldResemble, "Unknown")
-		So(unmarshalAndMarshal("unknown"), ShouldEqual, "Unknown")
-		So(unmarshalAndMarshal("leader"), ShouldEqual, "Leader")
-		So(unmarshalAndMarshal("follower"), ShouldEqual, "Follower")
-		So(unmarshalAndMarshal("miner"), ShouldEqual, "Miner")
-		So(unmarshalAndMarshal("client"), ShouldEqual, "Client")
+		So(unmarshalAndMarshalServerRole("unknown"), ShouldEqual, "Unknown")
+		So(unmarshalAndMarshalServerRole("leader"), ShouldEqual, "Leader")
+		So(unmarshalAndMarshalServerRole("follower"), ShouldEqual, "Follower")
+		So(unmarshalAndMarshalServerRole("miner"), ShouldEqual, "Miner")
+		So(unmarshalAndMarshalServerRole("client"), ShouldEqual, "Client")
 	})
 }
 

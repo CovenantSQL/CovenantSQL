@@ -36,13 +36,11 @@ package main
 import (
 	"fmt"
 	"strings"
-
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // BlockSize is the size of each data block. It must not
 // change throughout the lifetime of the filesystem.
-const BlockSize = 4 << 10 // 4KB
+const BlockSize = 128 << 10 // 128KB
 
 func min(a, b uint64) uint64 {
 	if a < b {
@@ -53,7 +51,7 @@ func min(a, b uint64) uint64 {
 
 // blockRange describes a range of blocks.
 // If the first and last block are the same, the effective data range
-// will be: [startOffset, lastLength)
+// will be: [startOffset, lastLength).
 type blockRange struct {
 	start       int    // index of the start block
 	startOffset uint64 // starting offset within the first block
@@ -341,7 +339,6 @@ func write(e sqlExecutor, inodeID, originalSize, offset uint64, data []byte) err
 	}
 
 	insStmt := fmt.Sprintf(`INSERT INTO fs_block VALUES %s`, strings.Join(paramStrings, ","))
-	log.Warn(insStmt, params)
 	if _, err := e.Exec(insStmt, params...); err != nil {
 		return err
 	}

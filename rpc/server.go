@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,43 +17,57 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/rpc"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
+	"github.com/CovenantSQL/CovenantSQL/naconn"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	mux "github.com/xtaci/smux"
 )
 
-// ServiceMap maps service name to service instance
+// ServiceMap maps service name to service instance.
 type ServiceMap map[string]interface{}
 
-// Server is the RPC server struct
+// AcceptConn defines the function type which accepts a raw connetion as a specific type
+// of connection.
+type AcceptConn func(ctx context.Context, conn net.Conn) (net.Conn, error)
+
+// ServeStream defines the data stream serving function type which serves RPC at the given
+// io.ReadWriteCloser.
+type ServeStream func(
+	ctx context.Context, server *rpc.Server, stream io.ReadWriteCloser, remote *proto.RawNodeID,
+)
+
+// Server is the RPC server struct.
 type Server struct {
-	rpcServer  *rpc.Server
-	stopCh     chan interface{}
-	serviceMap ServiceMap
-	Listener   net.Listener
+	ctx         context.Context
+	cancel      context.CancelFunc
+	rpcServer   *rpc.Server
+	acceptConn  AcceptConn
+	serveStream ServeStream
+	Listener    net.Listener
 }
 
-// NewServer return a new Server
-func NewServer() *Server {
+// NewServerWithServeFunc return a new Server.
+func NewServerWithServeFunc(f ServeStream) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		rpcServer:  rpc.NewServer(),
-		stopCh:     make(chan interface{}),
-		serviceMap: make(ServiceMap),
+		ctx:         ctx,
+		cancel:      cancel,
+		rpcServer:   rpc.NewServer(),
+		acceptConn:  AcceptNAConn,
+		serveStream: f,
 	}
 }
 
 // InitRPCServer load the private key, init the crypto transfer layer and register RPC
 // services.
-// IF ANY ERROR returned, please raise a FATAL
+// IF ANY ERROR returned, please raise a FATAL.
 func (s *Server) InitRPCServer(
 	addr string,
 	privateKeyPath string,
@@ -63,13 +77,13 @@ func (s *Server) InitRPCServer(
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
-		log.WithError(err).Error("init local key pair failed")
+		err = errors.Wrap(err, "init local key pair failed")
 		return
 	}
 
-	l, err := etls.NewCryptoListener("tcp", addr, handleCipher)
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.WithError(err).Error("create crypto listener failed")
+		err = errors.Wrap(err, "create crypto listener failed")
 		return
 	}
 
@@ -78,121 +92,59 @@ func (s *Server) InitRPCServer(
 	return
 }
 
-// NewServerWithService also return a new Server, and also register the Server.ServiceMap
-func NewServerWithService(serviceMap ServiceMap) (server *Server, err error) {
-	server = NewServer()
-	for k, v := range serviceMap {
-		err = server.RegisterService(k, v)
-		if err != nil {
-			log.Fatal(err)
-			return nil, err
-		}
-	}
-	return server, nil
-}
-
-// SetListener set the service loop listener, used by func Serve main loop
+// SetListener set the service loop listener, used by func Serve main loop.
 func (s *Server) SetListener(l net.Listener) {
 	s.Listener = l
 }
 
-// Serve start the Server main loop,
+// Serve start the Server main loop,.
 func (s *Server) Serve() {
 serverLoop:
 	for {
 		select {
-		case <-s.stopCh:
-			log.Info("Stopping Server Loop")
+		case <-s.ctx.Done():
+			log.Info("stopping Server Loop")
 			break serverLoop
 		default:
 			conn, err := s.Listener.Accept()
 			if err != nil {
 				continue
 			}
-			go s.handleConn(conn)
+			log.WithField("remote", conn.RemoteAddr().String()).Info("accept")
+			go s.serveConn(conn)
 		}
 	}
 }
 
-// handleConn do all the work
-func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
-
-	// remote remoteNodeID connection awareness
-	var remoteNodeID *proto.RawNodeID
-
-	if c, ok := conn.(*etls.CryptoConn); ok {
-		// set node id
-		remoteNodeID = c.NodeID
-	}
-
-	sess, err := mux.Server(conn, YamuxConfig)
+func (s *Server) serveConn(conn net.Conn) {
+	le := log.WithField("remote_addr", conn.RemoteAddr())
+	stream, err := s.acceptConn(s.ctx, conn)
 	if err != nil {
-		log.Error(err)
+		le.WithError(err).Error("failed to accept conn")
 		return
 	}
-	defer sess.Close()
-
-sessionLoop:
-	for {
-		select {
-		case <-s.stopCh:
-			log.Info("Stopping Session Loop")
-			break sessionLoop
-		default:
-			muxConn, err := sess.AcceptStream()
-			if err != nil {
-				if err == io.EOF {
-					log.WithField("remote", remoteNodeID).Debug("session connection closed")
-				} else {
-					log.WithField("remote", remoteNodeID).WithError(err).Error("session accept failed")
-				}
-				break sessionLoop
-			}
-			nodeAwareCodec := NewNodeAwareServerCodec(utils.GetMsgPackServerCodec(muxConn), remoteNodeID)
-			go s.rpcServer.ServeCodec(nodeAwareCodec)
-		}
+	defer func() { _ = stream.Close() }()
+	// Acquire remote node id if it's a naconn.Remoter conn
+	var remote *proto.RawNodeID
+	if remoter, ok := stream.(naconn.Remoter); ok {
+		id := remoter.Remote()
+		remote = &id
+		le = le.WithField("remote_node", id)
 	}
+	le.Debug("accept server conn")
+	// Serve data stream
+	s.serveStream(s.ctx, s.rpcServer, stream, remote)
 }
 
-// RegisterService with a Service name, used by Client RPC
+// RegisterService registers service with a Service name, used by Client RPC.
 func (s *Server) RegisterService(name string, service interface{}) error {
 	return s.rpcServer.RegisterName(name, service)
 }
 
-// Stop Server main loop
+// Stop Server main loop.
 func (s *Server) Stop() {
 	if s.Listener != nil {
-		s.Listener.Close()
+		_ = s.Listener.Close()
 	}
-	close(s.stopCh)
-}
-
-func handleCipher(conn net.Conn) (cryptoConn *etls.CryptoConn, err error) {
-	// NodeID + Uint256 Nonce
-	headerBuf := make([]byte, hash.HashBSize+32)
-	rCount, err := conn.Read(headerBuf)
-	if err != nil || rCount != hash.HashBSize+32 {
-		log.WithError(err).Error("read node header error")
-		return
-	}
-
-	// headerBuf len is hash.HashBSize, so there won't be any error
-	idHash, _ := hash.NewHash(headerBuf[:hash.HashBSize])
-	rawNodeID := &proto.RawNodeID{Hash: *idHash}
-	// TODO(auxten): compute the nonce and check difficulty
-	cpuminer.Uint256FromBytes(headerBuf[hash.HashBSize:])
-
-	symmetricKey, err := GetSharedSecretWith(
-		rawNodeID,
-		rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash),
-	)
-	if err != nil {
-		log.WithField("target", rawNodeID.String()).WithError(err).Error("get shared secret")
-		return
-	}
-	cipher := etls.NewCipher(symmetricKey)
-	cryptoConn = etls.NewConn(conn, cipher, rawNodeID)
-
-	return
+	s.cancel()
 }

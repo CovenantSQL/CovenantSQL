@@ -17,35 +17,17 @@
 package xenomint
 
 import (
+	"database/sql"
+	"time"
+
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
-	xt "github.com/CovenantSQL/CovenantSQL/xenomint/types"
 )
-
-const (
-	inCommandBufferLength  = 100000
-	outCommandBufferLength = 100000
-)
-
-type applyRequest struct {
-	request  *types.Request
-	response *types.Response
-}
-
-type blockNode struct {
-	parent *blockNode
-	// Cached block fields
-	hash   hash.Hash
-	count  int32
-	height int32
-	// Cached block object, may be nil
-	block *xt.Block
-}
 
 // Chain defines the xenomint chain structure.
 type Chain struct {
@@ -57,9 +39,8 @@ type Chain struct {
 // NewChain returns new chain instance.
 func NewChain(filename string) (c *Chain, err error) {
 	var (
-		strg  xi.Storage
-		state *State
-		priv  *ca.PrivateKey
+		strg xi.Storage
+		priv *ca.PrivateKey
 	)
 	// generate empty nodeId
 	nodeID := proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000")
@@ -68,14 +49,11 @@ func NewChain(filename string) (c *Chain, err error) {
 	if strg, err = xs.NewSqlite(filename); err != nil {
 		return
 	}
-	if state, err = NewState(nodeID, strg); err != nil {
-		return
-	}
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
 		return
 	}
 	c = &Chain{
-		state: state,
+		state: NewState(sql.LevelReadUncommitted, nodeID, strg),
 		priv:  priv,
 	}
 	return
@@ -83,14 +61,35 @@ func NewChain(filename string) (c *Chain, err error) {
 
 // Query queries req from local chain state and returns the query results in resp.
 func (c *Chain) Query(req *types.Request) (resp *types.Response, err error) {
-	var ref *QueryTracker
-	if ref, resp, err = c.state.Query(req); err != nil {
+	var (
+		ref   *QueryTracker
+		start = time.Now()
+
+		queried, signed, updated time.Duration
+	)
+	defer func() {
+		var fields = log.Fields{}
+		if queried > 0 {
+			fields["1#queried"] = float64(queried.Nanoseconds()) / 1000
+		}
+		if signed > 0 {
+			fields["2#signed"] = float64((signed - queried).Nanoseconds()) / 1000
+		}
+		if updated > 0 {
+			fields["3#updated"] = float64((updated - signed).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("Chain.Query duration stat (us)")
+	}()
+	if ref, resp, err = c.state.Query(req, true); err != nil {
 		return
 	}
-	if err = resp.Sign(c.priv); err != nil {
+	queried = time.Since(start)
+	if err = resp.BuildHash(); err != nil {
 		return
 	}
+	signed = time.Since(start)
 	ref.UpdateResp(resp)
+	updated = time.Since(start)
 	return
 }
 

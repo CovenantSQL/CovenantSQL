@@ -19,75 +19,83 @@ package blockproducer
 import (
 	"math"
 	"os"
-	"path"
+	"sync"
 	"testing"
 
-	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/coreos/bbolt"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func TestMetaState(t *testing.T) {
 	Convey("Given a new metaState object and a persistence db instance", t, func() {
 		var (
-			ao      *accountObject
-			co      *sqlchainObject
-			bl      uint64
-			loaded  bool
-			addr1   = proto.AccountAddress{0x0, 0x0, 0x0, 0x1}
-			addr2   = proto.AccountAddress{0x0, 0x0, 0x0, 0x2}
-			addr3   = proto.AccountAddress{0x0, 0x0, 0x0, 0x3}
-			dbid1   = proto.DatabaseID("db#1")
-			dbid2   = proto.DatabaseID("db#2")
-			dbid3   = proto.DatabaseID("db#3")
-			ms      = newMetaState()
-			fl      = path.Join(testDataDir, t.Name())
-			db, err = bolt.Open(fl, 0600, nil)
+			ao       *types.Account
+			co       *types.SQLChainProfile
+			po       *types.ProviderProfile
+			bl       uint64
+			loaded   bool
+			err      error
+			privKey1 *asymmetric.PrivateKey
+			privKey2 *asymmetric.PrivateKey
+			privKey3 *asymmetric.PrivateKey
+			privKey4 *asymmetric.PrivateKey
+			addr1    proto.AccountAddress
+			addr2    proto.AccountAddress
+			addr3    proto.AccountAddress
+			addr4    proto.AccountAddress
+			dbID1    = proto.DatabaseID("db#1")
+			dbID2    = proto.DatabaseID("db#2")
+			dbID3    = proto.DatabaseID("db#3")
+			ms       = newMetaState()
 		)
 		So(err, ShouldBeNil)
-		Reset(func() {
-			// Clean database file after each pass
-			err = db.Close()
-			So(err, ShouldBeNil)
-			err = os.Truncate(fl, 0)
-			So(err, ShouldBeNil)
-		})
-		err = db.Update(func(tx *bolt.Tx) (err error) {
-			var meta, txbk *bolt.Bucket
-			if meta, err = tx.CreateBucket(metaBucket[:]); err != nil {
-				return
-			}
-			if _, err = meta.CreateBucket(metaAccountIndexBucket); err != nil {
-				return
-			}
-			if _, err = meta.CreateBucket(metaSQLChainIndexBucket); err != nil {
-				return
-			}
-			if txbk, err = meta.CreateBucket(metaTransactionBucket); err != nil {
-				return
-			}
-			for i := pi.TransactionType(0); i < pi.TransactionTypeNumber; i++ {
-				if _, err = txbk.CreateBucket(i.Bytes()); err != nil {
-					return
-				}
-			}
-			return
-		})
+
+		// Create key pairs and addresses for test
+		privKey1, _, err = asymmetric.GenSecp256k1KeyPair()
 		So(err, ShouldBeNil)
+		privKey2, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		privKey3, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		privKey4, _, err = asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		addr1, err = crypto.PubKeyHash(privKey1.PubKey())
+		So(err, ShouldBeNil)
+		addr2, err = crypto.PubKeyHash(privKey2.PubKey())
+		So(err, ShouldBeNil)
+		addr3, err = crypto.PubKeyHash(privKey3.PubKey())
+		So(err, ShouldBeNil)
+		addr4, err = crypto.PubKeyHash(privKey4.PubKey())
+		So(err, ShouldBeNil)
+
 		Convey("The account state should be empty", func() {
 			ao, loaded = ms.loadAccountObject(addr1)
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			bl, loaded = ms.loadAccountStableBalance(addr1)
+			bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 			So(loaded, ShouldBeFalse)
-			bl, loaded = ms.loadAccountCovenantBalance(addr1)
+			bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The database state should be empty", func() {
-			co, loaded = ms.loadSQLChainObject(dbid1)
+			co, loaded = ms.loadSQLChainObject(dbID1)
 			So(co, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+		})
+		Convey("The provider state should be empty", func() {
+			po, loaded = ms.loadProviderObject(addr1)
+			So(po, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
 		})
 		Convey("The nonce state should be empty", func() {
@@ -97,40 +105,36 @@ func TestMetaState(t *testing.T) {
 			So(err, ShouldEqual, ErrAccountNotFound)
 		})
 		Convey("The metaState should failed to operate SQLChain for unknown user", func() {
-			err = ms.createSQLChain(addr1, dbid1)
+			err = ms.createSQLChain(addr1, dbID1)
 			So(err, ShouldEqual, ErrAccountNotFound)
-			err = ms.addSQLChainUser(dbid1, addr1, pt.Admin)
+			err = ms.addSQLChainUser(dbID1, addr1, types.UserPermissionFromRole(types.Admin))
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.deleteSQLChainUser(dbid1, addr1)
+			err = ms.deleteSQLChainUser(dbID1, addr1)
 			So(err, ShouldEqual, ErrDatabaseNotFound)
-			err = ms.alterSQLChainUser(dbid1, addr1, pt.ReadWrite)
+			err = ms.alterSQLChainUser(dbID1, addr1, types.UserPermissionFromRole(types.Write))
 			So(err, ShouldEqual, ErrDatabaseNotFound)
 		})
 		Convey("When new account and database objects are stored", func() {
-			ao, loaded = ms.loadOrStoreAccountObject(addr1, &accountObject{
-				Account: pt.Account{
-					Address: addr1,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr1, &types.Account{Address: addr1})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			ao, loaded = ms.loadOrStoreAccountObject(addr2, &accountObject{
-				Account: pt.Account{
-					Address: addr2,
-				},
-			})
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
 			So(ao, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid1, &sqlchainObject{
-				SQLChainProfile: pt.SQLChainProfile{
-					ID: dbid1,
+			co, loaded = ms.loadOrStoreSQLChainObject(dbID1, &types.SQLChainProfile{
+				ID: dbID1,
+				Miners: []*types.MinerInfo{
+					&types.MinerInfo{Address: addr1},
+					&types.MinerInfo{Address: addr2},
 				},
 			})
 			So(co, ShouldBeNil)
 			So(loaded, ShouldBeFalse)
-			co, loaded = ms.loadOrStoreSQLChainObject(dbid2, &sqlchainObject{
-				SQLChainProfile: pt.SQLChainProfile{
-					ID: dbid2,
+			co, loaded = ms.loadOrStoreSQLChainObject(dbID2, &types.SQLChainProfile{
+				ID: dbID2,
+				Miners: []*types.MinerInfo{
+					&types.MinerInfo{Address: addr2},
+					&types.MinerInfo{Address: addr3},
 				},
 			})
 			So(co, ShouldBeNil)
@@ -144,73 +148,80 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(ao, ShouldNotBeNil)
 				So(ao.Address, ShouldEqual, addr1)
-				co, loaded = ms.loadSQLChainObject(dbid1)
+				co, loaded = ms.loadSQLChainObject(dbID1)
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
-				So(co.ID, ShouldEqual, dbid1)
-				co, loaded = ms.loadOrStoreSQLChainObject(dbid1, nil)
+				So(co.ID, ShouldEqual, dbID1)
+				co, loaded = ms.loadOrStoreSQLChainObject(dbID1, nil)
 				So(loaded, ShouldBeTrue)
 				So(co, ShouldNotBeNil)
-				So(co.ID, ShouldEqual, dbid1)
-				bl, loaded = ms.loadAccountStableBalance(addr1)
+				So(co.ID, ShouldEqual, dbID1)
+				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 0)
-				bl, loaded = ms.loadAccountCovenantBalance(addr1)
+				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 				So(loaded, ShouldBeTrue)
 				So(bl, ShouldEqual, 0)
 			})
 			Convey("When new SQLChain is created", func() {
-				err = ms.createSQLChain(addr1, dbid3)
+				err = ms.createSQLChain(addr1, dbID3)
 				So(err, ShouldBeNil)
 				Convey("The metaState object should report database exists", func() {
-					err = ms.createSQLChain(addr1, dbid3)
+					err = ms.createSQLChain(addr1, dbID3)
 					So(err, ShouldEqual, ErrDatabaseExists)
 				})
 				Convey("When new SQLChain users are added", func() {
-					err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+					err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 					So(err, ShouldBeNil)
-					err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+					err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 					So(err, ShouldEqual, ErrDatabaseUserExists)
 					Convey("The metaState object should be ok to delete user", func() {
-						err = ms.deleteSQLChainUser(dbid3, addr2)
+						err = ms.deleteSQLChainUser(dbID3, addr2)
 						So(err, ShouldBeNil)
-						err = ms.deleteSQLChainUser(dbid3, addr2)
+						err = ms.deleteSQLChainUser(dbID3, addr2)
 						So(err, ShouldBeNil)
 					})
 					Convey("The metaState object should be ok to alter user", func() {
-						err = ms.alterSQLChainUser(dbid3, addr2, pt.Read)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Read))
 						So(err, ShouldBeNil)
-						err = ms.alterSQLChainUser(dbid3, addr2, pt.ReadWrite)
+						err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldBeNil)
 					})
 					Convey("When metaState change is committed", func() {
-						err = db.Update(ms.commitProcedure())
-						So(err, ShouldBeNil)
+						ms.commit()
+						Convey("The metaState object should return correct db list", func() {
+							var dbs []*types.SQLChainProfile
+							dbs = ms.loadROSQLChains(addr1)
+							So(len(dbs), ShouldEqual, 1)
+							dbs = ms.loadROSQLChains(addr2)
+							So(len(dbs), ShouldEqual, 2)
+							dbs = ms.loadROSQLChains(addr4)
+							So(dbs, ShouldBeEmpty)
+						})
 						Convey("The metaState object should be ok to delete user", func() {
-							err = ms.deleteSQLChainUser(dbid3, addr2)
+							err = ms.deleteSQLChainUser(dbID3, addr2)
 							So(err, ShouldBeNil)
-							err = ms.deleteSQLChainUser(dbid3, addr2)
+							err = ms.deleteSQLChainUser(dbID3, addr2)
 							So(err, ShouldBeNil)
 						})
 						Convey("The metaState object should be ok to alter user", func() {
-							err = ms.alterSQLChainUser(dbid3, addr2, pt.Read)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Read))
 							So(err, ShouldBeNil)
-							err = ms.alterSQLChainUser(dbid3, addr2, pt.ReadWrite)
+							err = ms.alterSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 							So(err, ShouldBeNil)
 						})
 					})
 				})
 				Convey("When metaState change is committed", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldBeNil)
+					ms.commit()
 					Convey("The metaState object should be ok to add users for database", func() {
-						err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+						err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldBeNil)
-						err = ms.addSQLChainUser(dbid3, addr2, pt.ReadWrite)
+						err = ms.addSQLChainUser(dbID3, addr2, types.UserPermissionFromRole(types.Write))
 						So(err, ShouldEqual, ErrDatabaseUserExists)
 					})
 					Convey("The metaState object should report database exists", func() {
-						err = ms.createSQLChain(addr1, dbid3)
+						err = ms.createSQLChain(addr1, dbID3)
 						So(err, ShouldEqual, ErrDatabaseExists)
 					})
 				})
@@ -223,7 +234,7 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeFalse)
 				})
 				Convey("The database state should be empty", func() {
-					co, loaded = ms.loadSQLChainObject(dbid1)
+					co, loaded = ms.loadSQLChainObject(dbID1)
 					So(co, ShouldBeNil)
 					So(loaded, ShouldBeFalse)
 				})
@@ -262,12 +273,12 @@ func TestMetaState(t *testing.T) {
 					So(loaded, ShouldBeTrue)
 					So(ao, ShouldNotBeNil)
 					So(ao.Address, ShouldEqual, addr1)
-					So(ao.StableCoinBalance, ShouldEqual, incSta)
-					So(ao.CovenantCoinBalance, ShouldEqual, incCov)
-					bl, loaded = ms.loadAccountStableBalance(addr1)
+					So(ao.TokenBalance[types.Particle], ShouldEqual, incSta)
+					So(ao.TokenBalance[types.Wave], ShouldEqual, incCov)
+					bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, incSta)
-					bl, loaded = ms.loadAccountCovenantBalance(addr1)
+					bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 					So(loaded, ShouldBeTrue)
 					So(bl, ShouldEqual, incCov)
 				})
@@ -283,21 +294,20 @@ func TestMetaState(t *testing.T) {
 							So(loaded, ShouldBeTrue)
 							So(ao, ShouldNotBeNil)
 							So(ao.Address, ShouldEqual, addr1)
-							So(ao.StableCoinBalance, ShouldEqual, incSta-decSta)
-							So(ao.CovenantCoinBalance, ShouldEqual, incCov-decCov)
+							So(ao.TokenBalance[types.Particle], ShouldEqual, incSta-decSta)
+							So(ao.TokenBalance[types.Wave], ShouldEqual, incCov-decCov)
 						},
 					)
 				})
 				Convey("When metaState changes are committed", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldBeNil)
+					ms.commit()
 					Convey(
 						"The account balance should be kept correctly in account object",
 						func() {
-							bl, loaded = ms.loadAccountStableBalance(addr1)
+							bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 							So(loaded, ShouldBeTrue)
 							So(bl, ShouldEqual, incSta)
-							bl, loaded = ms.loadAccountCovenantBalance(addr1)
+							bl, loaded = ms.loadAccountTokenBalance(addr1, types.Wave)
 							So(loaded, ShouldBeTrue)
 							So(bl, ShouldEqual, incCov)
 						},
@@ -306,7 +316,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance increased",
 						func() {
 							err = ms.increaseAccountStableBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.increaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -315,7 +325,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance decreased",
 						func() {
 							err = ms.decreaseAccountStableBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.decreaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -324,7 +334,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance increased",
 						func() {
 							err = ms.increaseAccountCovenantBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.increaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -333,7 +343,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance decreased",
 						func() {
 							err = ms.decreaseAccountCovenantBalance(addr3, 1)
-							So(err, ShouldEqual, ErrAccountNotFound)
+							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
 							err = ms.decreaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -341,18 +351,95 @@ func TestMetaState(t *testing.T) {
 					Convey(
 						"The metaState should copy object when stable balance transferred",
 						func() {
-							err = ms.transferAccountStableBalance(addr1, addr3, incSta+1)
-							So(err, ShouldEqual, ErrInsufficientBalance)
-							err = ms.transferAccountStableBalance(addr1, addr3, 1)
+							tran1 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr1,
+									Receiver:  addr2,
+									Amount:    incSta + 1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran1.Sign(privKey1)
 							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran1)
+							So(err, ShouldEqual, ErrInsufficientBalance)
+							tran2 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr1,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran2.Sign(privKey1)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran2)
+							So(err, ShouldBeNil)
+							ms.commit()
+
 							err = ms.increaseAccountStableBalance(addr2, math.MaxUint64)
 							So(err, ShouldBeNil)
-							err = db.Update(ms.commitProcedure())
+
+							ms.commit()
+
+							tran3 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr1,
+									Amount:    math.MaxUint64,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran3.Sign(privKey2)
 							So(err, ShouldBeNil)
-							err = ms.transferAccountStableBalance(addr2, addr1, math.MaxUint64)
+							err = ms.transferAccountToken(tran3)
 							So(err, ShouldEqual, ErrBalanceOverflow)
-							err = ms.transferAccountStableBalance(addr2, addr3, 1)
+
+							tran4 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran4.Sign(privKey2)
 							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran4)
+							So(err, ShouldBeNil)
+							ms.commit()
+
+							// wrong private sign test
+							tran5 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = tran5.Sign(privKey3)
+							So(err, ShouldBeNil)
+							err = ms.transferAccountToken(tran5)
+							So(err, ShouldNotBeNil)
+
+							// nil sign test
+							tran6 := &types.Transfer{
+								TransferHeader: types.TransferHeader{
+									Sender:    addr2,
+									Receiver:  addr3,
+									Amount:    1,
+									TokenType: types.Particle,
+									Nonce:     1,
+								},
+							}
+							err = ms.transferAccountToken(tran6)
+							So(err, ShouldNotBeNil)
 						},
 					)
 					Convey(
@@ -364,277 +451,76 @@ func TestMetaState(t *testing.T) {
 					)
 				})
 			})
-			Convey("When a new account key slot is overwritten", func() {
-				err = db.Update(func(tx *bolt.Tx) (err error) {
-					var bucket = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-					if err = bucket.Delete(addr1[:]); err != nil {
-						return
-					}
-					if _, err = bucket.CreateBucket(addr1[:]); err != nil {
-						return
-					}
-					return
-				})
-				So(err, ShouldBeNil)
-				Convey("The reloadProcedure should report error", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldNotBeNil)
-				})
-			})
-			Convey("When a new database key slot is overwritten", func() {
-				err = db.Update(func(tx *bolt.Tx) (err error) {
-					var bucket = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-					if err = bucket.Delete([]byte(dbid1)); err != nil {
-						return
-					}
-					if _, err = bucket.CreateBucket([]byte(dbid1)); err != nil {
-						return
-					}
-					return
-				})
-				So(err, ShouldBeNil)
-				Convey("The reloadProcedure should report error", func() {
-					err = db.Update(ms.commitProcedure())
-					So(err, ShouldNotBeNil)
-				})
-			})
 			Convey("When metaState changes are committed", func() {
-				err = db.Update(ms.commitProcedure())
-				So(err, ShouldBeNil)
+				ms.commit()
 				Convey("The cached object should be retrievable from readonly map", func() {
 					var loaded bool
 					_, loaded = ms.loadAccountObject(addr1)
 					So(loaded, ShouldBeTrue)
 					_, loaded = ms.loadOrStoreAccountObject(addr1, nil)
 					So(loaded, ShouldBeTrue)
-					_, loaded = ms.loadSQLChainObject(dbid1)
+					_, loaded = ms.loadSQLChainObject(dbID1)
 					So(loaded, ShouldBeTrue)
-					_, loaded = ms.loadOrStoreSQLChainObject(dbid2, nil)
+					_, loaded = ms.loadOrStoreSQLChainObject(dbID2, nil)
 					So(loaded, ShouldBeTrue)
-				})
-				Convey("The metaState should be reproducible from the persistence db", func() {
-					var (
-						oa1, oa2, ra1, ra2 *accountObject
-						oc1, oc2, rc1, rc2 *sqlchainObject
-						loaded             bool
-						rms                = newMetaState()
-						err                = db.View(rms.reloadProcedure())
-					)
-					So(err, ShouldBeNil)
-					oa1, loaded = ms.loadAccountObject(addr1)
-					So(loaded, ShouldBeTrue)
-					So(oa1, ShouldNotBeNil)
-					oa2, loaded = ms.loadAccountObject(addr2)
-					So(loaded, ShouldBeTrue)
-					So(oa2, ShouldNotBeNil)
-					ra1, loaded = rms.loadAccountObject(addr1)
-					So(loaded, ShouldBeTrue)
-					So(ra1, ShouldNotBeNil)
-					ra2, loaded = rms.loadAccountObject(addr2)
-					So(loaded, ShouldBeTrue)
-					So(ra2, ShouldNotBeNil)
-					So(&oa1.Account, ShouldResemble, &ra1.Account)
-					So(&oa2.Account, ShouldResemble, &ra2.Account)
-					oc1, loaded = ms.loadSQLChainObject(dbid1)
-					So(loaded, ShouldBeTrue)
-					So(oc1, ShouldNotBeNil)
-					oc2, loaded = ms.loadSQLChainObject(dbid2)
-					So(loaded, ShouldBeTrue)
-					So(oc2, ShouldNotBeNil)
-					rc1, loaded = rms.loadSQLChainObject(dbid1)
-					So(loaded, ShouldBeTrue)
-					So(rc1, ShouldNotBeNil)
-					rc2, loaded = rms.loadSQLChainObject(dbid2)
-					So(loaded, ShouldBeTrue)
-					So(rc2, ShouldNotBeNil)
-					So(&oc1.SQLChainProfile, ShouldResemble, &rc1.SQLChainProfile)
-					So(&oc2.SQLChainProfile, ShouldResemble, &rc2.SQLChainProfile)
-				})
-				Convey("When the some accountObject is corrupted", func() {
-					err = db.Update(func(tx *bolt.Tx) (err error) {
-						return tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket).Put(
-							addr1[:], []byte{0x1, 0x2, 0x3, 0x4a},
-						)
-					})
-					So(err, ShouldBeNil)
-					Convey("The reloadProcedure should report error", func() {
-						var (
-							rms = newMetaState()
-							err = db.View(rms.reloadProcedure())
-						)
-						So(err, ShouldNotBeNil)
-					})
-				})
-				Convey("When the some sqlchainObject is corrupted", func() {
-					err = db.Update(func(tx *bolt.Tx) (err error) {
-						return tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket).Put(
-							[]byte(dbid1), []byte{0x1, 0x2, 0x3, 0x4a},
-						)
-					})
-					So(err, ShouldBeNil)
-					Convey("The reloadProcedure should report error", func() {
-						var (
-							rms = newMetaState()
-							err = db.View(rms.reloadProcedure())
-						)
-						So(err, ShouldNotBeNil)
-					})
 				})
 				Convey("When some objects are deleted", func() {
 					ms.deleteAccountObject(addr1)
-					ms.deleteSQLChainObject(dbid1)
+					ms.deleteSQLChainObject(dbID1)
 					Convey("The dirty map should return deleted states of these objects", func() {
 						_, loaded = ms.loadAccountObject(addr1)
 						So(loaded, ShouldBeFalse)
-						_, loaded = ms.loadSQLChainObject(dbid1)
+						_, loaded = ms.loadSQLChainObject(dbID1)
 						So(loaded, ShouldBeFalse)
-					})
-					Convey("When the deleted account key slot is overwritten", func() {
-						err = db.Update(func(tx *bolt.Tx) (err error) {
-							var bucket = tx.Bucket(metaBucket[:]).Bucket(metaAccountIndexBucket)
-							if err = bucket.Delete(addr1[:]); err != nil {
-								return
-							}
-							if _, err = bucket.CreateBucket(addr1[:]); err != nil {
-								return
-							}
-							return
-						})
-						So(err, ShouldBeNil)
-						Convey("The commitProcedure should report error", func() {
-							var err = db.Update(ms.commitProcedure())
-							So(err, ShouldNotBeNil)
-						})
-					})
-					Convey("When the deleted database key slot is overwritten", func() {
-						err = db.Update(func(tx *bolt.Tx) (err error) {
-							var bucket = tx.Bucket(metaBucket[:]).Bucket(metaSQLChainIndexBucket)
-							if err = bucket.Delete([]byte(dbid1)); err != nil {
-								return
-							}
-							if _, err = bucket.CreateBucket([]byte(dbid1)); err != nil {
-								return
-							}
-							return
-						})
-						So(err, ShouldBeNil)
-						Convey("The commitProcedure should report error", func() {
-							var err = db.Update(ms.commitProcedure())
-							So(err, ShouldNotBeNil)
-						})
-					})
-					Convey("When metaState changes are committed again", func() {
-						err = db.Update(ms.commitProcedure())
-						So(err, ShouldBeNil)
-						Convey(
-							"The metaState should also be reproducible from the persistence db",
-							func() {
-								var (
-									rms                = newMetaState()
-									err                = db.View(rms.reloadProcedure())
-									oa1, oa2, ra1, ra2 *accountObject
-									oc1, oc2, rc1, rc2 *sqlchainObject
-									loaded             bool
-								)
-								So(err, ShouldBeNil)
-								oa1, loaded = ms.loadAccountObject(addr1)
-								So(loaded, ShouldBeFalse)
-								So(oa1, ShouldBeNil)
-								oa2, loaded = ms.loadAccountObject(addr2)
-								So(loaded, ShouldBeTrue)
-								So(oa2, ShouldNotBeNil)
-								ra1, loaded = rms.loadAccountObject(addr1)
-								So(loaded, ShouldBeFalse)
-								So(ra1, ShouldBeNil)
-								ra2, loaded = rms.loadAccountObject(addr2)
-								So(loaded, ShouldBeTrue)
-								So(ra2, ShouldNotBeNil)
-								So(&oa2.Account, ShouldResemble, &ra2.Account)
-								oc1, loaded = ms.loadSQLChainObject(dbid1)
-								So(loaded, ShouldBeFalse)
-								So(oc1, ShouldBeNil)
-								oc2, loaded = ms.loadSQLChainObject(dbid2)
-								So(loaded, ShouldBeTrue)
-								So(oc2, ShouldNotBeNil)
-								rc1, loaded = rms.loadSQLChainObject(dbid1)
-								So(loaded, ShouldBeFalse)
-								So(rc1, ShouldBeNil)
-								rc2, loaded = rms.loadSQLChainObject(dbid2)
-								So(loaded, ShouldBeTrue)
-								So(rc2, ShouldNotBeNil)
-								So(&oc2.SQLChainProfile, ShouldResemble, &rc2.SQLChainProfile)
-							},
-						)
 					})
 				})
 			})
 			Convey("When transactions are added", func() {
 				var (
 					n  pi.AccountNonce
-					t0 = pt.NewBaseAccount(&pt.Account{
+					t0 = types.NewBaseAccount(&types.Account{
 						Address: addr1,
 					})
-					t1 = pt.NewTransfer(
-						&pt.TransferHeader{
+					t1 = types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
 							Amount:   0,
 						},
 					)
-					t2 = pt.NewBilling(
-						&pt.BillingHeader{
-							Nonce:     2,
-							Producer:  addr1,
-							Receivers: []*proto.AccountAddress{&addr2},
-							Fees:      []uint64{1},
-							Rewards:   []uint64{1},
+					t2 = types.NewTransfer(
+						&types.TransferHeader{
+							Sender:   addr1,
+							Receiver: addr2,
+							Nonce:    2,
+							Amount:   0,
 						},
 					)
 				)
-				err = t1.Sign(testPrivKey)
+				err = t1.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = t2.Sign(testPrivKey)
+				err = t2.Sign(privKey1)
 				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(t0))
+				err = ms.apply(t0, 0)
 				So(err, ShouldBeNil)
-				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 1)
-				err = db.Update(ms.applyTransactionProcedure(t1))
+				ms.commit()
+				err = ms.apply(t1, 0)
 				So(err, ShouldBeNil)
-				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 2)
-				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(ms.pool.hasTx(t1), ShouldBeTrue)
-				err = db.Update(ms.applyTransactionProcedure(t2))
+				ms.commit()
+				err = ms.apply(t2, 0)
 				So(err, ShouldBeNil)
-				So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
-				_, loaded = ms.pool.entries[t1.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				_, loaded = ms.pool.entries[t2.GetAccountAddress()]
-				So(loaded, ShouldBeTrue)
-				So(ms.pool.hasTx(t0), ShouldBeTrue)
-				So(ms.pool.hasTx(t1), ShouldBeTrue)
-				So(ms.pool.hasTx(t2), ShouldBeTrue)
 
 				Convey("The metaState should report error if tx fails verification", func() {
 					t1.Nonce = pi.AccountNonce(10)
-					err = t1.Sign(testPrivKey)
+					err = t1.Sign(privKey1)
 					So(err, ShouldBeNil)
-					err = db.Update(ms.applyTransactionProcedure(t1))
+					err = ms.apply(t1, 0)
 					So(err, ShouldEqual, ErrInvalidAccountNonce)
 					t1.Nonce, err = ms.nextNonce(addr1)
 					So(err, ShouldBeNil)
 					So(t1.Nonce, ShouldEqual, ms.dirty.accounts[addr1].NextNonce)
-					err = db.Update(ms.applyTransactionProcedure(t1))
-					So(err, ShouldNotBeNil)
-					err = t1.Sign(testPrivKey)
-					So(err, ShouldBeNil)
-					err = db.Update(ms.applyTransactionProcedure(t1))
-					So(err, ShouldBeNil)
+					ms.commit()
 				})
 				Convey("The metaState should automatically increase nonce", func() {
 					n, err = ms.nextNonce(addr1)
@@ -642,202 +528,984 @@ func TestMetaState(t *testing.T) {
 					So(n, ShouldEqual, 3)
 				})
 				Convey("The metaState should report error on unknown transaction type", func() {
-					err = ms.applyTransaction(nil)
+					err = ms.applyTransaction(nil, 0)
 					So(err, ShouldEqual, ErrUnknownTransactionType)
 				})
-				Convey("The txs should be able to be pulled from pool", func() {
-					var txs = ms.pullTxs()
-					So(len(txs), ShouldEqual, 3)
-					for _, tx := range txs {
-						So(ms.pool.hasTx(tx), ShouldBeTrue)
-					}
-				})
-				Convey("The partial commit procedure should be appliable for empty txs", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 0)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
-				})
-				Convey("The partial commit procedure should be appliable for tx0", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 1)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 2)
-				})
-				Convey("The partial commit procedure should be appliable for tx0-1", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 2)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 1)
-				})
-				Convey("The partial commit procedure should be appliable for all tx", func() {
-					err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
-					So(err, ShouldBeNil)
-					So(ms.pool.entries[addr1].baseNonce, ShouldEqual, 3)
-					So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 0)
-				})
-				Convey(
-					"The partial commit procedure should not be appliable for modified tx",
-					func() {
-						t1.Nonce = pi.AccountNonce(10)
-						err = t1.Sign(testPrivKey)
-						So(err, ShouldBeNil)
-						err = db.Update(ms.partialCommitProcedure([]pi.Transaction{t0, t1, t2}))
-						So(err, ShouldEqual, ErrTransactionMismatch)
-						So(len(ms.pool.entries[addr1].transactions), ShouldEqual, 3)
-					},
-				)
 			})
 		})
 		Convey("When base account txs are added", func() {
 			var (
 				txs = []pi.Transaction{
-					pt.NewBaseAccount(
-						&pt.Account{
-							Address:             addr1,
-							StableCoinBalance:   100,
-							CovenantCoinBalance: 100,
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr1,
+							TokenBalance: [types.SupportTokenNumber]uint64{100, 100},
 						},
 					),
-					pt.NewBaseAccount(
-						&pt.Account{
-							Address:             addr2,
-							StableCoinBalance:   100,
-							CovenantCoinBalance: 100,
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr2,
+							TokenBalance: [types.SupportTokenNumber]uint64{100, 100},
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr1,
 							Receiver: addr2,
 							Nonce:    1,
 							Amount:   10,
 						},
 					),
-					pt.NewBilling(
-						&pt.BillingHeader{
-							Nonce:     2,
-							Producer:  addr1,
-							Receivers: []*proto.AccountAddress{&addr2},
-							Fees:      []uint64{1},
-							Rewards:   []uint64{1},
+					types.NewTransfer(
+						&types.TransferHeader{
+							Sender:   addr2,
+							Receiver: addr1,
+							Nonce:    1,
+							Amount:   1,
 						},
 					),
-					pt.NewBilling(
-						&pt.BillingHeader{
-							Nonce:     1,
-							Producer:  addr2,
-							Receivers: []*proto.AccountAddress{&addr1},
-							Fees:      []uint64{1},
-							Rewards:   []uint64{1},
+					types.NewTransfer(
+						&types.TransferHeader{
+							Sender:   addr1,
+							Receiver: addr2,
+							Nonce:    2,
+							Amount:   10,
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    2,
 							Amount:   1,
 						},
 					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
-							Sender:   addr1,
-							Receiver: addr2,
-							Nonce:    3,
-							Amount:   10,
-						},
-					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
+					types.NewTransfer(
+						&types.TransferHeader{
 							Sender:   addr2,
 							Receiver: addr1,
 							Nonce:    3,
-							Amount:   1,
-						},
-					),
-					pt.NewTransfer(
-						&pt.TransferHeader{
-							Sender:   addr2,
-							Receiver: addr1,
-							Nonce:    4,
 							Amount:   1,
 						},
 					),
 				}
 			)
+			txs[0].Sign(privKey1)
+			txs[1].Sign(privKey2)
+			txs[2].Sign(privKey1)
+			txs[3].Sign(privKey2)
+			txs[4].Sign(privKey1)
+			txs[5].Sign(privKey2)
+			txs[6].Sign(privKey2)
 			for _, tx := range txs {
-				err = tx.Sign(testPrivKey)
-				So(err, ShouldBeNil)
-				err = db.Update(ms.applyTransactionProcedure(tx))
+				err = ms.apply(tx, 0)
 				So(err, ShouldBeNil)
 			}
+			ms.commit()
 			Convey("The state should match the update result", func() {
-				bl, loaded = ms.loadAccountStableBalance(addr1)
+				bl, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
-				So(bl, ShouldEqual, 84)
-				bl, loaded = ms.loadAccountStableBalance(addr2)
+				So(bl, ShouldEqual, 83)
+				bl, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
 				So(loaded, ShouldBeTrue)
-				So(bl, ShouldEqual, 118)
+				So(bl, ShouldEqual, 117)
 			})
-			Convey("When state change is partial committed #0", func() {
-				err = db.Update(ms.partialCommitProcedure(nil))
+		})
+		Convey("When SQLChain are created", func() {
+			conf.GConf, err = conf.LoadConfig("../test/node_standalone/config.yaml")
+			So(err, ShouldBeNil)
+
+			privKeyFile := "../test/node_standalone/private.key"
+			pubKeyFile := "../test/node_standalone/public.keystore"
+			os.Remove(pubKeyFile)
+			defer os.Remove(pubKeyFile)
+			route.Once = sync.Once{}
+			route.InitKMS(pubKeyFile)
+			err = kms.InitLocalKeyPair(privKeyFile, []byte(""))
+			So(err, ShouldBeNil)
+
+			ao, loaded = ms.loadOrStoreAccountObject(addr1, &types.Account{Address: addr1})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			ao, loaded = ms.loadOrStoreAccountObject(addr2, &types.Account{Address: addr2})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			ao, loaded = ms.loadOrStoreAccountObject(addr3, &types.Account{Address: addr3})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+			ao, loaded = ms.loadOrStoreAccountObject(addr4, &types.Account{Address: addr4})
+			So(ao, ShouldBeNil)
+			So(loaded, ShouldBeFalse)
+
+			// increase account balance
+			var (
+				txs = []pi.Transaction{
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr1,
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 1000000000},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr2,
+							TokenBalance: [types.SupportTokenNumber]uint64{10000000000, 100},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr3,
+							TokenBalance: [types.SupportTokenNumber]uint64{10000, 10000},
+						},
+					),
+					types.NewBaseAccount(
+						&types.Account{
+							Address:      addr4,
+							TokenBalance: [types.SupportTokenNumber]uint64{1000000000, 1000000000},
+						},
+					),
+				}
+			)
+
+			err = txs[0].Sign(privKey1)
+			So(err, ShouldBeNil)
+			err = txs[1].Sign(privKey2)
+			So(err, ShouldBeNil)
+			err = txs[2].Sign(privKey3)
+			So(err, ShouldBeNil)
+			err = txs[3].Sign(privKey4)
+			So(err, ShouldBeNil)
+			for i := range txs {
+				err = ms.apply(txs[i], 0)
 				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
+				ms.commit()
+			}
+
+			Convey("When provider transaction is invalid", func() {
+				invalidPs := types.ProvideService{
+					ProvideServiceHeader: types.ProvideServiceHeader{
+						TargetUser: []proto.AccountAddress{addr1},
+						Nonce:      1,
+					},
+				}
+				err = invalidPs.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd1 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner:     addr2,
+						GasPrice:  1,
+						TokenType: types.Particle,
+						Nonce:     1,
+					},
+				}
+				err = invalidCd1.Sign(privKey1)
+				So(err, ShouldBeNil)
+				invalidCd2 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr1,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 1,
+						TokenType:      types.Particle,
+						Nonce:          1,
+					},
+				}
+				err = invalidCd2.Sign(privKey1)
+				So(err, ShouldBeNil)
+				invalidCd3 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						GasPrice:  1,
+						TokenType: types.Particle,
+						Nonce:     1,
+					},
+				}
+				err = invalidCd3.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd4 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						Nonce: 1,
+					},
+				}
+				err = invalidCd4.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd5 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         2,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 2,
+					},
+				}
+				err = invalidCd5.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd6 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 1,
+					},
+				}
+				err = invalidCd6.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd7 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners:           []proto.AccountAddress{addr2},
+							Node:                   2,
+							Space:                  9,
+							Memory:                 9,
+							LoadAvgPerCPU:          0.1,
+							UseEventualConsistency: false,
+							ConsistencyLevel:       0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 2,
+					},
+				}
+				err = invalidCd7.Sign(privKey3)
+				So(err, ShouldBeNil)
+				invalidCd8 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr2,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners:           []proto.AccountAddress{addr2},
+							Node:                   2,
+							Space:                  9,
+							Memory:                 9,
+							LoadAvgPerCPU:          0.1,
+							UseEventualConsistency: false,
+							ConsistencyLevel:       0,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * uint64(conf.GConf.BillingBlockCount) * 2,
+					},
+				}
+				err = invalidCd8.Sign(privKey2)
+				So(err, ShouldBeNil)
+
+				err = ms.apply(&invalidPs, 0)
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
+				err = ms.apply(&invalidCd1, 0)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				err = ms.apply(&invalidCd2, 0)
+				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
+				err = ms.apply(&invalidCd3, 0)
+				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
+				err = ms.apply(&invalidCd4, 0)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
+				err = ms.apply(&invalidCd5, 0)
+				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+				err = ms.apply(&invalidCd6, 0)
+				So(errors.Cause(err), ShouldEqual, ErrInvalidMinerCount)
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("1")))] = &types.ProviderProfile{
+					TargetUser: nil,
+				}
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("2")))] = &types.ProviderProfile{
+					TargetUser: nil,
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("3")))] = &types.ProviderProfile{
+					TargetUser: []proto.AccountAddress{addr3},
+					GasPrice:   9999999999, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("4")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 1.0, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("5")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        1, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("6")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         1, // not pass
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("7")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr3},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     1, // not pass
+				}
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("8")))] = &types.ProviderProfile{
+					Provider:      proto.AccountAddress{},
+					Space:         0,
+					Memory:        0,
+					LoadAvgPerCPU: 0,
+					TargetUser:    []proto.AccountAddress{addr3},
+					Deposit:       0,
+					GasPrice:      0,
+					TokenType:     0,
+					NodeID:        "",
+				}
+				err = ms.apply(&invalidCd7, 0)
+				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+
+				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("9")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0001111",
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("9")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0002111",
+				}
+				po, loaded = ms.loadOrStoreProviderObject(proto.AccountAddress(hash.HashH([]byte("10"))), &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0003111",
 				})
-			})
-			Convey("When state change is partial committed #1", func() {
-				err = db.Update(ms.partialCommitProcedure(txs[:2]))
+				So(po, ShouldBeNil)
+				So(loaded, ShouldBeFalse)
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("11")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0000003",
+				}
+				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("12")))] = &types.ProviderProfile{
+					TargetUser:    []proto.AccountAddress{addr2},
+					GasPrice:      1,
+					LoadAvgPerCPU: 0.001,
+					Memory:        100,
+					Space:         100,
+					TokenType:     0,
+					NodeID:        "0000001",
+				}
+				err = ms.apply(&invalidCd8, 0)
 				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
+				dbID := proto.FromAccountAndNonce(addr2, uint32(invalidCd8.Nonce))
+
+				mIDs := make([]string, 0)
+				for _, m := range ms.dirty.databases[dbID].Miners {
+					mIDs = append(mIDs, string(m.NodeID))
+				}
+				log.Debugf("mIDs: %v", mIDs)
+				So(mIDs, ShouldContain, "0000003")
+				So(mIDs, ShouldContain, "0000001")
+			})
+			Convey("When SQLChain create", func() {
+				ps := types.ProvideService{
+					ProvideServiceHeader: types.ProvideServiceHeader{
+						TargetUser: []proto.AccountAddress{addr1},
+						GasPrice:   1,
+						TokenType:  types.Particle,
+						Nonce:      1,
+					},
+				}
+				err = ps.Sign(privKey2)
+				So(err, ShouldBeNil)
+				cd1 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr1,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						GasPrice:       1,
+						AdvancePayment: 3600000,
+						TokenType:      types.Particle,
+						Nonce:          1,
+					},
+				}
+				err = cd1.Sign(privKey1)
+				So(err, ShouldBeNil)
+				cd2 := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{addr2},
+							Node:         1,
+						},
+						GasPrice:       1,
+						AdvancePayment: 3600000,
+						TokenType:      types.Particle,
+						Nonce:          1,
+					},
+				}
+				err = cd2.Sign(privKey3)
+				So(err, ShouldBeNil)
+
+				var b1, b2 uint64
+				b1, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
+				err = ms.apply(&ps, 0)
+				So(err, ShouldBeNil)
+				ms.commit()
+				b2, loaded = ms.loadAccountTokenBalance(addr2, types.Particle)
+				So(loaded, ShouldBeTrue)
+				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
+				err = ms.apply(&cd2, 0)
+				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
+				b1, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
+				So(loaded, ShouldBeTrue)
+				err = ms.apply(&cd1, 0)
+				So(err, ShouldBeNil)
+				ms.commit()
+				b2, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
+				So(loaded, ShouldBeTrue)
+				minAdvancePayment := uint64(cd2.GasPrice) * uint64(conf.GConf.QPS) *
+					conf.GConf.BillingBlockCount * uint64(len(cd2.ResourceMeta.TargetMiners))
+				So(b1-b2, ShouldEqual, cd1.AdvancePayment+minAdvancePayment)
+				dbID := proto.FromAccountAndNonce(cd1.Owner, uint32(cd1.Nonce))
+				co, loaded = ms.loadSQLChainObject(dbID)
+				So(loaded, ShouldBeTrue)
+				dbAccount, err := dbID.AccountAddress()
+				So(err, ShouldBeNil)
+
+				up := types.UpdatePermission{
+					UpdatePermissionHeader: types.UpdatePermissionHeader{
+						TargetSQLChain: addr1,
+						TargetUser:     addr3,
+						Permission:     types.UserPermissionFromRole(types.Read),
+						Nonce:          cd1.Nonce + 1,
+					},
+				}
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+				up.Permission = types.UserPermissionFromRole(types.Void)
+				up.TargetSQLChain = dbAccount
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(err, ShouldBeNil)
+				// test permission update
+				// addr1(admin) update addr3 as admin
+				up.TargetUser = addr3
+				up.Nonce++
+				up.Permission = types.UserPermissionFromRole(types.Admin)
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(err, ShouldBeNil)
+				ms.commit()
+				// addr3(admin) update addr4 as read
+				up.TargetUser = addr4
+				up.Nonce = cd2.Nonce
+				up.Permission = types.UserPermissionFromRole(types.Read)
+				err = up.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(err, ShouldBeNil)
+				ms.commit()
+				// addr3(admin) update addr1(admin) as read
+				up.TargetUser = addr1
+				up.Nonce = up.Nonce + 1
+				err = up.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(err, ShouldBeNil)
+				ms.commit()
+				// addr3(admin) update addr3(admin) as read fail
+				up.TargetUser = addr3
+				up.Permission = types.UserPermissionFromRole(types.Read)
+				up.Nonce = up.Nonce + 1
+				err = up.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(errors.Cause(err), ShouldEqual, ErrNoSuperUserLeft)
+				// addr1(read) update addr3(admin) fail
+				up.Nonce = cd1.Nonce + 3
+				err = up.Sign(privKey1)
+				So(err, ShouldBeNil)
+				err = ms.apply(&up, 0)
+				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
+
+				co, loaded = ms.loadSQLChainObject(dbID)
+				for _, user := range co.Users {
+					if user.Address == addr1 {
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Read)
+						continue
+					}
+					if user.Address == addr3 {
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Admin)
+						continue
+					}
+					if user.Address == addr4 {
+						So(user.Permission, ShouldNotBeNil)
+						So(user.Permission.Role, ShouldEqual, types.Read)
+						continue
+					}
+				}
+				Convey("transfer token", func() {
+					addr1B1, ok := ms.loadAccountTokenBalance(addr1, types.Particle)
+					So(ok, ShouldBeTrue)
+					addr3B1, ok := ms.loadAccountTokenBalance(addr3, types.Particle)
+					So(ok, ShouldBeTrue)
+					trans1 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr1,
+						Receiver:  addr3,
+						Amount:    20000000,
+						TokenType: types.Particle,
+					})
+					nonce, err := ms.nextNonce(addr1)
+					So(err, ShouldBeNil)
+					trans1.Nonce = nonce
+					err = trans1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans1, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+					addr1B2, ok := ms.loadAccountTokenBalance(addr1, types.Particle)
+					So(ok, ShouldBeTrue)
+					addr3B2, ok := ms.loadAccountTokenBalance(addr3, types.Particle)
+					So(ok, ShouldBeTrue)
+					So(addr1B1-addr1B2, ShouldEqual, 20000000)
+					So(addr3B2-addr3B1, ShouldEqual, 20000000)
+					profile, ok := ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+
+					// transfer to sqlchain
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.UnknownStatus)
+							break
+						}
+					}
+					trans2 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					So(dbID, ShouldEqual, dbAccount.DatabaseID())
+					trans2.Nonce = nonce
+					//no sign err
+					err = ms.apply(trans2, 0)
+					So(err, ShouldEqual, ErrInvalidSender)
+					//wrong key sign err
+					err = trans2.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2, 0)
+					So(err, ShouldNotBeNil)
+					//invalid sign
+					copy([]byte("invalid hash"), trans2.DataHash[:])
+					err = ms.apply(trans2, 0)
+					So(err, ShouldNotBeNil)
+					//correct transfer
+					err = trans2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2, 0)
+					So(err, ShouldBeNil)
+					// ms.commit()
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Normal)
+							break
+						}
+					}
+
+					// make addr3 arrears
+					ub := types.NewUpdateBilling(&types.UpdateBillingHeader{
+						Receiver: dbAccount,
+						Users: []*types.UserCost{
+							&types.UserCost{
+								User: addr3,
+								Cost: 4500000,
+								Miners: []*types.MinerIncome{
+									&types.MinerIncome{
+										Miner:  addr2,
+										Income: 4500000,
+									},
+								},
+							},
+						},
+						Range: types.Range{
+							From: 0,
+							To:   10,
+						},
+					})
+					ub.Version = int32(ub.HSPDefaultVersion())
+					nonce, err = ms.nextNonce(addr2)
+					So(err, ShouldBeNil)
+					ub.Nonce = nonce
+					err = ub.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer failed
+					trans3 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    40000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans3.Nonce = nonce
+					err = trans3.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans3, 0)
+					So(err, ShouldEqual, ErrInsufficientTransfer)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer too much token
+					trans5 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    18446744073709551615,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans5.Nonce = nonce
+					err = trans5.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans5, 0)
+					So(err, ShouldEqual, ErrInsufficientBalance)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer wrong type of token
+					trans6 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    4000000,
+						TokenType: -1,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans6.Nonce = nonce
+					err = trans6.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans6, 0)
+					So(err, ShouldEqual, ErrWrongTokenType)
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Arrears)
+							break
+						}
+					}
+
+					// transfer enough token
+					trans4 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    4000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans4.Nonce = nonce
+					err = trans4.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans4, 0)
+					ms.commit()
+					profile, ok = ms.loadSQLChainObject(dbID)
+					So(ok, ShouldBeTrue)
+					for _, user := range profile.Users {
+						if user.Address == addr3 {
+							So(user.Status, ShouldEqual, types.Normal)
+							break
+						}
+					}
 				})
-			})
-			Convey("When state change is partial committed #2", func() {
-				err = db.Update(ms.partialCommitProcedure(txs[:3]))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
+				Convey("update key", func() {
+					invalidIk1 := &types.IssueKeys{}
+					err = invalidIk1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk1, 0)
+					So(err, ShouldEqual, ErrInvalidAccountNonce)
+					invalidIk2 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: addr1,
+							Nonce:          3,
+						},
+					}
+					err = invalidIk2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk2, 0)
+					So(err, ShouldEqual, ErrDatabaseNotFound)
+					invalidIk3 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: dbAccount,
+							Nonce:          4,
+						},
+					}
+					err = invalidIk3.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(invalidIk3, 0)
+					So(err, ShouldEqual, ErrAccountPermissionDeny)
+					ik1 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							TargetSQLChain: dbAccount,
+							Nonce:          3,
+						},
+					}
+					err = ik1.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(ik1, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+					encryptKey := "12345"
+					ik2 := &types.IssueKeys{
+						IssueKeysHeader: types.IssueKeysHeader{
+							MinerKeys: []types.MinerKey{
+								{
+									Miner:         addr1,
+									EncryptionKey: encryptKey,
+								},
+							},
+							TargetSQLChain: dbAccount,
+							Nonce:          4,
+						},
+					}
+					err = ik2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(ik2, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+
+					co, loaded = ms.loadSQLChainObject(dbID)
+					for _, miner := range co.Miners {
+						if miner.Address == addr1 {
+							So(miner.EncryptionKey, ShouldEqual, encryptKey)
+						}
+					}
 				})
-			})
-			Convey("When state change is partial committed #3", func() {
-				err = db.Update(ms.partialCommitProcedure(txs[:6]))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
+				Convey("update billing", func() {
+					ub1 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: addr1,
+							Nonce:    up.Nonce,
+							Range: types.Range{
+								From: 0,
+								To:   10,
+							},
+						},
+					}
+					ub1.Version = int32(ub1.HSPDefaultVersion())
+					err = ub1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub1, 0)
+					So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+					trans1 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr1,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err := ms.nextNonce(addr1)
+					So(err, ShouldBeNil)
+					trans1.Nonce = nonce
+					err = trans1.Sign(privKey1)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans1, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+					trans2 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr3,
+						Receiver:  dbAccount,
+						Amount:    800,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr3)
+					So(err, ShouldBeNil)
+					trans2.Nonce = nonce
+					err = trans2.Sign(privKey3)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans2, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+					trans3 := types.NewTransfer(&types.TransferHeader{
+						Sender:    addr4,
+						Receiver:  dbAccount,
+						Amount:    8000000,
+						TokenType: types.Particle,
+					})
+					nonce, err = ms.nextNonce(addr4)
+					So(err, ShouldBeNil)
+					trans3.Nonce = nonce
+					err = trans3.Sign(privKey4)
+					So(err, ShouldBeNil)
+					err = ms.apply(trans3, 0)
+					So(err, ShouldBeNil)
+					ms.commit()
+
+					users := [3]*types.UserCost{
+						&types.UserCost{
+							User: addr1,
+							Cost: 100,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 100,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr3,
+							Cost: 10,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 10,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr4,
+							Cost: 15,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 15,
+								},
+							},
+						},
+					}
+					ub2 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: dbAccount,
+							Users:    users[:],
+							Nonce:    2,
+							Range: types.Range{
+								From: 0,
+								To:   10,
+							},
+						},
+					}
+					ub2.Version = int32(ub2.HSPDefaultVersion())
+					err = ub2.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub2, 0)
+					ms.commit()
+					sqlchain, loaded := ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
+					So(len(sqlchain.Miners), ShouldEqual, 1)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
+					users = [3]*types.UserCost{
+						&types.UserCost{
+							User: addr1,
+							Cost: 100,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 100,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr2,
+							Cost: 10,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr3,
+									Income: 10,
+								},
+							},
+						},
+						&types.UserCost{
+							User: addr4,
+							Cost: 15,
+							Miners: []*types.MinerIncome{
+								&types.MinerIncome{
+									Miner:  addr2,
+									Income: 15,
+								},
+							},
+						},
+					}
+					ub3 := &types.UpdateBilling{
+						UpdateBillingHeader: types.UpdateBillingHeader{
+							Receiver: dbAccount,
+							Users:    users[:],
+							Nonce:    3,
+							Range: types.Range{
+								From: 10,
+								To:   20,
+							},
+						},
+					}
+					ub3.Version = int32(ub3.HSPDefaultVersion())
+					err = ub3.Sign(privKey2)
+					So(err, ShouldBeNil)
+					err = ms.apply(ub3, 0)
+					So(err, ShouldBeNil)
+					sqlchain, loaded = ms.loadSQLChainObject(dbID)
 					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
-				})
-			})
-			Convey("When state change is partial committed #4", func() {
-				err = db.Update(ms.partialCommitProcedure(txs))
-				So(err, ShouldBeNil)
-				Convey("The state should still match the update result", func() {
-					bl, loaded = ms.loadAccountStableBalance(addr1)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 84)
-					bl, loaded = ms.loadAccountStableBalance(addr2)
-					So(loaded, ShouldBeTrue)
-					So(bl, ShouldEqual, 118)
+					So(len(sqlchain.Miners), ShouldEqual, 1)
+					So(sqlchain.Miners[0].PendingIncome, ShouldEqual, 115)
+					So(sqlchain.Miners[0].ReceivedIncome, ShouldEqual, 115)
 				})
 			})
 		})

@@ -26,12 +26,12 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// DHTService is server side RPC implementation
+// DHTService is server side RPC implementation.
 type DHTService struct {
 	Consistent *consistent.Consistent
 }
 
-// NewDHTServiceWithRing will return a new DHTService and set an existing hash ring
+// NewDHTServiceWithRing will return a new DHTService and set an existing hash ring.
 func NewDHTServiceWithRing(c *consistent.Consistent) (s *DHTService, err error) {
 	s = &DHTService{
 		Consistent: c,
@@ -39,7 +39,7 @@ func NewDHTServiceWithRing(c *consistent.Consistent) (s *DHTService, err error) 
 	return
 }
 
-// NewDHTService will return a new DHTService
+// NewDHTService will return a new DHTService.
 func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, initBP bool) (s *DHTService, err error) {
 	c, err := consistent.InitConsistent(DHTStorePath, persistImpl, initBP)
 	if err != nil {
@@ -49,14 +49,16 @@ func NewDHTService(DHTStorePath string, persistImpl consistent.Persistence, init
 	return NewDHTServiceWithRing(c)
 }
 
-// Nil RPC does nothing just for probe
+// Nil RPC does nothing just for probe.
 func (DHT *DHTService) Nil(req *interface{}, resp *interface{}) (err error) {
 	return
 }
 
-// FindNode RPC returns node with requested node id from DHT
+var permissionCheckFunc = IsPermitted
+
+// FindNode RPC returns node with requested node id from DHT.
 func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp) (err error) {
-	if !IsPermitted(&req.Envelope, DHTFindNode) {
+	if permissionCheckFunc != nil && !permissionCheckFunc(&req.Envelope, DHTFindNode) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
@@ -71,9 +73,9 @@ func (DHT *DHTService) FindNode(req *proto.FindNodeReq, resp *proto.FindNodeResp
 	return
 }
 
-// FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT
+// FindNeighbor RPC returns FindNeighborReq.Count closest node from DHT.
 func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.FindNeighborResp) (err error) {
-	if !IsPermitted(&req.Envelope, DHTFindNeighbor) {
+	if permissionCheckFunc != nil && !permissionCheckFunc(&req.Envelope, DHTFindNeighbor) {
 		err = fmt.Errorf("calling from node %s is not permitted", req.GetNodeID())
 		log.Error(err)
 		return
@@ -93,11 +95,18 @@ func (DHT *DHTService) FindNeighbor(req *proto.FindNeighborReq, resp *proto.Find
 	return
 }
 
-// Ping RPC adds PingReq.Node to DHT
+// Ping RPC adds PingReq.Node to DHT.
 func (DHT *DHTService) Ping(req *proto.PingReq, resp *proto.PingResp) (err error) {
 	log.Debugf("got req: %#v", req)
-	if !IsPermitted(&req.Envelope, DHTPing) {
+	if permissionCheckFunc != nil && !permissionCheckFunc(&req.Envelope, DHTPing) {
 		err = fmt.Errorf("calling Ping from node %s is not permitted", req.GetNodeID())
+		log.Error(err)
+		return
+	}
+
+	// BP node is not permitted to set by RPC
+	if req.Node.Role == proto.Leader || req.Node.Role == proto.Follower {
+		err = fmt.Errorf("setting %s node is not permitted", req.Node.Role.String())
 		log.Error(err)
 		return
 	}

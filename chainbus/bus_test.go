@@ -20,8 +20,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 )
 
 func TestNew(t *testing.T) {
@@ -34,38 +32,38 @@ func TestNew(t *testing.T) {
 
 func TestHasCallback(t *testing.T) {
 	bus := New()
-	bus.Subscribe(bi.TransactionType(1), func() {})
-	if bus.HasCallback(bi.TransactionType(2)) {
+	bus.Subscribe("/event/test", func() {})
+	if bus.HasCallback("/event/test2") {
 		t.Fail()
 	}
-	if !bus.HasCallback(bi.TransactionType(1)) {
+	if !bus.HasCallback("/event/test") {
 		t.Fail()
 	}
 }
 
 func TestSubscribe(t *testing.T) {
 	bus := New()
-	if bus.Subscribe(bi.TransactionType(1), func() {}) != nil {
+	if bus.Subscribe("/event/test", func() {}) != nil {
 		t.Fail()
 	}
-	if bus.Subscribe(bi.TransactionType(1), "String") == nil {
+	if bus.Subscribe("/event/test", "String") == nil {
 		t.Fail()
 	}
 }
 
 func TestSubscribeOnce(t *testing.T) {
 	bus := New()
-	if bus.SubscribeOnce(bi.TransactionType(1), func() {}) != nil {
+	if bus.SubscribeOnce("/event/test", func() {}) != nil {
 		t.Fail()
 	}
-	if bus.SubscribeOnce(bi.TransactionType(1), "String") == nil {
+	if bus.SubscribeOnce("/event/test", "String") == nil {
 		t.Fail()
 	}
 }
 
 func TestSubscribeOnceAndManySubscribe(t *testing.T) {
 	bus := New()
-	event := bi.TransactionType(1)
+	event := "/event/test"
 	flag := 0
 	fn := func() { flag++ }
 	bus.SubscribeOnce(event, fn)
@@ -81,35 +79,35 @@ func TestSubscribeOnceAndManySubscribe(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	bus := New()
 	handler := func() {}
-	bus.Subscribe(bi.TransactionType(1), handler)
-	if bus.Unsubscribe(bi.TransactionType(1), handler) != nil {
+	bus.Subscribe("/event/test", handler)
+	if bus.Unsubscribe("/event/test", handler) != nil {
 		t.Fail()
 	}
-	if bus.Unsubscribe(bi.TransactionType(1), handler) == nil {
+	if bus.Unsubscribe("/event/test", handler) == nil {
 		t.Fail()
 	}
 }
 
 func TestPublish(t *testing.T) {
 	bus := New()
-	bus.Subscribe(bi.TransactionType(1), func(a int, b int) {
+	bus.Subscribe("/event/test", func(a int, b int) {
 		if a != b {
 			t.Fail()
 		}
 	})
-	bus.Publish(bi.TransactionType(1), 10, 10)
+	bus.Publish("/event/test", 10, 10)
 }
 
 func TestSubcribeOnceAsync(t *testing.T) {
 	results := make([]int, 0)
 
 	bus := New()
-	bus.SubscribeOnceAsync(bi.TransactionType(1), func(a int, out *[]int) {
+	bus.SubscribeOnceAsync("/event/test", func(a int, out *[]int) {
 		*out = append(*out, a)
 	})
 
-	bus.Publish(bi.TransactionType(1), 10, &results)
-	bus.Publish(bi.TransactionType(1), 10, &results)
+	bus.Publish("/event/test", 10, &results)
+	bus.Publish("/event/test", 10, &results)
 
 	bus.WaitAsync()
 
@@ -117,7 +115,7 @@ func TestSubcribeOnceAsync(t *testing.T) {
 		t.Fail()
 	}
 
-	if bus.HasCallback(bi.TransactionType(1)) {
+	if bus.HasCallback("/event/test") {
 		t.Fail()
 	}
 }
@@ -126,14 +124,14 @@ func TestSubscribeAsyncTransactional(t *testing.T) {
 	results := make([]int, 0)
 
 	bus := New()
-	bus.SubscribeAsync(bi.TransactionType(1), func(a int, out *[]int, dur string) {
+	bus.SubscribeAsync("/event/test", func(a int, out *[]int, dur string) {
 		sleep, _ := time.ParseDuration(dur)
 		time.Sleep(sleep)
 		*out = append(*out, a)
 	}, true)
 
-	bus.Publish(bi.TransactionType(1), 1, &results, "1s")
-	bus.Publish(bi.TransactionType(1), 2, &results, "0s")
+	bus.Publish("/event/test", 1, &results, "1s")
+	bus.Publish("/event/test", 2, &results, "0s")
 
 	bus.WaitAsync()
 
@@ -150,12 +148,12 @@ func TestSubscribeAsync(t *testing.T) {
 	results := make(chan int)
 
 	bus := New()
-	bus.SubscribeAsync(bi.TransactionType(1), func(a int, out chan<- int) {
+	bus.SubscribeAsync("/event/test", func(a int, out chan<- int) {
 		out <- a
 	}, false)
 
-	bus.Publish(bi.TransactionType(1), 1, results)
-	bus.Publish(bi.TransactionType(1), 2, results)
+	bus.Publish("/event/test", 1, results)
+	bus.Publish("/event/test", 2, results)
 
 	var numResults int32
 

@@ -18,20 +18,65 @@ package sqlite
 
 import (
 	"database/sql"
+	"time"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
 	"github.com/CovenantSQL/CovenantSQL/storage"
-	"github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
-	serializableDriver = "sqlite3"
+	serializableDriver = "sqlite3-custom"
 	dirtyReadDriver    = "sqlite3-dirty-reader"
 )
 
 func init() {
+	encryptFunc := func(in, pass, salt []byte) (out []byte, err error) {
+		out, err = symmetric.EncryptWithPassword(in, pass, salt)
+		return
+	}
+
+	decryptFunc := func(in, pass, salt []byte) (out []byte, err error) {
+		out, err = symmetric.DecryptWithPassword(in, pass, salt)
+		return
+	}
+
+	sleepFunc := func(t int64) int64 {
+		log.Info("sqlite func sleep start")
+		time.Sleep(time.Duration(t))
+		log.Info("sqlite func sleep end")
+		return t
+	}
+
+	regCustomFunc := func(c *sqlite3.SQLiteConn) (err error) {
+		if err = c.RegisterFunc("sleep", sleepFunc, true); err != nil {
+			return
+		}
+		if err = c.RegisterFunc("encrypt", encryptFunc, true); err != nil {
+			return
+		}
+		if err = c.RegisterFunc("decrypt", decryptFunc, true); err != nil {
+			return
+		}
+		return
+	}
+
 	sql.Register(dirtyReadDriver, &sqlite3.SQLiteDriver{
 		ConnectHook: func(c *sqlite3.SQLiteConn) (err error) {
 			if _, err = c.Exec("PRAGMA read_uncommitted=1", nil); err != nil {
+				return
+			}
+			if err = regCustomFunc(c); err != nil {
+				return
+			}
+			return
+		},
+	})
+	sql.Register(serializableDriver, &sqlite3.SQLiteDriver{
+		ConnectHook: func(c *sqlite3.SQLiteConn) (err error) {
+			if err = regCustomFunc(c); err != nil {
 				return
 			}
 			return

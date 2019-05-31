@@ -24,8 +24,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
@@ -166,7 +167,7 @@ func (c *diskstatsCollector) Update(ch chan<- prometheus.Metric) error {
 
 	for dev, stats := range diskStats {
 		if c.ignoredDevicesPattern.MatchString(dev) {
-			log.Debugf("Ignoring device: %s", dev)
+			log.Debugf("ignoring device: %s", dev)
 			continue
 		}
 

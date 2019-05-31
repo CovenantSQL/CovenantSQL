@@ -16,65 +16,74 @@
 
 // Package etls implements "Enhanced Transport Layer Security", but more efficient
 // than TLS used in https.
-// example can be found in test case
+// example can be found in test case.
 package etls
 
 import (
+	"bytes"
 	"io"
 	"net"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// CryptoConn implements net.Conn and Cipher interface
+const (
+	// MagicSize is the ETLS magic header size.
+	MagicSize = 2
+)
+
+var (
+	// MagicBytes is the ETLS connection magic header.
+	MagicBytes = [MagicSize]byte{0xC0, 0x4E}
+)
+
+// CryptoConn implements net.Conn and Cipher interface.
 type CryptoConn struct {
 	net.Conn
 	*Cipher
-	NodeID *proto.RawNodeID
 }
 
-// NewConn returns a new CryptoConn
-func NewConn(c net.Conn, cipher *Cipher, nodeID *proto.RawNodeID) *CryptoConn {
+// NewConn returns a new CryptoConn.
+func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 	return &CryptoConn{
 		Conn:   c,
 		Cipher: cipher,
-		NodeID: nodeID,
 	}
 }
 
 // Dial connects to a address with a Cipher
-// address should be in the form of host:port
+// address should be in the form of host:port.
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
-	conn, err := net.Dial(network, address)
+	conn, err := net.DialTimeout(network, address, conf.TCPDialTimeout)
 	if err != nil {
 		log.WithField("addr", address).WithError(err).Error("connect failed")
 		return
 	}
-
-	c = NewConn(conn, cipher, nil)
+	c = NewConn(conn, cipher)
 	return
 }
 
-// RawRead is the raw net.Conn.Read
-func (c *CryptoConn) RawRead(b []byte) (n int, err error) {
-	return c.Conn.Read(b)
-}
-
-// Read iv and Encrypted data
+// Read iv and Encrypted data.
 func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	if c.decStream == nil {
-		iv := make([]byte, c.info.ivLen)
-		if _, err = io.ReadFull(c.Conn, iv); err != nil {
+		buf := make([]byte, c.info.ivLen+MagicSize)
+		if _, err = io.ReadFull(c.Conn, buf); err != nil {
 			log.WithError(err).Info("read full failed")
 			return
 		}
+		iv := buf[:c.info.ivLen]
+		header := buf[c.info.ivLen:]
 		if err = c.initDecrypt(iv); err != nil {
 			return
 		}
-		if len(c.iv) == 0 {
-			c.iv = iv
+		c.decrypt(header, header)
+		if !bytes.Equal(header[:MagicSize], MagicBytes[:]) {
+			err = errors.New("bad stream ETLS header")
+			return
 		}
 	}
 
@@ -90,12 +99,7 @@ func (c *CryptoConn) Read(b []byte) (n int, err error) {
 	return
 }
 
-// RawWrite is the raw net.Conn.Write
-func (c *CryptoConn) RawWrite(b []byte) (n int, err error) {
-	return c.Conn.Read(b)
-}
-
-// Write iv and Encrypted data
+// Write iv and Encrypted data.
 func (c *CryptoConn) Write(b []byte) (n int, err error) {
 	var iv []byte
 	if c.encStream == nil {
@@ -105,16 +109,20 @@ func (c *CryptoConn) Write(b []byte) (n int, err error) {
 		}
 	}
 
-	dataSize := len(b) + len(iv)
-	cipherData := make([]byte, dataSize)
-
 	if iv != nil {
+		ivHeader := make([]byte, len(iv)+MagicSize)
 		// Put initialization vector in buffer, do a single write to send both
 		// iv and data.
-		copy(cipherData, iv)
+		copy(ivHeader, iv)
+		c.encrypt(ivHeader[len(iv):], MagicBytes[:])
+		_, err = c.Conn.Write(ivHeader)
+		if err != nil {
+			return
+		}
 	}
 
-	c.encrypt(cipherData[len(iv):], b)
+	cipherData := make([]byte, len(b))
+	c.encrypt(cipherData, b)
 	n, err = c.Conn.Write(cipherData)
 	return
 }

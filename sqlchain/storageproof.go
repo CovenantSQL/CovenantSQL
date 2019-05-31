@@ -23,7 +23,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// Answer is responded by node to confirm other nodes that the node stores data correctly
+// Answer is responded by node to confirm other nodes that the node stores data correctly.
 type Answer struct {
 	// The block id that the question belongs to
 	PreviousBlockID BlockID
@@ -33,7 +33,7 @@ type Answer struct {
 	Answer hash.Hash
 }
 
-// NewAnswer generates an answer for storage proof
+// NewAnswer generates an answer for storage proof.
 func NewAnswer(previousBlockID BlockID, nodeID proto.NodeID, answer hash.Hash) *Answer {
 	return &Answer{
 		PreviousBlockID: previousBlockID,
@@ -43,7 +43,7 @@ func NewAnswer(previousBlockID BlockID, nodeID proto.NodeID, answer hash.Hash) *
 }
 
 // getNextPuzzle generate new puzzle which ask other nodes to get a specified record in database.
-// The index of next SQL (puzzle) is determined by the previous answer and previous block hash
+// The index of next SQL (puzzle) is determined by the previous answer and previous block hash.
 func getNextPuzzle(answers []Answer, previousBlock StorageProofBlock) (int32, error) {
 	var totalRecordsInSQLChain int32 = 10
 	var sum int32
@@ -82,7 +82,7 @@ func getNextVerifier(previousBlock, currentBlock StorageProofBlock) (int32, erro
 	return verifier, nil
 }
 
-// selectRecord returns nth record in the table from the database
+// selectRecord returns nth record in the table from the database.
 func selectRecord(n int32) string {
 	return "hello world"
 }
@@ -90,14 +90,14 @@ func selectRecord(n int32) string {
 // CheckValid returns whether answers is valid
 // Checkvalid checks answers as follows:
 // 1. len(answers) == len(nodes) - 1
-// 2. answers[i].nodeID's answer is the same as the hash of verifier
+// 2. answers[i].nodeID's answer is the same as the hash of verifier.
 func CheckValid(answers []Answer) bool {
 	return len(answers) > 0
 }
 
 // GenerateAnswer will select specified record for proving.
 // In order to generate a unique answer which is different with other nodes' answer,
-// we hash(record + nodeID) as the answer
+// we hash(record + nodeID) as the answer.
 func GenerateAnswer(answers []Answer, previousBlock StorageProofBlock, node proto.Node) (*Answer, error) {
 	sqlIndex, err := getNextPuzzle(answers, previousBlock)
 	if err != nil {

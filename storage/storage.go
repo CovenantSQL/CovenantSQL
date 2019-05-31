@@ -26,6 +26,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/twopc"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+
 	// Register CovenantSQL/go-sqlite3-encrypt engine.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
@@ -391,7 +392,7 @@ func (s *Storage) transformColumnTypes(columnTypes []*sql.ColumnType, e error) (
 	return
 }
 
-// golang does trick convert, use rowScanner to return the original result type in sqlite3 driver
+// golang does trick convert, use rowScanner to return the original result type in sqlite3 driver.
 type rowScanner struct {
 	fieldCnt int
 	column   int           // current column

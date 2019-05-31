@@ -1,13 +1,24 @@
-IsTestMode: true
+UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
 ListenAddr: "127.0.0.1:2145"
+ListenDirectAddr: "127.0.0.1:2148"
 ThisNodeID: "000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5"
+QPS: 1000
+BillingBlockCount: 2
+ChainBusPeriod: 1s
+BPPeriod: 3s
+BPTick: 1s
+SQLChainPeriod: 3s
+SQLChainTick: 1s
+SQLChainTTL: 10
+MinProviderDeposit: 1000000
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
   mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
+  oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
 BlockProducer:
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
   NodeID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
@@ -24,11 +35,24 @@ BlockProducer:
     MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
     Timestamp: 2018-08-13T21:59:59.12Z
+    BaseAccounts:
+      - Address: ba0ba731c7a76ccef2c1170f42038f7e228dfb474ef0190dfe35d9a37911ed37
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 1a7b0959bbd0d0ec529278a61c0056c277bffe75b2646e1699b46b10a90210be
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 9235bc4130a2ed4e6c35ea189dab35198ebb105640bedb97dd5269cc80863b16
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
+      - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
+        StableCoinBalance: 1000000000
+        CovenantCoinBalance: 1000000000
 Miner:
-  IsTestMode: true
+  UseTestMasterKey: true
   RootDir: "./data"
   MaxReqTimeGap: "2s"
-  MetricCollectInterval: "1h"
+  ProvideServiceInterval: "60s"
 KnownNodes:
 - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
   Nonce:
@@ -73,6 +97,7 @@ KnownNodes:
     c: 0
     d: 3104982049
   Addr: 127.0.0.1:2144
+  DirectAddr: 127.0.0.1:2147
   PublicKey: 0367aa51809a7c1dc0f82c02452fec9557b3e1d10ce7c919d8e73d90048df86d20
   Role: Miner
 - ID: 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
@@ -82,6 +107,7 @@ KnownNodes:
     c: 0
     d: 2305843010430351476
   Addr: 127.0.0.1:2145
+  DirectAddr: 127.0.0.1:2148
   PublicKey: 02914bca0806f040dd842207c44474ab41ecd29deee7f2d355789c5c78d448ca16
   Role: Miner
 - ID: 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
@@ -91,5 +117,6 @@ KnownNodes:
     c: 0
     d: 13835058056920509601
   Addr: 127.0.0.1:2146
+  DirectAddr: 127.0.0.1:2149
   PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
   Role: Miner

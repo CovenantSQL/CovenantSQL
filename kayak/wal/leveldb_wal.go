@@ -23,12 +23,14 @@ import (
 	"sync"
 	"sync/atomic"
 
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
@@ -166,6 +168,7 @@ func (p *LevelDBWal) Get(i uint64) (l *kt.Log, err error) {
 	var headerData []byte
 	if headerData, err = p.db.Get(headerKey, nil); err == leveldb.ErrNotFound {
 		err = ErrNotExists
+		return
 	} else if err != nil {
 		err = errors.Wrap(err, "get log header failed")
 		return
@@ -190,21 +193,11 @@ func (p *LevelDBWal) Close() {
 	}
 }
 
-// GetDB returns the leveldb for storage extensions.
-func (p *LevelDBWal) GetDB() (d *leveldb.DB, err error) {
-	if atomic.LoadUint32(&p.closed) == 1 {
-		err = ErrWalClosed
-		return
-	}
-
-	d = p.db
-	return
-}
-
 func (p *LevelDBWal) load(logHeader []byte) (l *kt.Log, err error) {
 	l = new(kt.Log)
 
 	if err = utils.DecodeMsgPack(logHeader, &l.LogHeader); err != nil {
+		log.WithField("header", logHeader).WithError(err).Debug("decode log header failed")
 		err = errors.Wrap(err, "decode log header failed")
 		return
 	}

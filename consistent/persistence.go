@@ -22,7 +22,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// Persistence is the interface for consistent persistence
+// Persistence is the interface for consistent persistence.
 type Persistence interface {
 	Init(storePath string, initNode []proto.Node) (err error)
 	SetNode(node *proto.Node) (err error)
@@ -31,30 +31,30 @@ type Persistence interface {
 	GetAllNodeInfo() (nodes []proto.Node, err error)
 }
 
-// KMSStorage implements Persistence
+// KMSStorage implements Persistence.
 type KMSStorage struct{}
 
-// Init implements Persistence interface
+// Init implements Persistence interface.
 func (s *KMSStorage) Init(storePath string, initNodes []proto.Node) (err error) {
 	return kms.InitPublicKeyStore(storePath, initNodes)
 }
 
-// SetNode implements Persistence interface
+// SetNode implements Persistence interface.
 func (s *KMSStorage) SetNode(node *proto.Node) (err error) {
 	return kms.SetNode(node)
 }
 
-// DelNode implements Persistence interface
+// DelNode implements Persistence interface.
 func (s *KMSStorage) DelNode(nodeID proto.NodeID) (err error) {
 	return kms.DelNode(nodeID)
 }
 
-// Reset implements Persistence interface
+// Reset implements Persistence interface.
 func (s *KMSStorage) Reset() (err error) {
 	return kms.ResetBucket()
 }
 
-// GetAllNodeInfo implements Persistence interface
+// GetAllNodeInfo implements Persistence interface.
 func (s *KMSStorage) GetAllNodeInfo() (nodes []proto.Node, err error) {
 	IDs, err := kms.GetAllNodeID()
 	if err != nil {

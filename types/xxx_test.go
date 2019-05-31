@@ -23,17 +23,182 @@ import (
 	"testing"
 	"time"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
-	genesisHash = hash.Hash{}
+	uuidLen           = 32
+	testingPrivateKey *asymmetric.PrivateKey
+	testingPublicKey  *asymmetric.PublicKey
 )
+
+const (
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+
+func generateRandomHash() hash.Hash {
+	h := hash.Hash{}
+	rand.Read(h[:])
+	return h
+}
+
+func generateRandomDatabaseID() proto.DatabaseID {
+	return proto.DatabaseID(randStringBytes(uuidLen))
+}
+
+func randStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+
+	}
+	return string(b)
+}
+
+func generateRandomTransferHeader() (header *TransferHeader, err error) {
+	header = &TransferHeader{
+		Nonce:     pi.AccountNonce(rand.Uint64()),
+		Amount:    rand.Uint64(),
+		TokenType: TokenType(rand.Intn(int(SupportTokenNumber))),
+	}
+	return
+}
+
+func generateRandomTransfer() (tx *Transfer, err error) {
+	header, err := generateRandomTransferHeader()
+	if err != nil {
+		return
+
+	}
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		return
+	}
+	tx = NewTransfer(header)
+	if err = tx.Sign(priv); err != nil {
+		return
+	}
+	return
+}
+
+func generateRandomBlock(parent hash.Hash, isGenesis bool) (b *BPBlock, err error) {
+	// Generate key pair
+	priv, _, err := asymmetric.GenSecp256k1KeyPair()
+
+	if err != nil {
+		return
+	}
+
+	h := hash.Hash{}
+	rand.Read(h[:])
+
+	b = &BPBlock{
+		SignedHeader: BPSignedHeader{
+			BPHeader: BPHeader{
+				Version:    0x01000000,
+				Producer:   proto.AccountAddress(h),
+				ParentHash: parent,
+				Timestamp:  time.Now().UTC(),
+			},
+		},
+	}
+
+	for i, n := 0, rand.Intn(10)+10; i < n; i++ {
+		tb, err := generateRandomTransfer()
+		if err != nil {
+			return nil, err
+
+		}
+		b.Transactions = append(b.Transactions, tb)
+
+	}
+
+	err = b.PackAndSignBlock(priv)
+
+	return
+}
+
+func randBytes(n int) (b []byte) {
+	b = make([]byte, n)
+	rand.Read(b)
+	return
+}
+
+func buildQuery(query string, args ...interface{}) Query {
+	var nargs = make([]NamedArg, len(args))
+	for i := range args {
+		nargs[i] = NamedArg{
+			Name:  "",
+			Value: args[i],
+		}
+	}
+	return Query{
+		Pattern: query,
+		Args:    nargs,
+	}
+}
+
+func buildRequest(qt QueryType, qs []Query) (r *Request) {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
+	r = &Request{
+		Header: SignedRequestHeader{
+			RequestHeader: RequestHeader{
+				NodeID:    id,
+				Timestamp: time.Now().UTC(),
+				QueryType: qt,
+			},
+		},
+		Payload: RequestPayload{Queries: qs},
+	}
+	if err = r.Sign(testingPrivateKey); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func buildResponse(header *SignedRequestHeader, cols []string, types []string, rows []ResponseRow) (r *Response) {
+	var (
+		id  proto.NodeID
+		err error
+	)
+	if id, err = kms.GetLocalNodeID(); err != nil {
+		id = proto.NodeID("00000000000000000000000000000000")
+	}
+	r = &Response{
+		Header: SignedResponseHeader{
+			ResponseHeader: ResponseHeader{
+				Request:      header.RequestHeader,
+				RequestHash:  header.Hash(),
+				NodeID:       id,
+				Timestamp:    time.Now().UTC(),
+				RowCount:     0,
+				LogOffset:    0,
+				LastInsertID: 0,
+				AffectedRows: 0,
+			},
+		},
+		Payload: ResponsePayload{
+			Columns:   cols,
+			DeclTypes: types,
+			Rows:      rows,
+		},
+	}
+	if err = r.BuildHash(); err != nil {
+		panic(err)
+	}
+	return
+}
 
 func setup() {
 	rand.Seed(time.Now().UnixNano())
@@ -52,82 +217,14 @@ func setup() {
 
 	kms.Unittest = true
 
-	if priv, pub, err := asymmetric.GenSecp256k1KeyPair(); err == nil {
-		kms.SetLocalKeyPair(priv, pub)
+	if testingPrivateKey, testingPublicKey, err = asymmetric.GenSecp256k1KeyPair(); err == nil {
+		kms.SetLocalKeyPair(testingPrivateKey, testingPublicKey)
 	} else {
 		panic(err)
 	}
 
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
-}
-
-func createRandomString(offset, length int, s *string) {
-	buff := make([]byte, rand.Intn(length)+offset)
-	rand.Read(buff)
-	*s = string(buff)
-}
-
-func createRandomStrings(offset, length, soffset, slength int) (s []string) {
-	s = make([]string, rand.Intn(length)+offset)
-
-	for i := range s {
-		createRandomString(soffset, slength, &s[i])
-	}
-
-	return
-}
-
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *Block, err error) {
-	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &Block{
-		SignedHeader: SignedHeader{
-			Header: Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: genesisHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.NonceInfo)
-		quitCh := make(chan struct{})
-		miner := cpuminer.NewCPUMiner(quitCh)
-		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.Serialize(),
-			NonceChan: nonceCh,
-			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
-		nonce := <-nonceCh
-		close(quitCh)
-		close(nonceCh)
-		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
-
-		if err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub); err != nil {
-			return nil, err
-		}
-
-		// Set genesis hash as zero value
-		b.SignedHeader.GenesisHash = hash.Hash{}
-	}
-
-	err = b.PackAndSignBlock(priv)
-	return
 }
 
 func TestMain(m *testing.M) {

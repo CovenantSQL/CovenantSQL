@@ -17,27 +17,24 @@
 package client
 
 import (
-	"bytes"
-	"fmt"
+	"database/sql"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -50,99 +47,49 @@ const (
 )
 
 var (
-	rootHash = hash.Hash{}
+	rootHash                      = hash.Hash{}
+	stubNextNonce pi.AccountNonce = 1
 )
 
-// fake BPDB service
-type stubBPDBService struct{}
+// fake BPDB service.
+type stubBPService struct{}
 
-func (s *stubBPDBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta(proto.DatabaseID("db")); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	err = resp.Sign(privateKey)
-
+func (s *stubBPService) QueryAccountTokenBalance(req *types.QueryAccountTokenBalanceReq,
+	resp *types.QueryAccountTokenBalanceResp) (err error) {
+	resp.OK = req.TokenType.Listed()
 	return
 }
 
-func (s *stubBPDBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseRequest) (err error) {
-	return
-}
-
-func (s *stubBPDBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	err = resp.Sign(privateKey)
-
-	return
-}
-
-func (s *stubBPDBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
-	resp.Header.Instances = make([]types.ServiceInstance, 0)
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	if resp.Sign(privateKey); err != nil {
-		return
-	}
-	return
-}
-
-func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
+func (s *stubBPService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
+	resp *types.QuerySQLChainProfileResp) (err error) {
 	var nodeID proto.NodeID
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
-
-	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &proto.Peers{
-		PeersHeader: proto.PeersHeader{
-			Term:    1,
-			Leader:  nodeID,
-			Servers: []proto.NodeID{nodeID},
+	resp.Profile = types.SQLChainProfile{
+		Miners: []*types.MinerInfo{
+			{
+				NodeID: nodeID,
+			},
 		},
 	}
-	if err = instance.Peers.Sign(privKey); err != nil {
-		return
-	}
-	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
-
 	return
 }
 
-func (s *stubBPDBService) QueryAccountStableBalance(req *bp.QueryAccountStableBalanceReq,
-	resp *bp.QueryAccountStableBalanceResp) (err error) {
+func (s *stubBPService) NextAccountNonce(_ *types.NextAccountNonceReq,
+	resp *types.NextAccountNonceResp) (err error) {
+	resp.Nonce = stubNextNonce
 	return
 }
 
-func (s *stubBPDBService) QueryAccountCovenantBalance(req *bp.QueryAccountCovenantBalanceReq,
-	resp *bp.QueryAccountCovenantBalanceResp) (err error) {
+func (s *stubBPService) AddTx(req *types.AddTxReq, resp *types.AddTxResp) (err error) {
+	return
+}
+
+func (s *stubBPService) QueryTxState(
+	req *types.QueryTxStateReq, resp *types.QueryTxStateResp) (err error,
+) {
+	resp.State = pi.TransactionStateConfirmed
 	return
 }
 
@@ -194,7 +141,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	dbID := proto.DatabaseID("db")
 
 	// create sqlchain block
-	block, err = createRandomBlock(rootHash, true)
+	block, err = types.CreateRandomBlock(rootHash, true)
 
 	// get database peers
 	if peers, err = genPeers(1); err != nil {
@@ -205,8 +152,11 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	req = new(types.UpdateService)
 	req.Header.Op = types.CreateDB
 	req.Header.Instance = types.ServiceInstance{
-		DatabaseID:   dbID,
-		Peers:        peers,
+		DatabaseID: dbID,
+		Peers:      peers,
+		ResourceMeta: types.ResourceMeta{
+			IsolationLevel: int(sql.LevelReadUncommitted),
+		},
 		GenesisBlock: block,
 	}
 	if req.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
@@ -225,6 +175,20 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 		return
 	}
 
+	// update private key permission in dbms for query
+	addr, err := crypto.PubKeyHash(privateKey.PubKey())
+	if err != nil {
+		return
+	}
+	permStat := &types.PermStat{
+		Permission: types.UserPermissionFromRole(types.Admin),
+		Status:     types.Normal,
+	}
+	err = dbms.UpdatePermission(dbID, proto.AccountAddress(addr), permStat)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -237,12 +201,12 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	// init conf
 	_, testFile, _, _ := runtime.Caller(0)
 	pubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_dht")
-	os.Remove(pubKeyStoreFile)
+	utils.RemoveAll(pubKeyStoreFile + "*")
 	clientPubKeyStoreFile := filepath.Join(tempDir, PubKeyStorePath+"_c")
-	os.Remove(clientPubKeyStoreFile)
+	utils.RemoveAll(clientPubKeyStoreFile + "*")
 	dupConfFile := filepath.Join(tempDir, "config.yaml")
 	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	if err = dupConf(confFile, dupConfFile); err != nil {
+	if err = utils.DupConf(confFile, dupConfFile); err != nil {
 		return
 	}
 	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
@@ -273,13 +237,8 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		return
 	}
 
-	// register bpdb service
-	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
-		return
-	}
-
 	// register fake chain service
-	if err = server.RegisterService(route.BlockProducerRPCName, &stubBPDBService{}); err != nil {
+	if err = server.RegisterService(route.BlockProducerRPCName, &stubBPService{}); err != nil {
 		return
 	}
 
@@ -292,66 +251,17 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 	// start server
 	go server.Serve()
 
+	// fake database init already processed
+	atomic.StoreUint32(&driverInitialized, 1)
+
 	cleanupFunc = func() {
 		os.RemoveAll(tempDir)
 		server.Listener.Close()
 		server.Stop()
+		// restore database init state
+		atomic.StoreUint32(&driverInitialized, 0)
+		kms.ResetLocalKeyStore()
 	}
-
-	// fake database init already processed
-	atomic.StoreUint32(&driverInitialized, 1)
-
-	return
-}
-
-// copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
-	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: rootHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.NonceInfo)
-		quitCh := make(chan struct{})
-		miner := cpuminer.NewCPUMiner(quitCh)
-		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.Serialize(),
-			NonceChan: nonceCh,
-			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
-		nonce := <-nonceCh
-		close(quitCh)
-		close(nonceCh)
-		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
-		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = b.PackAndSignBlock(priv)
 	return
 }
 
@@ -403,22 +313,4 @@ func genPeers(term uint64) (peers *proto.Peers, err error) {
 	}
 	err = peers.Sign(privateKey)
 	return
-}
-
-// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
-func dupConf(confFile string, newConfFile string) (err error) {
-	// replace port in confFile
-	var fileBytes []byte
-	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
-		return
-	}
-
-	var ports []int
-	if ports, err = utils.GetRandomPorts("127.0.0.1", 4000, 5000, 1); err != nil {
-		return
-	}
-
-	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
-
-	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

@@ -23,7 +23,6 @@ import (
 	"io"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	ec "github.com/btcsuite/btcd/btcec"
 )
 
 // KeyDerivation .according to ANSI X9.63 we should do a key derivation before using
@@ -81,15 +80,12 @@ type cipherInfo struct {
 	newEncStream func(key, iv []byte) (cipher.Stream, error)
 }
 
-// Cipher struct keeps cipher mode, key, iv
+// Cipher struct keeps cipher mode, key, iv.
 type Cipher struct {
-	encStream  cipher.Stream
-	decStream  cipher.Stream
-	publicKey  ec.PublicKey
-	privateKey ec.PrivateKey
-	key        []byte
-	info       *cipherInfo
-	iv         []byte
+	encStream cipher.Stream
+	decStream cipher.Stream
+	key       []byte
+	info      *cipherInfo
 }
 
 // NewCipher creates a cipher that can be used in Dial(), Listen() etc.
@@ -112,14 +108,9 @@ func NewCipher(rawKey []byte) (c *Cipher) {
 
 // initEncrypt Initializes the block cipher with CFB mode, returns IV.
 func (c *Cipher) initEncrypt() (iv []byte, err error) {
-	if c.iv == nil {
-		iv = make([]byte, c.info.ivLen)
-		if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-			return nil, err
-		}
-		c.iv = iv
-	} else {
-		iv = c.iv
+	iv = make([]byte, c.info.ivLen)
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
 	}
 	c.encStream, err = c.info.newEncStream(c.key, iv)
 	return

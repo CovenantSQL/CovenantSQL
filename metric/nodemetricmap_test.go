@@ -19,23 +19,25 @@ package metric
 import (
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	dto "github.com/prometheus/client_model/go"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func TestCollectServer_FilterNode(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	filterTrue := func(key proto.NodeID, value MetricMap) bool {
+	filterTrue := func(key proto.NodeID, value SimpleMetricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
 		return true
 	}
-	filterFalse := func(key proto.NodeID, value MetricMap) bool {
+	filterFalse := func(key proto.NodeID, value SimpleMetricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
 		return false
 	}
-	filterMem1MB := func(key proto.NodeID, value MetricMap) bool {
+	filterMem1MB := func(key proto.NodeID, value SimpleMetricMap) bool {
 		log.Debugf("key: %s, value: %#v", key, value)
 		var v *dto.MetricFamily
 		v, ok := value["node_memory_bytes_total"]
@@ -45,8 +47,8 @@ func TestCollectServer_FilterNode(t *testing.T) {
 		if ok && len(v.Metric) > 0 &&
 			v.Metric[0].GetGauge() != nil &&
 			v.Metric[0].GetGauge().Value != nil &&
-			*v.Metric[0].GetGauge().Value > float64(1*MB) {
-			log.Debugf("has memory: %fGB", *v.Metric[0].GetGauge().Value/float64(GB))
+			*v.Metric[0].GetGauge().Value > float64(1*utils.MB) {
+			log.Debugf("has memory: %fGB", *v.Metric[0].GetGauge().Value/float64(utils.GB))
 			return true
 		}
 
@@ -55,10 +57,10 @@ func TestCollectServer_FilterNode(t *testing.T) {
 	Convey("filter node", t, func() {
 		cc := NewCollectClient()
 		mfs, _ := cc.Registry.Gather()
-		mm := make(MetricMap, 0)
+		mm := make(SimpleMetricMap, 0)
 		for _, mf := range mfs {
 			mm[*mf.Name] = mf
-			log.Debugf("Gathered node: %v", mf)
+			log.Debugf("gathered node: %v", mf)
 		}
 		nmm := NodeMetricMap{}
 		nmm.Store(proto.NodeID("node1"), mm)
@@ -79,10 +81,10 @@ func TestCollectServer_FilterNode(t *testing.T) {
 	Convey("filter metrics", t, func() {
 		cc := NewCollectClient()
 		mfs, _ := cc.Registry.Gather()
-		mm := make(MetricMap, 0)
+		mm := make(SimpleMetricMap, 0)
 		for _, mf := range mfs {
 			mm[*mf.Name] = mf
-			log.Debugf("Gathered node: %v", mf)
+			log.Debugf("gathered node: %v", mf)
 		}
 		nmm := NodeMetricMap{}
 		nmm.Store(proto.NodeID("node1"), mm)

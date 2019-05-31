@@ -21,38 +21,22 @@ import "errors"
 var (
 	// ErrNoSuchDatabase defines database meta not exists error.
 	ErrNoSuchDatabase = errors.New("no such database")
-	// ErrDatabaseAllocation defines database allocation failure error.
-	ErrDatabaseAllocation = errors.New("allocate database failed")
-	// ErrMetricNotCollected defines errors collected.
-	ErrMetricNotCollected = errors.New("metric not collected")
-
-	// Errors on main chain
-
-	// ErrCorruptedIndex defines index corrupted error.
-	ErrCorruptedIndex = errors.New("corrupted index item")
 	// ErrParentNotFound defines that the parent block cannot be found.
 	ErrParentNotFound = errors.New("previous block cannot be found")
 	// ErrInvalidHash defines invalid hash error.
 	ErrInvalidHash = errors.New("Hash is invalid")
 	// ErrExistedTx defines existed tx error.
 	ErrExistedTx = errors.New("Tx existed")
-	// ErrInvalidMerkleTreeRoot defines invalid merkle tree root error.
-	ErrInvalidMerkleTreeRoot = errors.New("Block merkle tree root does not match the tx hashes")
 	// ErrParentNotMatch defines invalid parent hash.
 	ErrParentNotMatch = errors.New("Block's parent hash cannot match best block")
-	// ErrNoSuchBlock defines no such block error.
-	ErrNoSuchBlock = errors.New("Cannot find such block")
-	// ErrNoSuchTxBilling defines no such txbilling error.
-	ErrNoSuchTxBilling = errors.New("Cannot find such txbilling")
-	// ErrSmallerSequenceID defines that new sequence id is smaller the old one.
-	ErrSmallerSequenceID = errors.New("SequanceID should be bigger than the old one")
-	// ErrInvalidBillingRequest defines BillingRequest is invalid
-	ErrInvalidBillingRequest = errors.New("The BillingRequest is invalid")
-
+	// ErrTooManyTransactionsInBlock defines error of too many transactions in a block.
+	ErrTooManyTransactionsInBlock = errors.New("too many transactions in block")
 	// ErrBalanceOverflow indicates that there will be an overflow after balance manipulation.
 	ErrBalanceOverflow = errors.New("balance overflow")
 	// ErrInsufficientBalance indicates that an account has insufficient balance for spending.
 	ErrInsufficientBalance = errors.New("insufficient balance")
+	// ErrInsufficientTransfer indicates that the transfer amount is insufficient for paying arrears.
+	ErrInsufficientTransfer = errors.New("insufficient transfer")
 	// ErrAccountNotFound indicates that an account is not found.
 	ErrAccountNotFound = errors.New("account not found")
 	// ErrAccountExists indicates that the an account already exists.
@@ -68,8 +52,39 @@ var (
 	// ErrUnknownTransactionType indicates that a transaction has a unknown type and cannot be
 	// further processed.
 	ErrUnknownTransactionType = errors.New("unknown transaction type")
-	// ErrTransactionMismatch indicates that transactions to be committed mismatch the pool.
-	ErrTransactionMismatch = errors.New("transaction mismatch")
-	// ErrMetaStateNotFound indicates that meta state not found in db.
-	ErrMetaStateNotFound = errors.New("meta state not found in db")
+	// ErrInvalidSender indicates that tx.Signee != tx.Sender.
+	ErrInvalidSender = errors.New("invalid sender")
+	// ErrInvalidRange indicates that the billing range is invalid.
+	ErrInvalidRange = errors.New("invalid billing range")
+	// ErrNoSuchMiner indicates that this miner does not exist or register.
+	ErrNoSuchMiner = errors.New("no such miner")
+	// ErrNoEnoughMiner indicates that there is not enough miners
+	ErrNoEnoughMiner = errors.New("can not get enough miners")
+	// ErrAccountPermissionDeny indicates that the sender does not own admin permission to the sqlchain.
+	ErrAccountPermissionDeny = errors.New("account permission deny")
+	// ErrNoSuperUserLeft indicates there is no super user in sqlchain.
+	ErrNoSuperUserLeft = errors.New("no super user left")
+	// ErrInvalidPermission indicates that the permission is invalid.
+	ErrInvalidPermission = errors.New("invalid permission")
+	// ErrMinerUserNotMatch indicates that the miner and user do not match.
+	ErrMinerUserNotMatch = errors.New("miner and user do not match")
+	// ErrInsufficientAdvancePayment indicates that the advance payment is insufficient.
+	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
+	// ErrNilGenesis indicates that the genesis block is nil in config.
+	ErrNilGenesis = errors.New("nil genesis block")
+	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
+	ErrMultipleGenesis = errors.New("multiple genesis blocks")
+	// ErrGenesisHashNotMatch indicates that the genesis block hash in config doesn't match
+	// the persisted one.
+	ErrGenesisHashNotMatch = errors.New("persisted genesis block hash not match")
+	// ErrInvalidGasPrice indicates that the gas price is invalid.
+	ErrInvalidGasPrice = errors.New("gas price is invalid")
+	// ErrInvalidMinerCount indicates that the miner node count is invalid.
+	ErrInvalidMinerCount = errors.New("miner node count is invalid")
+	// ErrLocalNodeNotFound indicates that the local node id is not found in the given peer list.
+	ErrLocalNodeNotFound = errors.New("local node id not found in peer list")
+	// ErrNoAvailableBranch indicates that there is no available branch from the state storage.
+	ErrNoAvailableBranch = errors.New("no available branch from state storage")
+	// ErrWrongTokenType indicates that token type in transfer is wrong.
+	ErrWrongTokenType = errors.New("wrong token type")
 )

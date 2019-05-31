@@ -24,7 +24,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// Hook are called during 2PC running
+// Hook are called during 2PC running.
 type Hook func(ctx context.Context) error
 
 // Options represents options of a 2PC coordinator.
@@ -58,14 +58,14 @@ func NewCoordinator(opt *Options) *Coordinator {
 	}
 }
 
-// NewOptions returns a new coordinator option
+// NewOptions returns a new coordinator option.
 func NewOptions(timeout time.Duration) *Options {
 	return &Options{
 		timeout: timeout,
 	}
 }
 
-// NewOptionsWithCallback returns a new coordinator option with before prepare/commit/rollback callback
+// NewOptionsWithCallback returns a new coordinator option with before prepare/commit/rollback callback.
 func NewOptionsWithCallback(timeout time.Duration,
 	beforePrepare Hook, beforeCommit Hook, beforeRollback Hook, afterCommit Hook) *Options {
 	return &Options{

@@ -17,24 +17,25 @@
 package metric
 
 import (
-	"os"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const PubKeyStorePath = "./public.keystore"
 
 func TestCollectClient_UploadMetrics(t *testing.T) {
-	defer os.Remove(PubKeyStorePath)
+	defer utils.RemoveAll(PubKeyStorePath + "*")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	masterKey := []byte("abc")
@@ -64,7 +65,7 @@ func TestCollectClient_UploadMetrics(t *testing.T) {
 		So(ok, ShouldBeTrue)
 		//log.Debugf("NodeMetric：%#v", v)
 
-		m, _ := v.(MetricMap)
+		m, _ := v.(SimpleMetricMap)
 		mfb, err := cc.GatherMetricBytes()
 		So(err, ShouldBeNil)
 		So(len(m), ShouldEqual, len(mfb))

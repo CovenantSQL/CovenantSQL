@@ -17,12 +17,15 @@
 package client
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -30,7 +33,6 @@ import (
 var (
 	baseDir        = utils.GetProjectSrcDir()
 	testWorkingDir = FJ(baseDir, "./test/GNTE/conf")
-	logDir         = FJ(testWorkingDir, "./log/")
 	once           sync.Once
 )
 
@@ -53,8 +55,18 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 		}
 	})
 
+	// wait for chain service
+	var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel1()
+	err = test.WaitBPChainService(ctx1, 3*time.Second)
+	if err != nil {
+		b.Fatalf("wait for chain service failed: %v", err)
+	}
+
 	// create
-	dsn, err := Create(ResourceMeta{Node: 3})
+	meta := ResourceMeta{}
+	meta.Node = 3
+	_, dsn, err := Create(meta)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -97,7 +109,7 @@ func BenchmarkCovenantSQLDriver(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	err = Drop(dsn)
+	_, err = Drop(dsn)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -134,7 +134,7 @@ func (e *Enforcer) HasPermissionForUser(user string, permission ...string) bool 
 //
 // GetRolesForUser("alice") can only get: ["role:admin"].
 // But GetImplicitRolesForUser("alice") will get: ["role:admin", "role:user"].
-func (e *Enforcer) GetImplicitRolesForUser(name string) []string {
+func (e *Enforcer) GetImplicitRolesForUser(name string, domain ...string) []string {
 	res := []string{}
 	roleSet := make(map[string]bool)
 	roleSet[name] = true
@@ -146,7 +146,7 @@ func (e *Enforcer) GetImplicitRolesForUser(name string) []string {
 		name := q[0]
 		q = q[1:]
 
-		roles, err := e.rm.GetRoles(name)
+		roles, err := e.rm.GetRoles(name, domain...)
 		if err != nil {
 			panic(err)
 		}
@@ -171,14 +171,27 @@ func (e *Enforcer) GetImplicitRolesForUser(name string) []string {
 //
 // GetPermissionsForUser("alice") can only get: [["alice", "data2", "read"]].
 // But GetImplicitPermissionsForUser("alice") will get: [["admin", "data1", "read"], ["alice", "data2", "read"]].
-func (e *Enforcer) GetImplicitPermissionsForUser(user string) [][]string {
-	roles := e.GetImplicitRolesForUser(user)
+func (e *Enforcer) GetImplicitPermissionsForUser(user string, domain ...string) [][]string {
+	roles := e.GetImplicitRolesForUser(user, domain...)
 	roles = append([]string{user}, roles...)
 
+	withDomain := false
+	if len(domain) == 1 {
+		withDomain = true
+	} else if len(domain) > 1 {
+		panic("error: domain should be 1 parameter")
+	}
+
 	res := [][]string{}
+	permissions := [][]string{}
 	for _, role := range roles {
-		permissions := e.GetPermissionsForUser(role)
+		if withDomain {
+			permissions = e.GetPermissionsForUserInDomain(role, domain[0])
+		} else {
+			permissions = e.GetPermissionsForUser(role)
+		}
 		res = append(res, permissions...)
 	}
+
 	return res
 }

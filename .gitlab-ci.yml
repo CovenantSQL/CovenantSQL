@@ -1,33 +1,109 @@
 image: covenantsql/build
 
+stages:
+  - build
+  - test
+  - cleanup
+
 variables:
-  REVIEWDOG_VERSION: 0.9.9
+  REVIEWDOG_VERSION: 0.9.11
   REVIEWDOG_GITLAB_API_TOKEN: $REVIEWDOG_TOKEN
   CODECOV_TOKEN: $CODECOV_TOKEN
+  UNITTESTTAGS: linux sqlite_omit_load_extension
+  CACHE_DIR: /CovenantSQL_bins
+  PIPELINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
+  BIN_CACHE: $CACHE_DIR/$CI_PIPELINE_IID/bin
+  PREV_VERSION: v0.6.0
+  # gitlabci bins: 192.168.2.100:/data/CovenantSQL_bins
 
 before_script:
   # Setup dependency management tool
-#  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
-#  - chmod +x $GOPATH/bin/dep
-#  - go get github.com/mattn/goveralls
-#  - go get github.com/haya14busa/goverage
-#  - go get github.com/golang/lint/golint
-#  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
-  - go get github.com/wadey/gocovmerge
-  - mkdir -p $GOPATH/src/github.com/
-  - cp -r /builds/CovenantSQL $GOPATH/src/github.com/
+  #  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
+  #  - chmod +x $GOPATH/bin/dep
+  #  - go get github.com/mattn/goveralls
+  #  - go get github.com/haya14busa/goverage
+  #  - go get github.com/golang/lint/golint
+  #  - go get github.com/haya14busa/reviewdog/cmd/reviewdog
+  #  - go get github.com/wadey/gocovmerge
+  - mkdir -p $GOPATH/src/github.com/CovenantSQL
+  - cp -r /builds/thunderdb/CovenantSQL $GOPATH/src/github.com/CovenantSQL/
   - cd $GOPATH/src/github.com/CovenantSQL/CovenantSQL
-#  - dep ensure
+  #  - dep ensure
   - mkdir -p ~/bin/ && export PATH="~/bin/:$PATH"
+  - ulimit -n 8192
 #  - curl -fSL https://github.com/haya14busa/reviewdog/releases/download/$REVIEWDOG_VERSION/reviewdog_linux_amd64 -o ~/bin/reviewdog && chmod +x ~/bin/reviewdog
 
-test-my-project:
+build:
+  stage: build
+  script:
+    - set -x
+    - make clean
+    - make use_all_cores
+    - mkdir -p ${BIN_CACHE}
+    - cp -r bin/* ${BIN_CACHE}/
+
+unit-test:
+  stage: test
+  script: 
+    - make clean
+    - cp -r ${BIN_CACHE}/* bin/
+    - ./alltest.sh
+
+testnet-compatibility:
   stage: test
   script:
-    - bash build.sh
-    - go test -v -race $(go list ./... | grep -v "/vendor/") -coverprofile cover.out
-    - gocovmerge cover.out $(find cmd -name "*.cover.out") > coverage.txt && rm -f cover.out
-    - bash <(curl -s https://codecov.io/bash)
-    - >-
-      golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-mr-commit || true
+    - set -o errexit
+    - set -o pipefail
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
+    - make clean
+    - cp -r ${BIN_CACHE}/* bin/
+    - go test -tags "$UNITTESTTAGS" -bench=^BenchmarkTestnetMiner2$ -benchtime=5s -run ^$ ./cmd/cql-minerd/
+    - set -x
+    - ./test/testnet_client/run.sh
 
+old-client-compatibility:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
+    - make clean
+    - cp -r ${BIN_CACHE}/* bin/
+    - ./test/compatibility/specific_old.sh client
+
+old-bp-compatibility:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
+    - make clean
+    - cp -r ${BIN_CACHE}/* bin/
+    - ./test/compatibility/specific_old.sh bp
+
+old-miner-compatibility:
+  stage: test
+  script:
+    - set -o errexit
+    - set -o pipefail
+    - set -x
+    - commit=$(git rev-parse --short HEAD)
+    - branch=$(git branch -rv |grep $commit | awk '{print $1}')
+    - if [[ $branch =~ "/beta_" ]]; then exit 0; fi
+    - make clean
+    - cp -r ${BIN_CACHE}/* bin/
+    - ./test/compatibility/specific_old.sh miner
+
+cleanup_cache:
+  stage: cleanup
+  script:
+    - rm -r ${PIPELINE_CACHE}
+  when: on_success

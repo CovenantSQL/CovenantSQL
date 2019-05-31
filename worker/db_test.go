@@ -17,33 +17,25 @@
 package worker
 
 import (
-	"bytes"
-	"fmt"
+	"context"
 	"io/ioutil"
-	"math/rand"
 	"os"
-	"path/filepath"
-	"runtime"
+	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/fortytw2/leaktest"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/fortytw2/leaktest"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var rootHash = hash.Hash{}
@@ -78,16 +70,17 @@ func TestSingleDatabase(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:      "TEST",
-			DataDir:         rootDir,
-			KayakMux:        kayakMuxService,
-			ChainMux:        chainMuxService,
-			MaxWriteTimeGap: time.Second * 5,
+			DatabaseID:       "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9",
+			DataDir:          rootDir,
+			KayakMux:         kayakMuxService,
+			ChainMux:         chainMuxService,
+			MaxWriteTimeGap:  time.Second * 5,
+			UpdateBlockCount: 2,
 		}
 
 		// create genesis block
 		var block *types.Block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// create database
@@ -107,8 +100,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(writeQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			// test show tables query
 			var readQuery *types.Request
@@ -118,8 +109,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -135,8 +124,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
@@ -150,8 +137,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -169,8 +154,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
@@ -187,8 +170,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
@@ -204,8 +185,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -226,8 +205,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			res, err = db.Query(writeQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 			So(res.Header.RowCount, ShouldEqual, 0)
 
 			// test select query
@@ -238,8 +215,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -264,8 +239,6 @@ func TestSingleDatabase(t *testing.T) {
 
 			// request once
 			res, err = db.Query(writeQuery)
-			So(err, ShouldBeNil)
-			err = res.Verify()
 			So(err, ShouldBeNil)
 			So(res.Header.RowCount, ShouldEqual, 0)
 
@@ -312,8 +285,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			res, err = db.Query(readQuery)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
@@ -355,8 +326,6 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(0))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
@@ -378,8 +347,9 @@ func TestSingleDatabase(t *testing.T) {
 			So(err, ShouldBeNil)
 			res, err = db.Query(readQuery)
 			So(err, ShouldBeNil)
-			err = res.Verify()
-			So(err, ShouldBeNil)
+
+			// wait for callback to sign signature
+			time.Sleep(time.Millisecond * 10)
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
@@ -439,16 +409,17 @@ func TestInitFailed(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:      "TEST",
-			DataDir:         rootDir,
-			KayakMux:        kayakMuxService,
-			ChainMux:        chainMuxService,
-			MaxWriteTimeGap: time.Duration(5 * time.Second),
+			DatabaseID:       "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9",
+			DataDir:          rootDir,
+			KayakMux:         kayakMuxService,
+			ChainMux:         chainMuxService,
+			MaxWriteTimeGap:  time.Duration(5 * time.Second),
+			UpdateBlockCount: 2,
 		}
 
 		// create genesis block
 		var block *types.Block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// broken peers configuration
@@ -462,6 +433,7 @@ func TestInitFailed(t *testing.T) {
 
 func TestDatabaseRecycle(t *testing.T) {
 	defer leaktest.Check(t)()
+	defer kms.ClosePublicKeyStore()
 
 	// test init/shutdown/destroy
 	// test goroutine status
@@ -492,16 +464,17 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		// create file
 		cfg := &DBConfig{
-			DatabaseID:      "TEST",
-			DataDir:         rootDir,
-			KayakMux:        kayakMuxService,
-			ChainMux:        chainMuxService,
-			MaxWriteTimeGap: time.Duration(5 * time.Second),
+			DatabaseID:       "00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9",
+			DataDir:          rootDir,
+			KayakMux:         kayakMuxService,
+			ChainMux:         chainMuxService,
+			MaxWriteTimeGap:  time.Duration(5 * time.Second),
+			UpdateBlockCount: 2,
 		}
 
 		// create genesis block
 		var block *types.Block
-		block, err = createRandomBlock(rootHash, true)
+		block, err = types.CreateRandomBlock(rootHash, true)
 		So(err, ShouldBeNil)
 
 		// create database
@@ -520,8 +493,6 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		res, err = db.Query(writeQuery)
 		So(err, ShouldBeNil)
-		err = res.Verify()
-		So(err, ShouldBeNil)
 		So(res.Header.RowCount, ShouldEqual, 0)
 
 		// test select query
@@ -532,8 +503,6 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		res, err = db.Query(readQuery)
-		So(err, ShouldBeNil)
-		err = res.Verify()
 		So(err, ShouldBeNil)
 
 		So(res.Header.RowCount, ShouldEqual, uint64(1))
@@ -548,6 +517,52 @@ func TestDatabaseRecycle(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, err = os.Stat(rootDir)
 		So(err, ShouldNotBeNil)
+	})
+}
+
+func TestDatabase_EncodePayload(t *testing.T) {
+	Convey("encode payload cache", t, func() {
+		db := &Database{}
+		req := &types.Request{
+			Envelope: proto.Envelope{
+				Version: "",
+				TTL:     0,
+				Expire:  0,
+				NodeID: &proto.RawNodeID{
+					Hash: hash.Hash{},
+				},
+			},
+			Header: types.SignedRequestHeader{
+				RequestHeader: types.RequestHeader{
+					QueryType:    1,
+					NodeID:       "0000000000000000000000000000000000000000000000000000000000000001",
+					DatabaseID:   "1",
+					ConnectionID: 1,
+					SeqNo:        1,
+					Timestamp:    time.Now().UTC(),
+					BatchCount:   1,
+					QueriesHash:  hash.Hash{},
+				},
+			},
+			Payload: types.RequestPayload{
+				Queries: []types.Query{
+					{
+						Pattern: "xxx",
+						Args:    nil,
+					},
+				},
+			},
+		}
+		encoded, err := db.EncodePayload(req)
+		So(err, ShouldBeNil)
+		req2, err := db.DecodePayload(encoded)
+		So(err, ShouldBeNil)
+		So(req.Header, ShouldResemble, req2.(*types.Request).Header)
+		So(reflect.DeepEqual(req.Header, req2.(*types.Request).Header), ShouldBeTrue)
+		So(reflect.DeepEqual(req.Payload, req2.(*types.Request).Payload), ShouldBeTrue)
+		encoded2, err := db.EncodePayload(req)
+		So(err, ShouldBeNil)
+		So(encoded2, ShouldResemble, encoded)
 	})
 }
 
@@ -568,14 +583,15 @@ func buildAck(res *types.Response) (ack *types.Ack, err error) {
 	ack = &types.Ack{
 		Header: types.SignedAckHeader{
 			AckHeader: types.AckHeader{
-				Response:  res.Header,
-				NodeID:    nodeID,
-				Timestamp: getLocalTime(),
+				Response:     res.Header.ResponseHeader,
+				ResponseHash: res.Header.Hash(),
+				NodeID:       nodeID,
+				Timestamp:    getLocalTime(),
 			},
 		},
 	}
 
-	err = ack.Sign(privateKey, true)
+	err = ack.Sign(privateKey)
 
 	return
 }
@@ -631,6 +647,7 @@ func buildQueryEx(queryType types.QueryType, connID uint64, seqNo uint64, timeSh
 			Queries: realQueries,
 		},
 	}
+	query.SetContext(context.Background())
 
 	err = query.Sign(privateKey)
 
@@ -675,215 +692,4 @@ func getKeys() (privKey *asymmetric.PrivateKey, pubKey *asymmetric.PublicKey, er
 	}
 
 	return
-}
-
-func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
-	var d string
-	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
-		return
-	}
-
-	// init conf
-	_, testFile, _, _ := runtime.Caller(0)
-	pubKeyStoreFile := filepath.Join(d, PubKeyStorePath)
-	os.Remove(pubKeyStoreFile)
-	clientPubKeyStoreFile := filepath.Join(d, PubKeyStorePath+"_c")
-	os.Remove(clientPubKeyStoreFile)
-	dupConfFile := filepath.Join(d, "config.yaml")
-	confFile := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/config.yaml")
-	if err = dupConf(confFile, dupConfFile); err != nil {
-		return
-	}
-	privateKeyPath := filepath.Join(filepath.Dir(testFile), "../test/node_standalone/private.key")
-
-	conf.GConf, _ = conf.LoadConfig(dupConfFile)
-	// reset the once
-	route.Once = sync.Once{}
-	route.InitKMS(clientPubKeyStoreFile)
-
-	var dht *route.DHTService
-
-	// init dht
-	dht, err = route.NewDHTService(pubKeyStoreFile, new(consistent.KMSStorage), true)
-	if err != nil {
-		return
-	}
-
-	// init rpc
-	if server, err = rpc.NewServerWithService(rpc.ServiceMap{route.DHTRPCName: dht}); err != nil {
-		return
-	}
-
-	// register bpdb service
-	if err = server.RegisterService(route.BPDBRPCName, &stubBPDBService{}); err != nil {
-		return
-	}
-
-	// init private key
-	masterKey := []byte("")
-	if err = server.InitRPCServer(conf.GConf.ListenAddr, privateKeyPath, masterKey); err != nil {
-		return
-	}
-
-	// start server
-	go server.Serve()
-
-	cleanupFunc = func() {
-		os.RemoveAll(d)
-		server.Listener.Close()
-		server.Stop()
-		// clear the connection pool
-		rpc.GetSessionPoolInstance().Close()
-	}
-
-	return
-}
-
-// copied from sqlchain.xxx_test.
-func createRandomBlock(parent hash.Hash, isGenesis bool) (b *types.Block, err error) {
-	// Generate key pair
-	priv, pub, err := asymmetric.GenSecp256k1KeyPair()
-
-	if err != nil {
-		return
-	}
-
-	h := hash.Hash{}
-	rand.Read(h[:])
-
-	b = &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:     0x01000000,
-				Producer:    proto.NodeID(h.String()),
-				GenesisHash: rootHash,
-				ParentHash:  parent,
-				Timestamp:   time.Now().UTC(),
-			},
-		},
-	}
-
-	if isGenesis {
-		// Compute nonce with public key
-		nonceCh := make(chan cpuminer.NonceInfo)
-		quitCh := make(chan struct{})
-		miner := cpuminer.NewCPUMiner(quitCh)
-		go miner.ComputeBlockNonce(cpuminer.MiningBlock{
-			Data:      pub.Serialize(),
-			NonceChan: nonceCh,
-			Stop:      nil,
-		}, cpuminer.Uint256{A: 0, B: 0, C: 0, D: 0}, 4)
-		nonce := <-nonceCh
-		close(quitCh)
-		close(nonceCh)
-		// Add public key to KMS
-		id := cpuminer.HashBlock(pub.Serialize(), nonce.Nonce)
-		b.SignedHeader.Header.Producer = proto.NodeID(id.String())
-		err = kms.SetPublicKey(proto.NodeID(id.String()), nonce.Nonce, pub)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = b.PackAndSignBlock(priv)
-	return
-}
-
-// fake BPDB service
-type stubBPDBService struct{}
-
-func (s *stubBPDBService) CreateDatabase(req *types.CreateDatabaseRequest, resp *types.CreateDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta("db2"); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	err = resp.Sign(privateKey)
-	return
-}
-
-func (s *stubBPDBService) DropDatabase(req *types.DropDatabaseRequest, resp *types.DropDatabaseRequest) (err error) {
-	return
-}
-
-func (s *stubBPDBService) GetDatabase(req *types.GetDatabaseRequest, resp *types.GetDatabaseResponse) (err error) {
-	if resp.Header.InstanceMeta, err = s.getInstanceMeta(req.Header.DatabaseID); err != nil {
-		return
-	}
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	err = resp.Sign(privateKey)
-	return
-}
-
-func (s *stubBPDBService) GetNodeDatabases(req *types.InitService, resp *types.InitServiceResponse) (err error) {
-	resp.Header.Instances = make([]types.ServiceInstance, 1)
-	resp.Header.Instances[0], err = s.getInstanceMeta("db2")
-	if resp.Header.Signee, err = kms.GetLocalPublicKey(); err != nil {
-		return
-	}
-
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-	err = resp.Sign(privateKey)
-
-	return
-}
-
-func (s *stubBPDBService) getInstanceMeta(dbID proto.DatabaseID) (instance types.ServiceInstance, err error) {
-	var privKey *asymmetric.PrivateKey
-	if privKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	var nodeID proto.NodeID
-	if nodeID, err = kms.GetLocalNodeID(); err != nil {
-		return
-	}
-
-	instance.DatabaseID = proto.DatabaseID(dbID)
-	instance.Peers = &proto.Peers{
-		PeersHeader: proto.PeersHeader{
-			Term:    1,
-			Leader:  nodeID,
-			Servers: []proto.NodeID{nodeID},
-		},
-	}
-	if err = instance.Peers.Sign(privKey); err != nil {
-		return
-	}
-	instance.GenesisBlock, err = createRandomBlock(rootHash, true)
-
-	return
-}
-
-// duplicate conf file using random new listen addr to avoid failure on concurrent test cases
-func dupConf(confFile string, newConfFile string) (err error) {
-	// replace port in confFile
-	var fileBytes []byte
-	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
-		return
-	}
-
-	var ports []int
-	if ports, err = utils.GetRandomPorts("127.0.0.1", 5000, 6000, 1); err != nil {
-		return
-	}
-
-	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
-
-	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
 }

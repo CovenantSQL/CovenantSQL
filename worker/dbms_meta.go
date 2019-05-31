@@ -16,7 +16,9 @@
 
 package worker
 
-import "github.com/CovenantSQL/CovenantSQL/proto"
+import (
+	"github.com/CovenantSQL/CovenantSQL/proto"
+)
 
 // DBMSMeta defines the meta structure.
 type DBMSMeta struct {

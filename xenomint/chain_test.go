@@ -22,128 +22,165 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
+	"sync/atomic"
 	"testing"
+
+	"github.com/pkg/errors"
+	. "github.com/smartystreets/goconvey/convey"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
-func setupBenchmarkChain(b *testing.B) (c *Chain, n int, r []*types.Request) {
+func setupChain(testName string) (c *Chain, err error) {
 	// Setup chain state
 	var (
-		fl   = path.Join(testingDataDir, b.Name())
-		err  error
-		stmt *sql.Stmt
+		fl = path.Join(testingDataDir, strings.Replace(testName, "/", "-", -1))
 	)
 	if c, err = NewChain(fmt.Sprint("file:", fl)); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		err = errors.Wrap(err, "failed to setup bench environment: ")
+		return
 	}
 	if _, err = c.state.strg.Writer().Exec(
 		`CREATE TABLE "bench" ("k" INT, "v1" TEXT, "v2" TEXT, "v3" TEXT, PRIMARY KEY("k"))`,
 	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		err = errors.Wrap(err, "failed to setup bench environment: ")
+		return
 	}
-	if stmt, err = c.state.strg.Writer().Prepare(
-		`INSERT INTO "bench" VALUES (?, ?, ?, ?)`,
-	); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
-	}
-	for i := 0; i < benchmarkKeySpace; i++ {
-		var (
-			vals [benchmarkVNum][benchmarkVLen]byte
-			args [benchmarkVNum + 1]interface{}
-		)
-		args[0] = i
-		for i := range vals {
-			rand.Read(vals[i][:])
-			args[i+1] = string(vals[i][:])
-		}
-		if _, err = stmt.Exec(args[:]...); err != nil {
-			b.Fatalf("Failed to setup bench environment: %v", err)
-		}
-	}
-	n = benchmarkKeySpace
+	return
+}
+
+func setupBenchmarkChainRequest(b *testing.B) (r []*types.Request) {
 	// Setup query requests
 	var (
-		sel = `SELECT "v1", "v2", "v3" FROM "bench" WHERE "k"=?`
-		ins = `INSERT INTO "bench" VALUES (?, ?, ?, ?)
-	ON CONFLICT("k") DO UPDATE SET
-		"v1"="excluded"."v1",
-		"v2"="excluded"."v2",
-		"v3"="excluded"."v3"
-`
+		sel  = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+		ins  = `INSERT INTO bench VALUES (?, ?, ?, ?)`
 		priv *ca.PrivateKey
-		src  = make([][]interface{}, benchmarkKeySpace)
+		src  = make([][]interface{}, benchmarkNewKeyLength)
+		err  error
 	)
 	if priv, err = kms.GetLocalPrivateKey(); err != nil {
-		b.Fatalf("Failed to setup bench environment: %v", err)
+		b.Fatalf("failed to setup bench environment: %v", err)
 	}
-	r = make([]*types.Request, 2*benchmarkKeySpace)
+	r = make([]*types.Request, benchmarkMaxKey)
 	// Read query key space [0, n-1]
-	for i := 0; i < benchmarkKeySpace; i++ {
+	for i := 0; i < benchmarkReservedKeyLength; i++ {
 		r[i] = buildRequest(types.ReadQuery, []types.Query{
-			buildQuery(sel, i),
+			buildQuery(sel, i+benchmarkReservedKeyOffset),
 		})
 		if err = r[i].Sign(priv); err != nil {
-			b.Fatalf("Failed to setup bench environment: %v", err)
+			b.Fatalf("failed to setup bench environment: %v", err)
 		}
 	}
 	// Write query key space [n, 2n-1]
 	for i := range src {
 		var vals [benchmarkVNum][benchmarkVLen]byte
 		src[i] = make([]interface{}, benchmarkVNum+1)
-		src[i][0] = i + benchmarkKeySpace
+		src[i][0] = i + benchmarkNewKeyOffset
 		for j := range vals {
 			rand.Read(vals[j][:])
 			src[i][j+1] = string(vals[j][:])
 		}
 	}
-	for i := 0; i < benchmarkKeySpace; i++ {
-		r[benchmarkKeySpace+i] = buildRequest(types.WriteQuery, []types.Query{
+	for i := 0; i < benchmarkNewKeyLength; i++ {
+		r[i+benchmarkNewKeyOffset] = buildRequest(types.WriteQuery, []types.Query{
 			buildQuery(ins, src[i]...),
 		})
-		if err = r[i+benchmarkKeySpace].Sign(priv); err != nil {
+		if err = r[i+benchmarkNewKeyOffset].Sign(priv); err != nil {
 			b.Fatalf("Failed to setup bench environment: %v", err)
 		}
 	}
+	return
+}
+
+func setupBenchmarkChain(b *testing.B) (c *Chain) {
+	var (
+		err  error
+		stmt *sql.Stmt
+	)
+
+	c, err = setupChain(b.Name())
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	if stmt, err = c.state.strg.Writer().Prepare(
+		`INSERT INTO "bench" VALUES (?, ?, ?, ?)`,
+	); err != nil {
+		b.Fatalf("failed to setup bench environment: %v", err)
+	}
+	for i := 0; i < benchmarkReservedKeyLength; i++ {
+		var (
+			vals [benchmarkVNum][benchmarkVLen]byte
+			args [benchmarkVNum + 1]interface{}
+		)
+		args[0] = i + benchmarkReservedKeyOffset
+		for i := range vals {
+			rand.Read(vals[i][:])
+			args[i+1] = string(vals[i][:])
+		}
+		if _, err = stmt.Exec(args[:]...); err != nil {
+			b.Fatalf("failed to setup bench environment: %v", err)
+		}
+	}
+
+	allKeyPermKeygen.reset()
+	newKeyPermKeygen.reset()
 
 	b.ResetTimer()
 	return
 }
 
+func teardownChain(testName string, c *Chain) (err error) {
+	var (
+		fl = path.Join(testingDataDir, strings.Replace(testName, "/", "-", -1))
+	)
+	if err = c.Stop(); err != nil {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	if err = os.Remove(fl); err != nil {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
+		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		return
+	}
+
+	return nil
+}
+
 func teardownBenchmarkChain(b *testing.B, c *Chain) {
 	b.StopTimer()
 
-	var (
-		fl  = path.Join(testingDataDir, b.Name())
-		err error
-	)
-	if err = c.Stop(); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
-	}
-	if err = os.Remove(fl); err != nil {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
-	}
-	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
-	}
-	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
-		b.Fatalf("Failed to teardown bench environment: %v", err)
+	err := teardownChain(b.Name(), c)
+	if err != nil {
+		b.Fatal(err)
 	}
 }
 
 func BenchmarkChainParallelWrite(b *testing.B) {
-	var c, n, r = setupBenchmarkChain(b)
+	var r = setupBenchmarkChainRequest(b)
+	var c = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {
-		var err error
-		for i := 0; pb.Next(); i++ {
-			if _, err = c.Query(r[n+rand.Intn(n)]); err != nil {
+		var (
+			err     error
+			counter int32
+		)
+		for pb.Next() {
+			if _, err = c.Query(r[newKeyPermKeygen.next()]); err != nil {
 				b.Fatalf("Failed to execute: %v", err)
 			}
-			if (i+1)%benchmarkQueriesPerBlock == 0 {
+			if atomic.AddInt32(&counter, 1)%benchmarkQueriesPerBlock == 0 {
 				if err = c.state.commit(); err != nil {
-					b.Fatalf("Failed to commit block: %v", err)
+					b.Fatalf("failed to commit block: %v", err)
 				}
 			}
 		}
@@ -152,19 +189,64 @@ func BenchmarkChainParallelWrite(b *testing.B) {
 }
 
 func BenchmarkChainParallelMixRW(b *testing.B) {
-	var c, n, r = setupBenchmarkChain(b)
+	var r = setupBenchmarkChainRequest(b)
+	var c = setupBenchmarkChain(b)
 	b.RunParallel(func(pb *testing.PB) {
-		var err error
-		for i := 0; pb.Next(); i++ {
-			if _, err = c.Query(r[rand.Intn(2*n)]); err != nil {
+		var (
+			err     error
+			counter int32
+		)
+		for pb.Next() {
+			if _, err = c.Query(r[allKeyPermKeygen.next()]); err != nil {
 				b.Fatalf("Failed to execute: %v", err)
 			}
-			if (i+1)%benchmarkQueriesPerBlock == 0 {
+			if atomic.AddInt32(&counter, 1)%benchmarkQueriesPerBlock == 0 {
 				if err = c.state.commit(); err != nil {
-					b.Fatalf("Failed to commit block: %v", err)
+					b.Fatalf("failed to commit block: %v", err)
 				}
 			}
 		}
 	})
 	teardownBenchmarkChain(b, c)
+}
+
+func TestChain(t *testing.T) {
+	Convey("test xenomint chain", t, func() {
+		var c, err = setupChain(t.Name())
+		So(err, ShouldBeNil)
+
+		// Setup query requests
+		var (
+			sel  = `SELECT v1, v2, v3 FROM bench WHERE k=?`
+			ins  = `INSERT INTO bench VALUES (?, ?, ?, ?)`
+			rr   *types.Request
+			wr   *types.Request
+			priv *ca.PrivateKey
+		)
+		priv, err = kms.GetLocalPrivateKey()
+		So(err, ShouldBeNil)
+
+		// Write query
+		wr = buildRequest(types.WriteQuery, []types.Query{
+			buildQuery(ins, 0, 1, 2, 3),
+		})
+		err = wr.Sign(priv)
+		So(err, ShouldBeNil)
+
+		_, err = c.Query(wr)
+		So(err, ShouldBeNil)
+
+		// Read query
+		rr = buildRequest(types.ReadQuery, []types.Query{
+			buildQuery(sel, 0),
+		})
+		err = rr.Sign(priv)
+		So(err, ShouldBeNil)
+
+		_, err = c.Query(rr)
+		So(err, ShouldBeNil)
+
+		err = teardownChain(t.Name(), c)
+		So(err, ShouldBeNil)
+	})
 }

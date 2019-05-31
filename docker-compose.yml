@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 
 services:
   covenantsql_bp_0:
@@ -6,162 +6,149 @@ services:
     container_name: covenantsql_bp_0
     restart: always
     ports:
-      - "11099:4661"
+      - '11099:4661'
+      - '12099:4665'
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_0/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
     volumes:
       - ./test/service/node_0/:/app/node_0/
     networks:
       default:
         ipv4_address: 172.254.1.2
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_bp_1:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_bp_1
     restart: always
     ports:
-      - "11100:4661"
+      - '11100:4661'
+      - '12100:4665'
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_1/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
     volumes:
       - ./test/service/node_1/:/app/node_1/
     networks:
       default:
         ipv4_address: 172.254.1.3
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_bp_2:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_bp_2
     restart: always
     ports:
-      - "11101:4661"
+      - '11101:4661'
+      - '12101:4665'
     environment:
       COVENANT_ROLE: blockproducer
       COVENANT_CONF: ./node_2/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
     volumes:
       - ./test/service/node_2/:/app/node_2/
     networks:
       default:
         ipv4_address: 172.254.1.4
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_miner_0:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_miner_0
     restart: always
     ports:
-      - "11102:4661"
+      - '11102:4661'
+      - '12102:4665'
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_0/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
     volumes:
       - ./test/service/node_miner_0/:/app/node_miner_0/
     networks:
       default:
         ipv4_address: 172.254.1.5
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_miner_1:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_miner_1
     restart: always
     ports:
-      - "11103:4661"
+      - '11103:4661'
+      - '12103:4665'
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_1/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
     volumes:
       - ./test/service/node_miner_1/:/app/node_miner_1/
     networks:
       default:
         ipv4_address: 172.254.1.6
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_miner_2:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_miner_2
     restart: always
     ports:
-      - "11104:4661"
+      - '11104:4661'
+      - '12104:4665'
     environment:
       COVENANT_ROLE: miner
       COVENANT_CONF: ./node_miner_2/config.yaml
+      METRIC_WEB_ADDR: '0.0.0.0:4665'
     volumes:
       - ./test/service/node_miner_2/:/app/node_miner_2/
     networks:
       default:
         ipv4_address: 172.254.1.7
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_adapter:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_adapter
     restart: always
     ports:
-      - "11105:4661"
+      - '11105:4661'
     environment:
       COVENANT_ROLE: adapter
       COVENANT_CONF: ./node_adapter/config.yaml
+      COVENANTSQL_ADAPTER_ADDR: 0.0.0.0:4661
     volumes:
-      - ./test/service/node_adapter/config.yaml:/app/config.yaml
-      - ./test/service/node_adapter/private.key:/app/private.key
       - ./test/service/node_adapter/:/app/node_adapter/
     networks:
       default:
         ipv4_address: 172.254.1.8
-  covenantsql_observer:
-    image: covenantsql/covenantsql:latest
-    container_name: covenantsql_observer
-    restart: always
-    ports:
-      - "11106:4663"
-    command:
-      [
-        "-listen",
-        "0.0.0.0:4663",
-      ]
-    environment:
-      COVENANT_ROLE: observer
-      COVENANT_CONF: ./node_observer/config.yaml
-    volumes:
-      - ./test/service/node_observer/:/app/node_observer/
-    networks:
-      default:
-        ipv4_address: 172.254.1.9
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "1m"
-        max-file: "10"
   covenantsql_mysql_adapter:
     image: covenantsql/covenantsql:latest
     container_name: covenantsql_mysql_adapter
     restart: always
     ports:
-      - "11107:4664"
-    command: ["-listen", "0.0.0.0:4664"]
+      - '11107:4664'
+    command: ['-listen', '0.0.0.0:4664']
     environment:
       COVENANT_ROLE: mysql-adapter
       COVENANT_CONF: ./node_mysql_adapter/config.yaml
@@ -171,24 +158,49 @@ services:
       default:
         ipv4_address: 172.254.1.10
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "1m"
-        max-file: "10"
+        max-size: '1m'
+        max-file: '10'
   covenantsql_explorer:
-    image: covenantsql/explorer:latest
+    image: covenantsql/covenantsql:latest
     container_name: covenantsql_explorer
-    depends_on:
-      - covenantsql_observer
     restart: always
     ports:
-      - "11108:80"
+      - '11108:4663'
     environment:
-      COVENANTSQL_EXPLORER_DOMAIN: localhost
-      COVENANTSQL_OBSERVER_ADDR: covenantsql_observer:4663
+      COVENANT_ROLE: explorer
+      COVENANT_CONF: ./node_explorer/config.yaml
+      COVENANTSQL_OBSERVER_ADDR: 0.0.0.0:4663
+    volumes:
+      - ./test/service/node_explorer/:/app/node_explorer/
+    networks:
+      default:
+        ipv4_address: 172.254.1.9
     logging:
+      driver: 'json-file'
       options:
-        max-size: "5m"
+        max-size: '10m'
+  covenantsql_fn_0:
+    image: covenantsql/covenantsql:latest
+    container_name: covenantsql_fn_0
+    restart: always
+    ports:
+      - '11110:8546'
+    command: ['-wsapi', ':8546']
+    # entrypoint: ["sh"]
+    environment:
+      COVENANT_ROLE: blockproducer
+      COVENANT_CONF: ./fullnode_0/config.yaml
+    volumes:
+      - ./test/service/fullnode_0/:/app/fullnode_0/
+    networks:
+      default:
+        ipv4_address: 172.254.1.11
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
 
 networks:
   default:

@@ -17,14 +17,14 @@
 package worker
 
 import (
-	//"context"
-	//"runtime/trace"
+	"github.com/pkg/errors"
+	metrics "github.com/rcrowley/go-metrics"
 
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 )
 
 var (
@@ -32,17 +32,37 @@ var (
 	dbQueryFailCounter metrics.Meter
 )
 
+// ObserverFetchBlockReq defines the request for observer to fetch block.
+type ObserverFetchBlockReq struct {
+	proto.Envelope
+	proto.DatabaseID
+	Count int32 // sqlchain block serial number since genesis block (0)
+}
+
+// ObserverFetchBlockResp defines the response for observer to fetch block.
+type ObserverFetchBlockResp struct {
+	Count int32 // sqlchain block serial number since genesis block (0)
+	Block *types.Block
+}
+
 // DBMSRPCService is the rpc endpoint of database management.
 type DBMSRPCService struct {
 	dbms *DBMS
 }
 
 // NewDBMSRPCService returns new dbms rpc service endpoint.
-func NewDBMSRPCService(serviceName string, server *rpc.Server, dbms *DBMS) (service *DBMSRPCService) {
+func NewDBMSRPCService(
+	serviceName string, server *mux.Server, direct *rpc.Server, dbms *DBMS,
+) (
+	service *DBMSRPCService,
+) {
 	service = &DBMSRPCService{
 		dbms: dbms,
 	}
 	server.RegisterService(serviceName, service)
+	if direct != nil {
+		direct.RegisterService(serviceName, service)
+	}
 
 	dbQuerySuccCounter = metrics.NewMeter()
 	metrics.Register("db-query-succ", dbQuerySuccCounter)
@@ -59,10 +79,6 @@ func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err e
 	//	dbQueryFailCounter.Mark(1)
 	//	return
 	//}
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "Query")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "QueryRegion").End()
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
@@ -89,11 +105,6 @@ func (rpc *DBMSRPCService) Ack(ack *types.Ack, _ *types.AckResponse) (err error)
 	//if err = ack.Verify(); err != nil {
 	//	return
 	//}
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "Ack")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "AckRegion").End()
-
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {
 		err = errors.Wrap(ErrInvalidRequest, "request node id mismatch in ack")

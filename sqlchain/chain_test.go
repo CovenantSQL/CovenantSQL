@@ -28,22 +28,23 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 var (
-	testPeersNumber                           = 5
-	testPeriod                                = 1 * time.Second
-	testTick                                  = 100 * time.Millisecond
-	testQueryTTL             int32            = 10
-	testDatabaseID           proto.DatabaseID = "tdb-test"
-	testPeriodNumber         int32            = 10
-	testClientNumberPerChain                  = 3
+	testPeersNumber                 = 5
+	testPeriod                      = 1 * time.Second
+	testTick                        = 100 * time.Millisecond
+	testQueryTTL             int32  = 10
+	testDatabaseID                  = proto.DatabaseID(hash.THashH([]byte{'d', 'b'}).String())
+	testPeriodNumber         int32  = 10
+	testClientNumberPerChain        = 3
+	testUpdatePeriod         uint64 = 2
 )
 
 type chainParams struct {
@@ -59,13 +60,13 @@ func TestIndexKey(t *testing.T) {
 		b1, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		b2, err := createRandomBlock(genesisHash, false)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		// Test partial order
@@ -75,41 +76,35 @@ func TestIndexKey(t *testing.T) {
 		k2 := bi2.indexKey()
 
 		if c1, c2 := bytes.Compare(k1, k2) < 0, bi1.height < bi2.height; c1 != c2 {
-			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
+			t.Fatalf("unexpected compare result: heights=%d,%d keys=%s,%s",
 				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
 		}
 
 		if c1, c2 := bytes.Compare(k1, k2) > 0, bi1.height > bi2.height; c1 != c2 {
-			t.Fatalf("Unexpected compare result: heights=%d,%d keys=%s,%s",
+			t.Fatalf("unexpected compare result: heights=%d,%d keys=%s,%s",
 				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
 		}
 	}
 }
 
 func TestMultiChain(t *testing.T) {
-	log.SetLevel(log.InfoLevel)
+	//log.SetLevel(log.InfoLevel)
 	// Create genesis block
 	genesis, err := createRandomBlock(genesisHash, true)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	gnonce, err := kms.GetNodeInfo(genesis.Producer())
-
-	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	// Create peer list: `testPeersNumber` miners + 1 block producer
 	nis, peers, err := createTestPeers(testPeersNumber + 1)
 
 	if err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	for i, p := range peers.Servers {
-		t.Logf("Peer #%d: %s", i, p)
+		t.Logf("peer #%d: %s", i, p)
 	}
 
 	// Create config info from created nodes
@@ -149,7 +144,7 @@ func TestMultiChain(t *testing.T) {
 		server := rpc.NewServer()
 
 		if err = server.InitRPCServer("127.0.0.1:0", testPrivKeyFile, testMasterKey); err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		go server.Serve()
@@ -159,7 +154,7 @@ func TestMultiChain(t *testing.T) {
 		mux, err := NewMuxService(route.SQLChainRPCName, server)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		// Create chain instance
@@ -174,11 +169,12 @@ func TestMultiChain(t *testing.T) {
 			Server:          peers.Servers[i],
 			Peers:           peers,
 			QueryTTL:        testQueryTTL,
+			UpdatePeriod:    testUpdatePeriod,
 		}
 		chain, err := NewChain(config)
 
 		if err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		// Set chain parameters
@@ -210,14 +206,14 @@ func TestMultiChain(t *testing.T) {
 	}
 
 	conf.GConf = &conf.Config{
-		IsTestMode:      true,
-		GenerateKeyPair: false,
-		WorkingRoot:     testDataDir,
-		PubKeyStoreFile: "public.keystore",
-		PrivateKeyFile:  "private.key",
-		DHTFileName:     "dht.db",
-		ListenAddr:      bpsvr.Listener.Addr().String(),
-		ThisNodeID:      bpinfo.NodeID,
+		UseTestMasterKey: true,
+		GenerateKeyPair:  false,
+		WorkingRoot:      testDataDir,
+		PubKeyStoreFile:  "public.keystore",
+		PrivateKeyFile:   "private.key",
+		DHTFileName:      "dht.db",
+		ListenAddr:       bpsvr.Listener.Addr().String(),
+		ThisNodeID:       bpinfo.NodeID,
 		ValidDNSKeys: map[string]string{
 			"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",
 			"mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==": "cloudflare.com",
@@ -238,18 +234,16 @@ func TestMultiChain(t *testing.T) {
 
 	// Start BP
 	if dht, err := route.NewDHTService(testDHTStoreFile, new(consistent.KMSStorage), true); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	} else if err = bpsvr.RegisterService(route.DHTRPCName, dht); err != nil {
-		t.Fatalf("Error occurred: %v", err)
-	}
-
-	if err = bpsvr.RegisterService(metric.MetricServiceName, metric.NewCollectServer()); err != nil {
-		t.Fatalf("Error occurred: %v", err)
+		t.Fatalf("error occurred: %v", err)
 	}
 
 	for _, n := range conf.GConf.KnownNodes {
 		rawNodeID := n.ID.ToRawNodeID()
-		route.SetNodeAddrCache(rawNodeID, n.Addr)
+		if err = route.SetNodeAddrCache(rawNodeID, n.Addr); err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
 		node := &proto.Node{
 			ID:        n.ID,
 			Addr:      n.Addr,
@@ -259,7 +253,7 @@ func TestMultiChain(t *testing.T) {
 		}
 
 		if err = kms.SetNode(node); err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
 
 		if n.ID == conf.GConf.ThisNodeID {
@@ -270,16 +264,10 @@ func TestMultiChain(t *testing.T) {
 	// Test chain data reloading before exit
 	for _, v := range chains {
 		defer func(p *chainParams) {
-			if _, err := kms.GetPublicKey(genesis.Producer()); err != nil {
-				if err = kms.SetPublicKey(genesis.Producer(), gnonce.Nonce, genesis.Signee()); err != nil {
-					t.Errorf("Error occurred: %v", err)
-				}
-			}
-
 			if chain, err := NewChain(p.config); err != nil {
-				t.Errorf("Error occurred: %v", err)
+				t.Errorf("error occurred: %v", err)
 			} else {
-				t.Logf("Load chain from file %s: head = %s height = %d",
+				t.Logf("load chain from file %s: head = %s height = %d",
 					p.dbfile, chain.rt.getHead().Head, chain.rt.getHead().Height)
 			}
 		}(v)
@@ -288,12 +276,11 @@ func TestMultiChain(t *testing.T) {
 	// Start all chain instances
 	for _, v := range chains {
 		if err = v.chain.Start(); err != nil {
-			t.Fatalf("Error occurred: %v", err)
+			t.Fatalf("error occurred: %v", err)
 		}
-
 		defer func(c *Chain) {
 			// Stop chain main process before exit
-			c.Stop()
+			_ = c.Stop()
 		}(v.chain)
 	}
 
@@ -304,33 +291,60 @@ func TestMultiChain(t *testing.T) {
 			for i := int32(0); i <= ch; i++ {
 				var node *blockNode
 				if node = c.rt.getHead().node.ancestor(i); node == nil {
-					t.Logf("Block at height %d not found in peer %s, continue",
+					t.Logf("block at height %d not found in peer %s, continue",
 						i, c.rt.getPeerInfoString())
 					continue
 				}
-				if node.block != nil {
-					t.Logf("Checking block %v at height %d in peer %s",
-						node.block.BlockHash(), i, c.rt.getPeerInfoString())
+				block := node.load()
+				if block == nil {
+					var err error
+					if block, err = c.FetchBlock(node.height); err != nil || block == nil {
+						t.Errorf("failed to load block %v at height %d in peer %s: %v",
+							block.BlockHash(), i, c.rt.getPeerInfoString(), err)
+						continue
+					}
 				}
+				t.Logf("checking block %v at height %d in peer %s",
+					block.BlockHash(), i, c.rt.getPeerInfoString())
 			}
 		}(v.chain)
+	}
+
+	// Create table
+	cli, err := newRandomNode(chains[0].chain, true)
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	req, err := cli.buildQuery(types.WriteQuery, []types.Query{
+		buildQuery(`CREATE TABLE t1 (k INT, v TEXT, PRIMARY KEY(k))`),
+		buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)`,
+			1, "v1", 2, "v2", 3, "v3", 4, "v4", 5, "v5",
+		),
+	})
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	for i, v := range chains {
+		cli, err := newRandomNode(v.chain, i == 0)
+		if err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
+		err = cli.sendQuery(req)
+		if err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
 	}
 
 	// Create some random clients to push new queries
 	for i, v := range chains {
 		sC := make(chan struct{})
 		wg := &sync.WaitGroup{}
-		wk := &nodeProfile{
-			NodeID:     peers.Servers[i],
-			PrivateKey: testPrivKey,
-			PublicKey:  testPubKey,
-		}
 
 		for j := 0; j < testClientNumberPerChain; j++ {
-			cli, err := newRandomNode()
+			cli, err := newRandomNode(v.chain, i == 0)
 
 			if err != nil {
-				t.Fatalf("Error occurred: %v", err)
+				t.Fatalf("error occurred: %v", err)
 			}
 
 			wg.Add(1)
@@ -342,22 +356,19 @@ func TestMultiChain(t *testing.T) {
 					case <-sC:
 						break foreverLoop
 					default:
+						var err error
 						// Send a random query
-						resp, err := createRandomQueryResponse(p, wk)
-
-						if err != nil {
-							t.Errorf("Error occurred: %v", err)
-						} else if err = c.addResponse(resp); err != nil {
-							t.Errorf("Error occurred: %v", err)
-						}
-
-						time.Sleep(time.Duration(rand.Int63n(500)+1) * time.Millisecond)
-						ack, err := createRandomQueryAckWithResponse(resp, p)
-
-						if err != nil {
-							t.Errorf("Error occurred: %v", err)
-						} else if err = c.VerifyAndPushAckedQuery(ack); err != nil {
-							t.Errorf("Error occurred: %v", err)
+						if rand.Intn(10) != 0 {
+							err = cli.query(types.ReadQuery, []types.Query{
+								buildQuery(`SELECT v FROM t1 WHERE k=?`, rand.Intn(5)),
+							}, rand.Intn(10) != 0)
+							if err != nil {
+								t.Errorf("error occurred: %v", err)
+							}
+						} else {
+							err = cli.query(types.ReadQuery, []types.Query{
+								buildQuery(`XXX`),
+							}, false)
 						}
 					}
 				}

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
 
 var (
@@ -29,7 +30,9 @@ var (
 
 // DBMSConfig defines the local multi-database management system config.
 type DBMSConfig struct {
-	RootDir       string
-	Server        *rpc.Server
-	MaxReqTimeGap time.Duration
+	RootDir          string
+	Server           *mux.Server
+	DirectServer     *rpc.Server // optional server to provide DBMS service
+	MaxReqTimeGap    time.Duration
+	OnCreateDatabase func()
 }

@@ -19,24 +19,25 @@ package metric
 import (
 	"sync"
 
+	dto "github.com/prometheus/client_model/go"
+
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	dto "github.com/prometheus/client_model/go"
 )
 
-// MetricMap is map from metric name to MetricFamily.
-type MetricMap map[string]*dto.MetricFamily
+// SimpleMetricMap is map from metric name to MetricFamily.
+type SimpleMetricMap map[string]*dto.MetricFamily
 
-// NodeCrucialMetricMap is map[NodeID][MetricName]Value
+// NodeCrucialMetricMap is map[NodeID][MetricName]Value.
 type NodeCrucialMetricMap map[proto.NodeID]map[string]float64
 
 // FilterFunc is a function that knows how to filter a specific node
 // that match the metric limits. if node picked return true else false.
-type FilterFunc func(key proto.NodeID, value MetricMap) bool
+type FilterFunc func(key proto.NodeID, value SimpleMetricMap) bool
 
-// NodeMetricMap is sync.Map version of map[proto.NodeID]MetricMap.
+// NodeMetricMap is sync.Map version of map[proto.NodeID]SimpleMetricMap.
 type NodeMetricMap struct {
-	sync.Map // map[proto.NodeID]MetricMap
+	sync.Map // map[proto.NodeID]SimpleMetricMap
 }
 
 // FilterNode return node id slice make filterFunc return true.
@@ -46,7 +47,7 @@ func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) (ret []proto.NodeID)
 		if !ok {
 			return true // continue iteration
 		}
-		metrics, ok := value.(MetricMap)
+		metrics, ok := value.(SimpleMetricMap)
 		if !ok {
 			return true // continue iteration
 		}
@@ -60,8 +61,8 @@ func (nmm *NodeMetricMap) FilterNode(filterFunc FilterFunc) (ret []proto.NodeID)
 }
 
 // GetMetrics returns nodes metrics.
-func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.NodeID]MetricMap) {
-	metrics = make(map[proto.NodeID]MetricMap)
+func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.NodeID]SimpleMetricMap) {
+	metrics = make(map[proto.NodeID]SimpleMetricMap)
 
 	for _, node := range nodes {
 		var ok bool
@@ -71,9 +72,9 @@ func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.No
 			continue
 		}
 
-		var nodeMetrics MetricMap
+		var nodeMetrics SimpleMetricMap
 
-		if nodeMetrics, ok = rawNodeMetrics.(MetricMap); !ok {
+		if nodeMetrics, ok = rawNodeMetrics.(SimpleMetricMap); !ok {
 			continue
 		}
 
@@ -83,8 +84,8 @@ func (nmm *NodeMetricMap) GetMetrics(nodes []proto.NodeID) (metrics map[proto.No
 	return
 }
 
-// FilterCrucialMetrics filters crucial metrics and also add cpu_count
-func (mfm *MetricMap) FilterCrucialMetrics() (ret map[string]float64) {
+// FilterCrucialMetrics filters crucial metrics and also add cpu_count.
+func (mfm *SimpleMetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 	crucialMetricNameMap := map[string]string{
 		"node_memory_MemAvailable_bytes": "mem_avail",
 		"node_load1":                     "load1",
@@ -115,12 +116,12 @@ func (mfm *MetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 			ret[newName] = metricVal
 		}
 	}
-	log.Debugf("Crucial Metric added: %v", ret)
+	log.Debugf("crucial Metric added: %v", ret)
 
 	return
 }
 
-// GetCrucialMetrics gets NodeCrucialMetricMap from NodeMetricMap
+// GetCrucialMetrics gets NodeCrucialMetricMap from NodeMetricMap.
 func (nmm *NodeMetricMap) GetCrucialMetrics() (ret NodeCrucialMetricMap) {
 	ret = make(NodeCrucialMetricMap)
 	metricsPicker := func(key, value interface{}) bool {
@@ -128,7 +129,7 @@ func (nmm *NodeMetricMap) GetCrucialMetrics() (ret NodeCrucialMetricMap) {
 		if !ok {
 			return true // continue iteration
 		}
-		mfm, ok := value.(MetricMap)
+		mfm, ok := value.(SimpleMetricMap)
 		if !ok {
 			return true // continue iteration
 		}

@@ -18,7 +18,7 @@ func main() {
 	// Init Key Management System
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
-	// Creating DHT RPC with simple BoltDB persistence layer
+	// Creating DHT RPC with simple persistence layer
 	dht, err := route.NewDHTService(conf.GConf.DHTFileName, new(consistent.KMSStorage), true)
 	if err != nil {
 		log.Fatalf("init dht failed: %v", err)

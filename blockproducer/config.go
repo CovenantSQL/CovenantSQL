@@ -19,42 +19,38 @@ package blockproducer
 import (
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
+// RunMode defines modes that a bp can run as.
+type RunMode int
+
 const (
-	blockVersion int32 = 0x01
+	// BPMode is the default and normal mode.
+	BPMode RunMode = iota
+
+	// APINodeMode makes the bp behaviour like an API gateway. It becomes an API
+	// node, who syncs data from the bp network and exposes JSON-RPC API to users.
+	APINodeMode
 )
 
 // Config is the main chain configuration.
 type Config struct {
-	Genesis *types.Block
+	Mode    RunMode
+	Genesis *types.BPBlock
 
 	DataFile string
 
 	Server *rpc.Server
 
-	Peers  *proto.Peers
-	NodeID proto.NodeID
+	Peers            *proto.Peers
+	NodeID           proto.NodeID
+	ConfirmThreshold float64
 
 	Period time.Duration
 	Tick   time.Duration
-}
 
-// NewConfig creates new config.
-func NewConfig(genesis *types.Block, dataFile string,
-	server *rpc.Server, peers *proto.Peers,
-	nodeID proto.NodeID, period time.Duration, tick time.Duration) *Config {
-	config := Config{
-		Genesis:  genesis,
-		DataFile: dataFile,
-		Server:   server,
-		Peers:    peers,
-		NodeID:   nodeID,
-		Period:   period,
-		Tick:     tick,
-	}
-	return &config
+	BlockCacheSize int
 }

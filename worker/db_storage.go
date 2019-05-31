@@ -19,16 +19,26 @@ package worker
 import (
 	"bytes"
 	"container/list"
+	"context"
+
+	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/pkg/errors"
+	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 )
 
 // Following contains storage related logic extracted from main database instance definition.
 
 // EncodePayload implements kayak.types.Handler.EncodePayload.
 func (db *Database) EncodePayload(request interface{}) (data []byte, err error) {
+	if req, ok := request.(*types.Request); ok {
+		data = req.GetMarshalCache()
+		if data != nil {
+			return
+		}
+	}
+
 	var buf *bytes.Buffer
 
 	if buf, err = utils.EncodeMsgPack(request); err != nil {
@@ -49,6 +59,7 @@ func (db *Database) DecodePayload(data []byte) (request interface{}, err error) 
 		return
 	}
 
+	req.SetMarshalCache(data)
 	request = req
 
 	return
@@ -89,18 +100,38 @@ func (db *Database) Check(rawReq interface{}) (err error) {
 	return
 }
 
+// TrackerAndResponse defines a query tracker used by xenomint and an unsigned response.
+type TrackerAndResponse struct {
+	Tracker  *x.QueryTracker
+	Response *types.Response
+}
+
 // Commit implements kayak.types.Handler.Commit.
-func (db *Database) Commit(rawReq interface{}) (result interface{}, err error) {
+func (db *Database) Commit(rawReq interface{}, isLeader bool) (result interface{}, err error) {
 	// convert query and check syntax
-	var req *types.Request
-	var ok bool
+	var (
+		req      *types.Request
+		response *types.Response
+		tracker  *x.QueryTracker
+		ok       bool
+	)
 	if req, ok = rawReq.(*types.Request); !ok || req == nil {
 		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
 		return
 	}
 
+	// reset context, commit should never be canceled
+	req.SetContext(context.Background())
+
 	// execute
-	return db.chain.Query(req)
+	if tracker, response, err = db.chain.Query(req, isLeader); err != nil {
+		return
+	}
+	result = &TrackerAndResponse{
+		Tracker:  tracker,
+		Response: response,
+	}
+	return
 }
 
 func (db *Database) recordSequence(connID uint64, seqNo uint64) {

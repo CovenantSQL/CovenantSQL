@@ -48,6 +48,7 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/test"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -67,6 +68,10 @@ func TestMain(m *testing.M) {
 	os.Exit(func() int {
 		var stop func()
 		db, stop = initTestDB()
+		if db == nil {
+			stop()
+			log.Fatalf("init test DB failed")
+		}
 		defer stop()
 		defer db.Close()
 		return m.Run()
@@ -239,20 +244,40 @@ func initTestDB() (*sql.DB, func()) {
 		return nil, stopNodes
 	}
 
+	// wait for chain service
+	var ctx1, cancel1 = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel1()
+	err = test.WaitBPChainService(ctx1, 3*time.Second)
+	if err != nil {
+		log.Errorf("wait for chain service failed: %v", err)
+		return nil, stopNodes
+	}
+
 	// create
-	dsn, err := client.Create(client.ResourceMeta{Node: 1})
+	meta := client.ResourceMeta{}
+	meta.Node = 1
+	_, dsn, err := client.Create(meta)
 	if err != nil {
 		log.Errorf("create db failed: %v", err)
 		return nil, stopNodes
 	}
-
-	log.Infof("the created database dsn is %v", dsn)
 
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {
 		log.Errorf("open db failed: %v", err)
 		return nil, stopNodes
 	}
+
+	// wait for creation
+	var ctx2, cancel2 = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel2()
+	err = client.WaitDBCreation(ctx2, dsn)
+	if err != nil {
+		log.Errorf("wait for creation failed: %v", err)
+		return nil, stopNodes
+	}
+
+	log.Infof("the created database dsn is %v", dsn)
 
 	if err := initSchema(db); err != nil {
 		stopNodes()
@@ -398,6 +423,9 @@ func TestShrinkGrow(t *testing.T) {
 	if data, err = tryGrow(db, data, id, BlockSize*5); err != nil {
 		log.Fatal(err)
 	}
+	if data, err = tryGrow(db, data, id, BlockSize*999); err != nil {
+		log.Fatal(err)
+	}
 
 	// Shrink it down to 0.
 	if data, err = tryShrink(db, data, id, 0); err != nil {
@@ -445,7 +473,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(part1, readData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(part1))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(readData), len(part1))
 	}
 
 	verboseData, err := getAllBlocks(db, id)
@@ -453,7 +481,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, part1) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(part1))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(verboseData), len(part1))
 	}
 
 	// Write with hole in the middle.
@@ -469,7 +497,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(fullData, readData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
 	}
 
 	verboseData, err = getAllBlocks(db, id)
@@ -477,7 +505,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, fullData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
 	}
 
 	// Now write into the middle of the file.
@@ -492,7 +520,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(fullData, readData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(readData), len(fullData))
 	}
 
 	verboseData, err = getAllBlocks(db, id)
@@ -500,7 +528,7 @@ func TestReadWriteBlocks(t *testing.T) {
 		log.Fatal(err)
 	}
 	if !bytes.Equal(verboseData, fullData) {
-		t.Errorf("Bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
+		t.Errorf("bytes differ. lengths: %d, expected %d", len(verboseData), len(fullData))
 	}
 
 	// New file.

@@ -19,11 +19,12 @@ package hash
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // mainNetGenesisHash is the hash of the first block in the block chain for the
@@ -125,8 +126,19 @@ func TestHashString(t *testing.T) {
 
 	hashStr := hash.String()
 	if hashStr != wantStr {
-		t.Errorf("String: wrong hash string - got %v, want %v",
+		t.Errorf("string: wrong hash string - got %v, want %v",
 			hashStr, wantStr)
+	}
+	for n := 0; n < 2*HashSize; n++ {
+		var l = HashSize
+		if n < l {
+			l = n
+		}
+		expect := string([]byte(wantStr)[:2*l])
+		actual := hash.Short(n)
+		if expect != actual {
+			t.Errorf("short result mismatched: expect=%s actual=%s", expect, actual)
+		}
 	}
 }
 
@@ -260,16 +272,16 @@ func TestHash_Difficulty(t *testing.T) {
 
 	nilDifficulty := (*Hash)(nil).Difficulty()
 	if nilDifficulty != -1 {
-		t.Errorf("Difficulty test nil expect -1 got %d", nilDifficulty)
+		t.Errorf("difficulty test nil expect -1 got %d", nilDifficulty)
 	}
 
 	newDifficulty := new(Hash).Difficulty()
 	if newDifficulty != 256 {
-		t.Errorf("Difficulty test new(Hash) expect 256 got %d", newDifficulty)
+		t.Errorf("difficulty test new(Hash) expect 256 got %d", newDifficulty)
 	}
 }
 
-func unmarshalAndMarshal(str string) string {
+func unmarshalAndMarshalYAML(str string) string {
 	var hash Hash
 	yaml.Unmarshal([]byte(str), &hash)
 	ret, _ := yaml.Marshal(hash)
@@ -277,9 +289,24 @@ func unmarshalAndMarshal(str string) string {
 	return strings.TrimSpace(string(ret))
 }
 
+func unmarshalAndMarshalJSON(str string) string {
+	var hash Hash
+	json.Unmarshal([]byte(str), &hash)
+	ret, _ := json.Marshal(hash)
+
+	return strings.TrimSpace(string(ret))
+}
+
 func TestHash_MarshalYAML(t *testing.T) {
 	Convey("marshal unmarshal yaml", t, func() {
-		So(unmarshalAndMarshal("029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"), ShouldEqual, "029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb")
-		So(unmarshalAndMarshal("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd")
+		So(unmarshalAndMarshalYAML("029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"), ShouldEqual, "029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb")
+		So(unmarshalAndMarshalYAML("02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"), ShouldEqual, "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd")
+	})
+}
+
+func TestHash_MarshalJSON(t *testing.T) {
+	Convey("marshal unmarshal yaml", t, func() {
+		So(unmarshalAndMarshalJSON(`"029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"`), ShouldEqual, `"029e54e333da9ff38acb0f1afd8b425d57ba301539bc7b26a94f1ab663605efb"`)
+		So(unmarshalAndMarshalJSON(`"02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"`), ShouldEqual, `"02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd"`)
 	})
 }

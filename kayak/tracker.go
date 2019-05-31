@@ -21,7 +21,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 // rpcTracker defines the rpc call tracker
@@ -63,7 +65,7 @@ func newTracker(r *Runtime, req interface{}, minCount int) (t *rpcTracker) {
 	t = &rpcTracker{
 		r:        r,
 		nodes:    nodes,
-		method:   r.rpcMethod,
+		method:   r.applyRPCMethod,
 		req:      req,
 		minCount: minCount,
 		errors:   make(map[proto.NodeID]error, len(nodes)),
@@ -114,6 +116,17 @@ func (t *rpcTracker) done() {
 }
 
 func (t *rpcTracker) get(ctx context.Context) (errors map[proto.NodeID]error, meets bool, finished bool) {
+	if trace.IsEnabled() {
+		// get request log type
+		traceType := "rpcCall"
+
+		if rawReq, ok := t.req.(*kt.ApplyRequest); ok {
+			traceType += rawReq.Log.Type.String()
+		}
+
+		defer trace.StartRegion(ctx, traceType).End()
+	}
+
 	for {
 		select {
 		case <-t.doneCh:

@@ -64,7 +64,7 @@ func TestMountPointDetails(t *testing.T) {
 
 	for _, fs := range filesystems {
 		if _, ok := expected[fs.mountPoint]; !ok {
-			t.Errorf("Got unexpected %s", fs.mountPoint)
+			t.Errorf("got unexpected %s", fs.mountPoint)
 		}
 	}
 }

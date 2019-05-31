@@ -17,26 +17,33 @@
 package main
 
 import (
+	"expvar"
 	"fmt"
-	"os"
-	"strings"
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
-func initNode() (server *rpc.Server, err error) {
+const (
+	mwMinerAddr         = "service:miner:addr"
+	mwMinerExternalAddr = "service:miner:addr:external"
+	mwMinerNodeID       = "service:miner:node"
+	mwMinerWallet       = "service:miner:wallet"
+	mwMinerDiskRoot     = "service:miner:disk:root"
+)
+
+func initNode() (server *mux.Server, direct *rpc.Server, err error) {
 	var masterKey []byte
-	if !conf.GConf.IsTestMode {
+	if !conf.GConf.UseTestMasterKey {
 		// read master key
 		fmt.Print("Type in Master key to continue: ")
 		masterKey, err = terminal.ReadPassword(syscall.Stdin)
@@ -56,80 +63,51 @@ func initNode() (server *rpc.Server, err error) {
 	// init kms routing
 	route.InitKMS(conf.GConf.PubKeyStoreFile)
 
-	err = registerNodeToBP(15 * time.Second)
+	err = mux.RegisterNodeToBP(30 * time.Second)
 	if err != nil {
 		log.Fatalf("register node to BP failed: %v", err)
 	}
 
 	// init server
+	utils.RemoveAll(conf.GConf.PubKeyStoreFile + "*")
 	if server, err = createServer(
-		conf.GConf.PrivateKeyFile, conf.GConf.PubKeyStoreFile, masterKey, conf.GConf.ListenAddr); err != nil {
+		conf.GConf.PrivateKeyFile, masterKey, conf.GConf.ListenAddr); err != nil {
 		log.WithError(err).Error("create server failed")
 		return
 	}
+	if direct, err = createDirectServer(
+		conf.GConf.PrivateKeyFile, masterKey, conf.GConf.ListenDirectAddr); err != nil {
+		log.WithError(err).Error("create direct server failed")
+		return
+	}
 
 	return
 }
 
-func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, listenAddr string) (server *rpc.Server, err error) {
-	os.Remove(pubKeyStorePath)
-
-	server = rpc.NewServer()
-	if err != nil {
-		return
-	}
-
+func createServer(privateKeyPath string, masterKey []byte, listenAddr string) (server *mux.Server, err error) {
+	server = mux.NewServer()
 	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
-
 	return
 }
 
-func registerNodeToBP(timeout time.Duration) (err error) {
-	// get local node id
-	localNodeID, err := kms.GetLocalNodeID()
-	if err != nil {
-		err = errors.Wrap(err, "register node to BP")
-		return
+func createDirectServer(privateKeyPath string, masterKey []byte, listenAddr string) (server *rpc.Server, err error) {
+	if listenAddr == "" {
+		return nil, nil
 	}
-
-	// get local node info
-	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
-	if err != nil {
-		err = errors.Wrap(err, "register node to BP")
-		return
-	}
-
-	log.WithField("node", localNodeInfo).Debug("construct local node info")
-
-	pingWaitCh := make(chan proto.NodeID)
-	bpNodeIDs := route.GetBPs()
-	for _, bpNodeID := range bpNodeIDs {
-		go func(ch chan proto.NodeID, id proto.NodeID) {
-			for {
-				err := rpc.PingBP(localNodeInfo, id)
-				if err == nil {
-					log.Infof("ping BP succeed: %v", localNodeInfo)
-					ch <- id
-					return
-				}
-				if strings.Contains(err.Error(), kt.ErrNotLeader.Error()) {
-					log.Debug("stop ping non leader BP node")
-					return
-				}
-
-				log.Warnf("ping BP failed: %v", err)
-				time.Sleep(3 * time.Second)
-			}
-		}(pingWaitCh, bpNodeID)
-	}
-
-	select {
-	case bp := <-pingWaitCh:
-		close(pingWaitCh)
-		log.WithField("BP", bp).Infof("ping BP succeed")
-	case <-time.After(timeout):
-		return errors.New("ping BP timeout")
-	}
-
+	server = rpc.NewServer()
+	err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey)
 	return
+}
+
+func initMetrics() {
+	if conf.GConf != nil {
+		expvar.NewString(mwMinerAddr).Set(conf.GConf.ListenAddr)
+		expvar.NewString(mwMinerExternalAddr).Set(conf.GConf.ExternalListenAddr)
+		expvar.NewString(mwMinerNodeID).Set(string(conf.GConf.ThisNodeID))
+		expvar.NewString(mwMinerWallet).Set(conf.GConf.WalletAddress)
+
+		if conf.GConf.Miner != nil {
+			expvar.NewString(mwMinerDiskRoot).Set(conf.GConf.Miner.RootDir)
+		}
+	}
 }

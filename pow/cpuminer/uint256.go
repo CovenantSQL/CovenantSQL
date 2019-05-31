@@ -20,9 +20,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"net"
 
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+)
+
+const (
+	// Uint256Size is the Uint256 byte size.
+	Uint256Size = 8 * 4
 )
 
 var (
@@ -40,7 +44,7 @@ type Uint256 struct {
 	D uint64 // Bits 255..192.
 }
 
-// Inc makes i = i + 1
+// Inc makes i = i + 1.
 func (i *Uint256) Inc() (ret *Uint256) {
 	if i.A++; i.A == 0 {
 		if i.B++; i.B == 0 {
@@ -52,24 +56,24 @@ func (i *Uint256) Inc() (ret *Uint256) {
 	return i
 }
 
-// Bytes converts Uint256 to []byte
+// Bytes converts Uint256 to []byte.
 func (i *Uint256) Bytes() []byte {
 	var binBuf bytes.Buffer
 	binary.Write(&binBuf, binary.BigEndian, i)
 	return binBuf.Bytes()
 }
 
-// MarshalHash marshals for hash
+// MarshalHash marshals for hash.
 func (i *Uint256) MarshalHash() (o []byte, err error) {
 	return i.Bytes(), nil
 }
 
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (i *Uint256) Msgsize() (s int) {
 	return hsp.BytesPrefixSize + 32
 }
 
-// Uint256FromBytes converts []byte to Uint256
+// Uint256FromBytes converts []byte to Uint256.
 func Uint256FromBytes(b []byte) (*Uint256, error) {
 	if len(b) != 32 {
 		return nil, ErrBytesLen
@@ -77,25 +81,4 @@ func Uint256FromBytes(b []byte) (*Uint256, error) {
 	i := Uint256{}
 	binary.Read(bytes.NewBuffer(b), binary.BigEndian, &i)
 	return &i, nil
-}
-
-// ToIPv6 converts Uint256 to 2 IPv6 addresses
-func (i *Uint256) ToIPv6() (ab, cd net.IP, err error) {
-	buf := i.Bytes()
-	ab = make(net.IP, 0, net.IPv6len)
-	cd = make(net.IP, 0, net.IPv6len)
-	ab = append(ab, buf[:16]...)
-	cd = append(cd, buf[16:]...)
-	return
-}
-
-//FromIPv6 converts 2 IPv6 addresses to Uint256
-func FromIPv6(ab, cd net.IP) (ret *Uint256, err error) {
-	if ab == nil || cd == nil || len(ab) == 0 || len(cd) == 0 {
-		return nil, ErrEmptyIPv6Addr
-	}
-	buf := make([]byte, 0, 32)
-	buf = append(buf, ab...)
-	buf = append(buf, cd...)
-	return Uint256FromBytes(buf)
 }

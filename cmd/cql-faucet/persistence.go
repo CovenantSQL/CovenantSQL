@@ -17,51 +17,21 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"path/filepath"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/satori/go.uuid"
+
 	// Load sqlite3 database driver.
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 )
-
-// State defines the token application request state.
-type State int
-
-const (
-	// StateApplication represents application request initial state.
-	StateApplication State = iota
-	// StateVerified represents the application request has already been verified.
-	StateVerified
-	// StateDispensed represents the application request has been fulfilled and tokens are dispensed.
-	StateDispensed
-	// StateFailed represents the application is invalid or maybe quota exceeded.
-	StateFailed
-	// StateUnknown represents invalid state
-	StateUnknown
-)
-
-func (s State) String() string {
-	switch s {
-	case StateApplication:
-		return "StateApplication"
-	case StateVerified:
-		return "StateVerified"
-	case StateDispensed:
-		return "StateDispensed"
-	case StateFailed:
-		return "StateFailed"
-	case StateUnknown:
-		return "StateUnknown"
-	}
-
-	return ""
-}
 
 // Persistence defines the persistence api for faucet service.
 type Persistence struct {
@@ -71,36 +41,7 @@ type Persistence struct {
 	tokenAmount       int64
 }
 
-// applicationRecord defines single record for verification.
-type applicationRecord struct {
-	rowID         int64
-	applicationID string
-	platform      string
-	address       string
-	mediaURL      string
-	account       string
-	state         State
-	tokenAmount   int64 // covenantsql could store uint64 value, use int64 instead
-	failReason    string
-}
-
-func (r *applicationRecord) asMap() (result map[string]interface{}) {
-	result = make(map[string]interface{})
-
-	result["rowID"] = r.rowID
-	result["applicationID"] = r.applicationID
-	result["platform"] = r.platform
-	result["address"] = r.address
-	result["mediaURL"] = r.mediaURL
-	result["account"] = r.account
-	result["state"] = r.state.String()
-	result["tokenAmount"] = r.tokenAmount
-	result["failReason"] = r.failReason
-
-	return
-}
-
-// NewPersistence returns a new application persistence api.
+// NewPersistence returns a new applyToken persistence api.
 func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 	p = &Persistence{
 		accountDailyQuota: faucetCfg.AccountDailyQuota,
@@ -131,30 +72,33 @@ func NewPersistence(faucetCfg *Config) (p *Persistence, err error) {
 }
 
 func (p *Persistence) initDB() (err error) {
-	_, err = p.db.ExecContext(context.Background(),
+	_, err = p.db.Exec(
 		`CREATE TABLE IF NOT EXISTS faucet_records (
-				id string unique,
-				platform string,
-				account string, 
-				url string,
-				address string, 
-				state int, 
+				id text unique,
+				account text, 
+				email text,
 				amount bigint, 
-				reason string, 
 				ctime datetime
 			  )`)
+	if err != nil {
+		return
+	}
+	_, err = p.db.Exec(
+		`CREATE TABLE IF NOT EXISTS faucet_keys (
+				account text primary key,
+				private blob
+			)`)
 	return
 }
 
-func (p *Persistence) checkAccountLimit(platform string, account string) (err error) {
-	// TODO, consider cache the limits in memory?
+func (p *Persistence) checkAccountLimit(account string) (err error) {
 	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
-	row := p.db.QueryRowContext(context.Background(),
+	row := p.db.QueryRow(
 		`SELECT COUNT(1) AS cnt FROM faucet_records
-		WHERE ctime >= ? AND platform = ? AND account = ? AND state IN (?, ?, ?)`,
-		timeOfDayStart, platform, account, StateApplication, StateVerified, StateDispensed)
+		WHERE ctime >= ? AND account = ?`,
+		timeOfDayStart, account)
 
 	var result uint
 
@@ -165,25 +109,21 @@ func (p *Persistence) checkAccountLimit(platform string, account string) (err er
 
 	if result >= p.accountDailyQuota {
 		// quota exceeded
-		log.WithFields(log.Fields{
-			"account":  account,
-			"platform": platform,
-		}).Error("daily account quota exceeded")
+		log.WithField("account", account).Error("daily account quota exceeded")
 		return ErrAccountQuotaExceeded
 	}
 
 	return
 }
 
-func (p *Persistence) checkAddressLimit(address string) (err error) {
-	// TODO, consider cache the limits in memory?
+func (p *Persistence) checkEmailLimit(email string) (err error) {
 	timeOfDayStart := time.Now().UTC().Format("2006-01-02 00:00:00")
 
 	// account limit check
-	row := p.db.QueryRowContext(context.Background(),
+	row := p.db.QueryRow(
 		`SELECT COUNT(1) AS cnt FROM faucet_records
-		WHERE ctime >= ? AND address = ? AND state IN (?, ?, ?)`,
-		timeOfDayStart, address, StateApplication, StateVerified, StateDispensed)
+		WHERE ctime >= ? AND email = ?`,
+		timeOfDayStart, email)
 
 	var result uint
 
@@ -194,59 +134,35 @@ func (p *Persistence) checkAddressLimit(address string) (err error) {
 
 	if result >= p.addressDailyQuota {
 		// quota exceeded
-		log.WithFields(log.Fields{
-			"address": address,
-		}).Error("daily address quota exceeded")
-		return ErrAddressQuotaExceeded
+		log.WithField("email", email).Error("daily email quota exceeded")
+		return ErrEmailQuotaExceeded
 	}
 
 	return
 }
 
-// enqueueApplication record a new token application to CovenantSQL database.
-func (p *Persistence) enqueueApplication(address string, mediaURL string) (applicationID string, err error) {
-	// resolve account name in address
-	var meta urlMeta
-	meta, err = extractPlatformInURL(mediaURL)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"address":  address,
-			"mediaURL": mediaURL,
-		}).Errorf("enqueue application with invalid url: %v", err)
-		return
-	}
-
-	// check limits
-	if err = p.checkAccountLimit(meta.platform, meta.account); err != nil {
-		return
-	}
-	if err = p.checkAddressLimit(address); err != nil {
-		return
-	}
-
+// addRecord record a new token applyToken to CovenantSQL database.
+func (p *Persistence) addRecord(account string, email string) (applicationID string, err error) {
 	// generate uuid
 	applicationID = uuid.Must(uuid.NewV4()).String()
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	// enqueue
-	_, err = p.db.ExecContext(context.Background(),
+	_, err = p.db.Exec(
 		`INSERT INTO faucet_records (
 				id,
-				platform,
 				account,
-				url,
-				address,
-				state,
+				email,
 				amount,
-				reason,
 				ctime
-			  ) VALUES (?, ?, ?, ?, ?, ?, ?, '', CURRENT_TIMESTAMP)`,
-		applicationID, meta.platform, meta.account, mediaURL, address, StateApplication, p.tokenAmount)
+			  ) VALUES (?, ?, ?, ?, ?)`,
+		applicationID, account, email, p.tokenAmount, now)
 
 	if err != nil {
 		log.WithFields(log.Fields{
-			"address":  address,
-			"mediaURL": mediaURL,
-		}).Errorf("enqueue application failed: %v", err)
+			"account": account,
+			"email":   email,
+		}).Errorf("enqueue applyToken failed: %v", err)
 
 		err = ErrEnqueueApplication
 	}
@@ -254,82 +170,25 @@ func (p *Persistence) enqueueApplication(address string, mediaURL string) (appli
 	return
 }
 
-// queryState returns faucet application state.
-func (p *Persistence) queryState(address string, applicationID string) (record *applicationRecord, err error) {
-	row := p.db.QueryRowContext(context.Background(),
-		`SELECT id, rowid, platform, address, url, account, state, amount, reason FROM faucet_records WHERE 
-				address = ? AND id = ? LIMIT 1`, address, applicationID)
-
-	record = &applicationRecord{}
-	err = row.Scan(&record.applicationID, &record.rowID, &record.platform, &record.address, &record.mediaURL,
-		&record.account, &record.state, &record.tokenAmount, &record.failReason)
-
+// savePrivateKey saves private key to faucet store.
+func (p *Persistence) savePrivateKey(account string, privateKey []byte) (err error) {
+	_, err = p.db.Exec(`INSERT INTO faucet_keys (account, private) VALUES(?, ?)`, account, privateKey)
 	return
 }
 
-// getRecords fetch records need to be processed.
-func (p *Persistence) getRecords(startRowID int64, platform string, state State, limitCount int) (records []*applicationRecord, err error) {
-	var rows *sql.Rows
-
-	args := make([]interface{}, 0)
-	baseSQL := "SELECT id, rowid, platform, address, url, account, state, amount FROM faucet_records WHERE 1=1 "
-
-	if startRowID > 0 {
-		baseSQL += " AND rowid >= ? "
-		args = append(args, startRowID)
-	}
-	if platform != "" {
-		baseSQL += " AND platform = ? "
-		args = append(args, platform)
-	}
-	if state != StateUnknown {
-		baseSQL += " AND state = ? "
-		args = append(args, state)
-	}
-	if limitCount > 0 {
-		baseSQL += " LIMIT ?"
-		args = append(args, limitCount)
+// getPrivateKey returns private key using account and password.
+func (p *Persistence) getPrivateKey(account string, password string) (privateKey *asymmetric.PrivateKey, err error) {
+	var privKeyBytes []byte
+	err = p.db.QueryRow(`SELECT private FROM faucet_keys WHERE account = ? LIMIT 1`, account).Scan(&privKeyBytes)
+	if err != nil {
+		return
 	}
 
-	rows, err = p.db.QueryContext(context.Background(), baseSQL, args...)
-
-	for rows.Next() {
-		r := &applicationRecord{}
-
-		if err = rows.Scan(&r.applicationID, &r.rowID, &r.platform, &r.address, &r.mediaURL,
-			&r.account, &r.state, &r.tokenAmount); err != nil {
-			return
-		}
-
-		records = append(records, r)
-	}
-
-	return
+	return kms.DecodePrivateKey(privKeyBytes, []byte(password))
 }
 
-// updateRecord updates application record.
-func (p *Persistence) updateRecord(record *applicationRecord) (err error) {
-	_, err = p.db.ExecContext(context.Background(),
-		`UPDATE faucet_records SET
-				id = ?,
-				platform = ?,
-				address = ?,
-				url = ?,
-				account = ?,
-				state = ?,
-				reason = ?,
-				amount = ?
-			  WHERE rowid = ?`,
-		record.applicationID,
-		record.platform,
-		record.address,
-		record.mediaURL,
-		record.account,
-		int(record.state),
-		record.failReason,
-		record.tokenAmount,
-		record.rowID,
-	)
-
+// deletePrivateKey deletes private key using account and password
+func (p *Persistence) deletePrivateKey(pubKey string) (err error) {
+	_, err = p.db.Exec(`DELETE FROM faucet_keys WHERE account = ?`, pubKey)
 	return
 }

@@ -23,8 +23,9 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
@@ -33,7 +34,7 @@ const (
 
 type meminfoCollector struct{}
 
-// ProcPath is the proc system path, expose for test
+// ProcPath is the proc system path, expose for test.
 var ProcPath = "/proc"
 
 // NewMeminfoCollector returns a new Collector exposing memory stats.
@@ -48,7 +49,7 @@ func (c *meminfoCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get meminfo: %s", err)
 	}
-	log.Debugf("Set node_mem: %#v", memInfo)
+	log.Debugf("set node_mem: %#v", memInfo)
 	for k, v := range memInfo {
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(

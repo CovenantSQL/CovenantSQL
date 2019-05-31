@@ -20,31 +20,29 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-
-	bi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 )
 
-// ChainSuber defines subscribing-related bus behavior
+// ChainSuber defines subscribing-related bus behavior.
 type ChainSuber interface {
-	Subscribe(topic bi.TransactionType, handler interface{}) error
-	SubscribeAsync(topic bi.TransactionType, handler interface{}, transactional bool) error
-	SubscribeOnce(topic bi.TransactionType, handler interface{}) error
-	SubscribeOnceAsync(topic bi.TransactionType, handler interface{}) error
-	Unsubscribe(topic bi.TransactionType, handler interface{}) error
+	Subscribe(topic string, handler interface{}) error
+	SubscribeAsync(topic string, handler interface{}, transactional bool) error
+	SubscribeOnce(topic string, handler interface{}) error
+	SubscribeOnceAsync(topic string, handler interface{}) error
+	Unsubscribe(topic string, handler interface{}) error
 }
 
-// ChainPuber defines publishing-related bus behavior
+// ChainPuber defines publishing-related bus behavior.
 type ChainPuber interface {
-	Publish(topic bi.TransactionType, args ...interface{})
+	Publish(topic string, args ...interface{})
 }
 
-// BusController defines bus control behavior (checking handler's presence, synchronization)
+// BusController defines bus control behavior (checking handler's presence, synchronization).
 type BusController interface {
-	HasCallback(topic bi.TransactionType) bool
+	HasCallback(topic string) bool
 	WaitAsync()
 }
 
-// Bus englobes global (subscribe, publish, control) bus behavior
+// Bus englobes global (subscribe, publish, control) bus behavior.
 type Bus interface {
 	BusController
 	ChainSuber
@@ -53,7 +51,7 @@ type Bus interface {
 
 // ChainBus - box for handlers and callbacks.
 type ChainBus struct {
-	handlers map[bi.TransactionType][]*eventHandler
+	handlers map[string][]*eventHandler
 	lock     sync.Mutex // a lock for the map
 	wg       sync.WaitGroup
 }
@@ -69,15 +67,15 @@ type eventHandler struct {
 // New returns new ChainBus with empty handlers.
 func New() Bus {
 	b := &ChainBus{
-		make(map[bi.TransactionType][]*eventHandler),
-		sync.Mutex{},
-		sync.WaitGroup{},
+		handlers: make(map[string][]*eventHandler),
+		lock:     sync.Mutex{},
+		wg:       sync.WaitGroup{},
 	}
 	return b
 }
 
-// doSubscribe handles the subscription logic and is utilized by the public Subscribe functions
-func (bus *ChainBus) doSubscribe(topic bi.TransactionType, fn interface{}, handler *eventHandler) error {
+// doSubscribe handles the subscription logic and is utilized by the public Subscribe functions.
+func (bus *ChainBus) doSubscribe(topic string, fn interface{}, handler *eventHandler) error {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
 	if !(reflect.TypeOf(fn).Kind() == reflect.Func) {
@@ -89,17 +87,18 @@ func (bus *ChainBus) doSubscribe(topic bi.TransactionType, fn interface{}, handl
 
 // Subscribe subscribes to a topic.
 // Returns error if `fn` is not a function.
-func (bus *ChainBus) Subscribe(topic bi.TransactionType, fn interface{}) error {
+func (bus *ChainBus) Subscribe(topic string, fn interface{}) error {
 	return bus.doSubscribe(topic, fn, &eventHandler{
 		reflect.ValueOf(fn), false, false, false, sync.Mutex{},
 	})
 }
 
 // SubscribeAsync subscribes to a topic with an asynchronous callback
+// Async determines whether subsequent Publish should wait for callback return
 // Transactional determines whether subsequent callbacks for a topic are
 // run serially (true) or concurrently (false)
 // Returns error if `fn` is not a function.
-func (bus *ChainBus) SubscribeAsync(topic bi.TransactionType, fn interface{}, transactional bool) error {
+func (bus *ChainBus) SubscribeAsync(topic string, fn interface{}, transactional bool) error {
 	return bus.doSubscribe(topic, fn, &eventHandler{
 		reflect.ValueOf(fn), false, true, transactional, sync.Mutex{},
 	})
@@ -107,23 +106,24 @@ func (bus *ChainBus) SubscribeAsync(topic bi.TransactionType, fn interface{}, tr
 
 // SubscribeOnce subscribes to a topic once. Handler will be removed after executing.
 // Returns error if `fn` is not a function.
-func (bus *ChainBus) SubscribeOnce(topic bi.TransactionType, fn interface{}) error {
+func (bus *ChainBus) SubscribeOnce(topic string, fn interface{}) error {
 	return bus.doSubscribe(topic, fn, &eventHandler{
 		reflect.ValueOf(fn), true, false, false, sync.Mutex{},
 	})
 }
 
 // SubscribeOnceAsync subscribes to a topic once with an asynchronous callback
+// Async determines whether subsequent Publish should wait for callback return
 // Handler will be removed after executing.
 // Returns error if `fn` is not a function.
-func (bus *ChainBus) SubscribeOnceAsync(topic bi.TransactionType, fn interface{}) error {
+func (bus *ChainBus) SubscribeOnceAsync(topic string, fn interface{}) error {
 	return bus.doSubscribe(topic, fn, &eventHandler{
 		reflect.ValueOf(fn), true, true, false, sync.Mutex{},
 	})
 }
 
 // HasCallback returns true if exists any callback subscribed to the topic.
-func (bus *ChainBus) HasCallback(topic bi.TransactionType) bool {
+func (bus *ChainBus) HasCallback(topic string) bool {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
 	_, ok := bus.handlers[topic]
@@ -135,7 +135,7 @@ func (bus *ChainBus) HasCallback(topic bi.TransactionType) bool {
 
 // Unsubscribe removes callback defined for a topic.
 // Returns error if there are no callbacks subscribed to the topic.
-func (bus *ChainBus) Unsubscribe(topic bi.TransactionType, handler interface{}) error {
+func (bus *ChainBus) Unsubscribe(topic string, handler interface{}) error {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
 	if _, ok := bus.handlers[topic]; ok && len(bus.handlers[topic]) > 0 {
@@ -146,7 +146,7 @@ func (bus *ChainBus) Unsubscribe(topic bi.TransactionType, handler interface{}) 
 }
 
 // Publish executes callback defined for a topic. Any additional argument will be transferred to the callback.
-func (bus *ChainBus) Publish(topic bi.TransactionType, args ...interface{}) {
+func (bus *ChainBus) Publish(topic string, args ...interface{}) {
 	bus.lock.Lock() // will unlock if handler is not found or always after setUpPublish
 	defer bus.lock.Unlock()
 	if handlers, ok := bus.handlers[topic]; ok && 0 < len(handlers) {
@@ -171,12 +171,12 @@ func (bus *ChainBus) Publish(topic bi.TransactionType, args ...interface{}) {
 	}
 }
 
-func (bus *ChainBus) doPublish(handler *eventHandler, topic bi.TransactionType, args ...interface{}) {
+func (bus *ChainBus) doPublish(handler *eventHandler, topic string, args ...interface{}) {
 	passedArguments := bus.setUpPublish(topic, args...)
 	handler.callBack.Call(passedArguments)
 }
 
-func (bus *ChainBus) doPublishAsync(handler *eventHandler, topic bi.TransactionType, args ...interface{}) {
+func (bus *ChainBus) doPublishAsync(handler *eventHandler, topic string, args ...interface{}) {
 	defer bus.wg.Done()
 	if handler.transactional {
 		defer handler.Unlock()
@@ -184,13 +184,13 @@ func (bus *ChainBus) doPublishAsync(handler *eventHandler, topic bi.TransactionT
 	bus.doPublish(handler, topic, args...)
 }
 
-func (bus *ChainBus) removeHandler(topic bi.TransactionType, idx int) {
+func (bus *ChainBus) removeHandler(topic string, idx int) {
 	if _, ok := bus.handlers[topic]; !ok {
 		return
 	}
 	l := len(bus.handlers[topic])
 
-	if !(0 <= idx && idx < l) {
+	if 0 > idx || idx >= l {
 		return
 	}
 
@@ -199,7 +199,7 @@ func (bus *ChainBus) removeHandler(topic bi.TransactionType, idx int) {
 	bus.handlers[topic] = bus.handlers[topic][:l-1]
 }
 
-func (bus *ChainBus) findHandlerIdx(topic bi.TransactionType, callback reflect.Value) int {
+func (bus *ChainBus) findHandlerIdx(topic string, callback reflect.Value) int {
 	if _, ok := bus.handlers[topic]; ok {
 		for idx, handler := range bus.handlers[topic] {
 			if handler.callBack == callback {
@@ -210,7 +210,7 @@ func (bus *ChainBus) findHandlerIdx(topic bi.TransactionType, callback reflect.V
 	return -1
 }
 
-func (bus *ChainBus) setUpPublish(topic bi.TransactionType, args ...interface{}) []reflect.Value {
+func (bus *ChainBus) setUpPublish(topic string, args ...interface{}) []reflect.Value {
 
 	passedArguments := make([]reflect.Value, 0)
 	for _, arg := range args {
@@ -219,7 +219,7 @@ func (bus *ChainBus) setUpPublish(topic bi.TransactionType, args ...interface{})
 	return passedArguments
 }
 
-// WaitAsync waits for all async callbacks to complete
+// WaitAsync waits for all async callbacks to complete.
 func (bus *ChainBus) WaitAsync() {
 	bus.wg.Wait()
 }

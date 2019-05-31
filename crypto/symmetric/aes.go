@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Package symmetric implements Symmetric Encryption methods
+// Package symmetric implements Symmetric Encryption methods.
 package symmetric
 
 import (
@@ -28,27 +28,23 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
-const (
-	keySalt = "auxten-key-salt-auxten"
-)
-
 var (
 	// ErrInputSize indicates cipher data size is not expected,
 	// maybe data is not encrypted by EncryptWithPassword in this package
 	ErrInputSize = errors.New("cipher data size not match")
 )
 
-// keyDerivation does sha256 twice to password
-func keyDerivation(password []byte) (out []byte) {
-	return hash.DoubleHashB(append(password, keySalt...))
+// KeyDerivation does sha256 twice to password.
+func KeyDerivation(password []byte, salt []byte) (out []byte) {
+	return hash.DoubleHashB(append(password, salt...))
 }
 
 // EncryptWithPassword encrypts data with given password, iv will be placed
-// at head of cipher data
-func EncryptWithPassword(in, password []byte) (out []byte, err error) {
+// at head of cipher data.
+func EncryptWithPassword(in, password []byte, salt []byte) (out []byte, err error) {
 	// keyE will be 256 bits, so aes.NewCipher(keyE) will return
 	// AES-256 Cipher.
-	keyE := keyDerivation(password)
+	keyE := KeyDerivation(password, salt)
 	paddedIn := crypto.AddPKCSPadding(in)
 	// IV + padded cipher data
 	out = make([]byte, aes.BlockSize+len(paddedIn))
@@ -69,9 +65,9 @@ func EncryptWithPassword(in, password []byte) (out []byte, err error) {
 	return out, nil
 }
 
-// DecryptWithPassword decrypts data with given password
-func DecryptWithPassword(in, password []byte) (out []byte, err error) {
-	keyE := keyDerivation(password)
+// DecryptWithPassword decrypts data with given password.
+func DecryptWithPassword(in, password []byte, salt []byte) (out []byte, err error) {
+	keyE := KeyDerivation(password, salt)
 	// IV + padded cipher data == (n + 1 + 1) * aes.BlockSize
 	if len(in)%aes.BlockSize != 0 || len(in)/aes.BlockSize < 2 {
 		return nil, ErrInputSize

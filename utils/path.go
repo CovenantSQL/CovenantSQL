@@ -19,7 +19,9 @@ package utils
 import (
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strings"
 )
 
 // CopyFile copies from src to dst until either EOF is reached
@@ -45,4 +47,27 @@ func CopyFile(src, dst string) (int64, error) {
 	}
 	defer df.Close()
 	return io.Copy(df, sf)
+}
+
+// HomeDirExpand tries to expand the tilde (~) in the front of a path
+// to a fullpath directory.
+func HomeDirExpand(path string) string {
+	usr, err := user.Current()
+	if err != nil {
+		return path
+	}
+
+	if path == "~" {
+		return usr.HomeDir
+	} else if strings.HasPrefix(path, "~/") {
+		return filepath.Join(usr.HomeDir, strings.TrimPrefix(path, "~/"))
+	}
+
+	return path
+}
+
+// Exist return if file or path is exist.
+func Exist(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || os.IsExist(err)
 }

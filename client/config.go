@@ -18,7 +18,15 @@ package client
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
+)
+
+const (
+	paramUseLeader    = "use_leader"
+	paramUseFollower  = "use_follower"
+	paramUseDirectRPC = "use_direct_rpc"
+	paramMirror       = "mirror"
 )
 
 // Config is a configuration parsed from a DSN string.
@@ -28,11 +36,23 @@ type Config struct {
 	// additional configs should be filled
 	// such as read/write/exec timeout
 	// currently no timeout is supported.
+
+	// UseLeader use leader nodes to do queries
+	UseLeader bool
+
+	// UseFollower use follower nodes to do queries
+	UseFollower bool
+
+	// UseDirectRPC use direct RPC to access the miner
+	UseDirectRPC bool
+
+	// Mirror option forces client to query from mirror server
+	Mirror string
 }
 
 // NewConfig creates a new config with default value.
 func NewConfig() *Config {
-	return &Config{}
+	return &Config{UseLeader: true}
 }
 
 // FormatDSN formats the given Config into a DSN string which can be passed to the driver.
@@ -45,6 +65,19 @@ func (cfg *Config) FormatDSN() string {
 	}
 
 	newQuery := u.Query()
+	if cfg.UseFollower {
+		newQuery.Add(paramUseFollower, strconv.FormatBool(cfg.UseFollower))
+
+		if cfg.UseLeader {
+			newQuery.Add(paramUseLeader, strconv.FormatBool(cfg.UseLeader))
+		}
+	}
+	if cfg.Mirror != "" {
+		newQuery.Add(paramMirror, cfg.Mirror)
+	}
+	if cfg.UseDirectRPC {
+		newQuery.Add(paramUseDirectRPC, strconv.FormatBool(cfg.UseDirectRPC))
+	}
 	u.RawQuery = newQuery.Encode()
 
 	return u.String()
@@ -58,11 +91,21 @@ func ParseDSN(dsn string) (cfg *Config, err error) {
 
 	var u *url.URL
 	if u, err = url.Parse(dsn); err != nil {
-		return
+		return nil, err
 	}
 
 	cfg = NewConfig()
 	cfg.DatabaseID = u.Host
 
-	return
+	q := u.Query()
+	// option: use_leader, use_follower
+	cfg.UseLeader, _ = strconv.ParseBool(q.Get(paramUseLeader))
+	cfg.UseFollower, _ = strconv.ParseBool(q.Get(paramUseFollower))
+	if !cfg.UseLeader && !cfg.UseFollower {
+		cfg.UseLeader = true
+	}
+	cfg.Mirror = q.Get(paramMirror)
+	cfg.UseDirectRPC, _ = strconv.ParseBool(q.Get(paramUseDirectRPC))
+
+	return cfg, nil
 }

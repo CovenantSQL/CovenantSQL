@@ -17,12 +17,15 @@
 package kms
 
 import (
-	"errors"
+	"database/sql"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -31,19 +34,13 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/coreos/bbolt"
+	xs "github.com/CovenantSQL/CovenantSQL/xenomint/sqlite"
 )
 
-// PublicKeyStore holds db and bucket name
+// PublicKeyStore holds db and bucket name.
 type PublicKeyStore struct {
-	db     *bolt.DB
-	bucket []byte
+	db *xs.SQLite3
 }
-
-const (
-	// kmsBucketName is the boltdb bucket name
-	kmsBucketName = "kms"
-)
 
 var (
 	// pks holds the singleton instance
@@ -58,6 +55,19 @@ var (
 
 	// BP hold the initial BP info
 	BP *conf.BPInfo
+)
+
+var (
+	initTableSQL = `CREATE TABLE IF NOT EXISTS "kms" (
+		"id"   TEXT,
+		"node" BLOB,
+		UNIQUE ("id")
+	)`
+	deleteAllSQL    = `DELETE FROM "kms"`
+	deleteRecordSQL = `DELETE FROM "kms" WHERE "id" = ?`
+	setRecordSQL    = `INSERT OR REPLACE INTO "kms" ("id", "node") VALUES(?, ?)`
+	getRecordSQL    = `SELECT "node" FROM "kms" WHERE "id" = ? LIMIT 1`
+	getAllNodeIDSQL = `SELECT "id" FROM "kms"`
 )
 
 func init() {
@@ -79,14 +89,25 @@ func init() {
 	}
 }
 
-// InitBP initializes kms.BP struct with conf.GConf
+// InitBP initializes kms.BP struct with conf.GConf.
 func InitBP() {
 	if conf.GConf == nil {
-		log.Fatal("Must call conf.LoadConfig first")
+		log.Fatal("must call conf.LoadConfig first")
 	}
-	BP = conf.GConf.BP
+	if conf.GConf.BP == nil && len(conf.GConf.SeedBPNodes) > 0 {
+		seedBP := &conf.GConf.SeedBPNodes[0]
+		conf.GConf.BP = &conf.BPInfo{
+			PublicKey: seedBP.PublicKey,
+			NodeID:    seedBP.ID,
+			Nonce:     seedBP.Nonce,
+		}
+	}
+	if conf.GConf.BP == nil {
+		log.Fatal("no available block producer config")
+	}
 
-	err := hash.Decode(&BP.RawNodeID.Hash, string(BP.NodeID))
+	BP = conf.GConf.BP
+	err := hash.Decode(&conf.GConf.BP.RawNodeID.Hash, string(conf.GConf.BP.NodeID))
 	if err != nil {
 		log.WithError(err).Fatal("BP.NodeID error")
 	}
@@ -95,59 +116,58 @@ func InitBP() {
 var (
 	// ErrPKSNotInitialized indicates public keystore not initialized
 	ErrPKSNotInitialized = errors.New("public keystore not initialized")
-	// ErrBucketNotInitialized indicates bucket not initialized
-	ErrBucketNotInitialized = errors.New("bucket not initialized")
 	// ErrNilNode indicates input node is nil
 	ErrNilNode = errors.New("nil node")
 	// ErrKeyNotFound indicates key not found
 	ErrKeyNotFound = errors.New("key not found")
-	// ErrNotValidNodeID indicates that is not valid node id
-	ErrNotValidNodeID = errors.New("not valid node id")
 	// ErrNodeIDKeyNonceNotMatch indicates node id, key, nonce not match
 	ErrNodeIDKeyNonceNotMatch = errors.New("nodeID, key, nonce not match")
 )
 
 // InitPublicKeyStore opens a db file, if not exist, creates it.
-// and creates a bucket if not exist
+// and creates a bucket if not exist.
 func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	//testFlag := flag.Lookup("test")
 	//log.Debugf("%#v %#v", testFlag, testFlag.Value)
+	// close already opened public key store
+	ClosePublicKeyStore()
+
 	pksLock.Lock()
 	InitBP()
 
-	var bdb *bolt.DB
-	bdb, err = bolt.Open(dbPath, 0600, nil)
-	if err != nil {
-		log.WithError(err).Error("InitPublicKeyStore failed")
-		pksLock.Unlock()
-		return
-	}
+	var strg *xs.SQLite3
 
-	name := []byte(kmsBucketName)
-	err = bdb.Update(func(tx *bolt.Tx) error {
-		if _, err := tx.CreateBucketIfNotExists(name); err != nil {
-			log.WithError(err).Error("could not create bucket")
-			return err
+	if strg, err = func() (strg *xs.SQLite3, err error) {
+		// test if the keystore is a valid sqlite database
+		// if so, truncate and upgrade to new version
+
+		if err = removeFileIfIsNotSQLite(dbPath); err != nil {
+			return
 		}
-		return nil // return from Update func
-	})
-	if err != nil {
-		log.WithError(err).Error("InitPublicKeyStore failed")
+		if strg, err = xs.NewSqlite(dbPath); err != nil {
+			return
+		}
+		if _, err = strg.Writer().Exec(initTableSQL); err != nil {
+			return
+		}
+
+		return
+	}(); err != nil {
 		pksLock.Unlock()
+		log.WithError(err).Error("InitPublicKeyStore failed")
 		return
 	}
 
 	// pks is the singleton instance
 	pks = &PublicKeyStore{
-		db:     bdb,
-		bucket: name,
+		db: strg,
 	}
 	pksLock.Unlock()
 
 	for _, n := range initNodes {
 		err = setNode(&n)
 		if err != nil {
-			log.WithError(err).Error("set init nodes failed")
+			err = errors.Wrap(err, "set init nodes failed")
 			return
 		}
 	}
@@ -156,7 +176,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 }
 
 // GetPublicKey gets a PublicKey of given id
-// Returns an error if the id was not found
+// Returns an error if the id was not found.
 func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) {
 	node, err := GetNodeInfo(id)
 	if err == nil {
@@ -166,7 +186,7 @@ func GetPublicKey(id proto.NodeID) (publicKey *asymmetric.PublicKey, err error) 
 }
 
 // GetNodeInfo gets node info of given id
-// Returns an error if the id was not found
+// Returns an error if the id was not found.
 func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -174,51 +194,56 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 		return nil, ErrPKSNotInitialized
 	}
 
-	err = pks.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(pks.bucket)
-		if bucket == nil {
-			return ErrBucketNotInitialized
+	if err = func() (err error) {
+		var rawNodeInfo []byte
+		if err = pks.db.Writer().QueryRow(getRecordSQL, string(id)).Scan(&rawNodeInfo); err != nil {
+			if errors.Cause(err) == sql.ErrNoRows {
+				err = ErrKeyNotFound
+			}
+			return
 		}
-		byteVal := bucket.Get([]byte(id))
-		if byteVal == nil {
-			return ErrKeyNotFound
-		}
-		err = utils.DecodeMsgPack(byteVal, &nodeInfo)
+		err = utils.DecodeMsgPack(rawNodeInfo, &nodeInfo)
 		log.Debugf("get node info: %#v", nodeInfo)
-		return err // return from View func
-	})
-	if err != nil {
-		log.WithError(err).Error("get node info failed")
+
+		return
+	}(); err != nil {
+		err = errors.Wrap(err, "get node info failed")
 	}
 	return
 }
 
-// GetAllNodeID get all node ids exist in store
+// GetAllNodeID get all node ids exist in store.
 func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 	if pks == nil || pks.db == nil {
 		return nil, ErrPKSNotInitialized
 	}
 
-	err = pks.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(pks.bucket)
-		if bucket == nil {
-			return ErrBucketNotInitialized
+	if err = func() (err error) {
+		var rows *sql.Rows
+		if rows, err = pks.db.Writer().Query(getAllNodeIDSQL); err != nil {
+			return
 		}
-		err := bucket.ForEach(func(k, v []byte) error {
-			nodeIDs = append(nodeIDs, proto.NodeID(k))
-			return nil
-		})
 
-		return err // return from View func
-	})
-	if err != nil {
-		log.WithError(err).Error("get all node id failed")
+		defer rows.Close()
+
+		for rows.Next() {
+			var rawNodeID string
+			if err = rows.Scan(&rawNodeID); err != nil {
+				return
+			}
+
+			nodeIDs = append(nodeIDs, proto.NodeID(rawNodeID))
+		}
+
+		return
+	}(); err != nil {
+		err = errors.Wrap(err, "get all node id failed")
 	}
 	return
 
 }
 
-// SetPublicKey verifies nonce and set Public Key
+// SetPublicKey verifies nonce and set Public Key.
 func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *asymmetric.PublicKey) (err error) {
 	nodeInfo := &proto.Node{
 		ID:        id,
@@ -229,7 +254,7 @@ func SetPublicKey(id proto.NodeID, nonce mine.Uint256, publicKey *asymmetric.Pub
 	return SetNode(nodeInfo)
 }
 
-// SetNode verifies nonce and sets {proto.Node.ID: proto.Node}
+// SetNode verifies nonce and sets {proto.Node.ID: proto.Node}.
 func SetNode(nodeInfo *proto.Node) (err error) {
 	if nodeInfo == nil {
 		return ErrNilNode
@@ -243,7 +268,7 @@ func SetNode(nodeInfo *proto.Node) (err error) {
 	return setNode(nodeInfo)
 }
 
-// IsIDPubNonceValid returns if `id == HashBlock(key, nonce)`
+// IsIDPubNonceValid returns if `id == HashBlock(key, nonce)`.
 func IsIDPubNonceValid(id *proto.RawNodeID, nonce *mine.Uint256, key *asymmetric.PublicKey) bool {
 	if key == nil || id == nil || nonce == nil {
 		return false
@@ -252,7 +277,7 @@ func IsIDPubNonceValid(id *proto.RawNodeID, nonce *mine.Uint256, key *asymmetric
 	return keyHash.IsEqual(&id.Hash)
 }
 
-// setNode sets id and its publicKey
+// setNode sets id and its publicKey.
 func setNode(nodeInfo *proto.Node) (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -262,26 +287,20 @@ func setNode(nodeInfo *proto.Node) (err error) {
 
 	nodeBuf, err := utils.EncodeMsgPack(nodeInfo)
 	if err != nil {
-		log.WithError(err).Error("marshal node info failed")
+		err = errors.Wrap(err, "marshal node info failed")
 		return
 	}
 	log.Debugf("set node: %#v", nodeInfo)
 
-	err = pks.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(pks.bucket)
-		if bucket == nil {
-			return ErrBucketNotInitialized
-		}
-		return bucket.Put([]byte(nodeInfo.ID), nodeBuf.Bytes())
-	})
+	_, err = pks.db.Writer().Exec(setRecordSQL, string(nodeInfo.ID), nodeBuf.Bytes())
 	if err != nil {
-		log.WithError(err).Error("get node info failed")
+		err = errors.Wrap(err, "set node info failed")
 	}
 
 	return
 }
 
-// DelNode removes PublicKey to the id
+// DelNode removes PublicKey to the id.
 func DelNode(id proto.NodeID) (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
@@ -289,53 +308,81 @@ func DelNode(id proto.NodeID) (err error) {
 		return ErrPKSNotInitialized
 	}
 
-	err = pks.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(pks.bucket)
-		if bucket == nil {
-			return ErrBucketNotInitialized
-		}
-		return bucket.Delete([]byte(id))
-	})
+	_, err = pks.db.Writer().Exec(deleteRecordSQL, string(id))
 	if err != nil {
-		log.WithError(err).Error("del node failed")
+		err = errors.Wrap(err, "del node failed")
 	}
 	return
 }
 
-// removeBucket this bucket
+// removeBucket this bucket.
 func removeBucket() (err error) {
 	pksLock.Lock()
 	defer pksLock.Unlock()
 	if pks != nil {
-		err = pks.db.Update(func(tx *bolt.Tx) error {
-			return tx.DeleteBucket([]byte(kmsBucketName))
-		})
+		_, err = pks.db.Writer().Exec(deleteAllSQL)
 		if err != nil {
-			log.WithError(err).Error("remove bucket failed")
+			err = errors.Wrap(err, "remove bucket failed")
 			return
 		}
-		// ks.bucket == nil means bucket not exist
-		pks.bucket = nil
 	}
 	return
 }
 
-// ResetBucket this bucket
+// ResetBucket this bucket.
 func ResetBucket() error {
 	// cause we are going to reset the bucket, the return of removeBucket
 	// is not useful
-	removeBucket()
+	return removeBucket()
+}
+
+// ClosePublicKeyStore closes the public key store.
+func ClosePublicKeyStore() {
 	pksLock.Lock()
 	defer pksLock.Unlock()
-	bucketName := []byte(kmsBucketName)
-	err := pks.db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(bucketName)
-		return err
-	})
-	pks.bucket = bucketName
-	if err != nil {
-		log.WithError(err).Error("reset bucket failed")
+	if pks != nil {
+		_ = pks.db.Close()
+		pks = nil
+	}
+}
+
+func removeFileIfIsNotSQLite(filename string) (err error) {
+	var (
+		f          *os.File
+		fileHeader [6]byte
+	)
+	if f, err = os.Open(filename); err != nil && os.IsNotExist(err) {
+		// file not exists
+		err = nil
+		return
+	} else if err != nil {
+		// may be no read permission
+		return
 	}
 
-	return err
+	if _, err = f.Read(fileHeader[:]); err != nil && errors.Cause(err) != io.EOF {
+		// read file failed
+		_ = f.Close()
+		return
+	}
+
+	if string(fileHeader[:]) == "SQLite" {
+		// valid sqlite file
+		err = nil
+		_ = f.Close()
+		return
+	}
+
+	_ = f.Close()
+
+	// backup and remove file
+	bakFile := filename + ".bak"
+	if _, err = os.Stat(bakFile); err != nil && os.IsNotExist(err) {
+		err = nil
+		_ = os.Rename(filename, filename+".bak")
+	} else {
+		_ = os.Remove(filename)
+	}
+
+	return
 }

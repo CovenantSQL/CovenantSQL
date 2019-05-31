@@ -17,14 +17,17 @@
 package interfaces_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 type TestTransactionEncode struct {
@@ -60,7 +63,7 @@ func (e *TestTransactionEncode) Msgsize() int {
 }
 
 func init() {
-	pi.RegisterTransaction(pi.TransactionTypeBilling, (*TestTransactionEncode)(nil))
+	pi.RegisterTransaction(pi.TransactionTypeTransfer, (*TestTransactionEncode)(nil))
 }
 
 func TestTransactionWrapper(t *testing.T) {
@@ -78,13 +81,13 @@ func TestTransactionWrapper(t *testing.T) {
 
 		// encode test
 		e := &TestTransactionEncode{}
-		e.SetTransactionType(pi.TransactionTypeBilling)
+		e.SetTransactionType(pi.TransactionTypeTransfer)
 		buf, err = utils.EncodeMsgPack(e)
 		So(err, ShouldBeNil)
 		var v2 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v2)
 		So(err, ShouldBeNil)
-		So(v2.GetTransactionType(), ShouldEqual, pi.TransactionTypeBilling)
+		So(v2.GetTransactionType(), ShouldEqual, pi.TransactionTypeTransfer)
 
 		// encode with wrapper test
 		e2 := pi.WrapTransaction(e)
@@ -93,14 +96,14 @@ func TestTransactionWrapper(t *testing.T) {
 		var v3 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v3)
 		So(err, ShouldBeNil)
-		So(v3.GetTransactionType(), ShouldEqual, pi.TransactionTypeBilling)
+		So(v3.GetTransactionType(), ShouldEqual, pi.TransactionTypeTransfer)
 		tw, ok := v3.(*pi.TransactionWrapper)
 		So(ok, ShouldBeTrue)
-		So(tw.Unwrap().GetTransactionType(), ShouldEqual, pi.TransactionTypeBilling)
+		So(tw.Unwrap().GetTransactionType(), ShouldEqual, pi.TransactionTypeTransfer)
 
 		// test encode non-existence type
 		e3 := &TestTransactionEncode{}
-		e3.SetTransactionType(pi.TransactionTypeTransfer)
+		e3.SetTransactionType(pi.TransactionTypeCreateAccount)
 		buf, err = utils.EncodeMsgPack(e3)
 		So(err, ShouldBeNil)
 		var v4 pi.Transaction
@@ -129,21 +132,21 @@ func TestTransactionWrapper(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		// test invalid decode, nil payload
-		buf, err = utils.EncodeMsgPack([]interface{}{pi.TransactionTypeBilling, nil})
+		buf, err = utils.EncodeMsgPack([]interface{}{pi.TransactionTypeTransfer, nil})
 		So(err, ShouldBeNil)
 		var v8 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v8)
 		So(err, ShouldNotBeNil)
 
 		// test invalid decode, invalid payload container type
-		buf, err = utils.EncodeMsgPack([]interface{}{pi.TransactionTypeBilling, []uint64{}})
+		buf, err = utils.EncodeMsgPack([]interface{}{pi.TransactionTypeTransfer, []uint64{}})
 		So(err, ShouldBeNil)
 		var v9 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v9)
 		So(err, ShouldNotBeNil)
 
 		// extra payload
-		buf, err = utils.EncodeMsgPack([]interface{}{pi.TransactionTypeBilling, e, 1, 2})
+		buf, err = utils.EncodeMsgPack([]interface{}{pi.TransactionTypeTransfer, e, 1, 2})
 		So(err, ShouldBeNil)
 		var v10 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v10)
@@ -171,17 +174,59 @@ func TestTransactionWrapper(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 		// test tx data
-		buf, err = utils.EncodeMsgPack(map[string]interface{}{"TxType": pi.TransactionTypeBilling, "TestField": 1})
+		buf, err = utils.EncodeMsgPack(map[string]interface{}{"TxType": pi.TransactionTypeTransfer, "TestField": 1})
 		So(err, ShouldBeNil)
 		var v14 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v14)
 		So(err, ShouldBeNil)
 
 		// test invalid tx data
-		buf, err = utils.EncodeMsgPack(map[string]interface{}{"TxType": pi.TransactionTypeBilling, "TestField": "happy"})
+		buf, err = utils.EncodeMsgPack(map[string]interface{}{"TxType": pi.TransactionTypeTransfer, "TestField": "happy"})
 		So(err, ShouldBeNil)
 		var v15 pi.Transaction
 		err = utils.DecodeMsgPack(buf.Bytes(), &v15)
+		So(err, ShouldNotBeNil)
+
+		// test json marshal and unmarshal
+		v16 := &TestTransactionEncode{TestField: 10}
+		v16.SetTransactionType(pi.TransactionTypeTransfer)
+		var v17 pi.Transaction = v16
+		var jsonData []byte
+		jsonData, err = json.Marshal(v17)
+		So(string(jsonData), ShouldContainSubstring, "TestField")
+		So(err, ShouldBeNil)
+
+		var v18 pi.Transaction = &pi.TransactionWrapper{}
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldBeNil)
+		So(v18.(*pi.TransactionWrapper).Unwrap(), ShouldNotBeNil)
+		So(v18.GetTransactionType(), ShouldEqual, pi.TransactionTypeTransfer)
+		So(v18.(*pi.TransactionWrapper).Unwrap().(*TestTransactionEncode).TestField, ShouldEqual, 10)
+
+		jsonData, err = json.Marshal(v18)
+		So(string(jsonData), ShouldContainSubstring, "TestField")
+
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(`{"TxType": 1, "TestField": 11}`)
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldBeNil)
+		So(v18.GetTransactionType(), ShouldEqual, pi.TransactionTypeTransfer)
+		So(v18.(*pi.TransactionWrapper).Unwrap().(*TestTransactionEncode).TestField, ShouldEqual, 11)
+
+		// unmarshal fail cases
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(`{"TxType": {}, "TestField": 11}`)
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldNotBeNil)
+
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(fmt.Sprintf(`{"TxType": %d, "TestField": 11}`, pi.TransactionTypeNumber))
+		err = json.Unmarshal(jsonData, &v18)
+		So(err, ShouldNotBeNil)
+
+		v18.(*pi.TransactionWrapper).Transaction = nil
+		jsonData = []byte(fmt.Sprintf(`{"TxType": %d, "TestField": 11}`, pi.TransactionTypeCreateAccount))
+		err = json.Unmarshal(jsonData, &v18)
 		So(err, ShouldNotBeNil)
 	})
 }

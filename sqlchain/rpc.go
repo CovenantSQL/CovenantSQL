@@ -17,10 +17,6 @@
 package sqlchain
 
 import (
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -39,23 +35,6 @@ type AdviseNewBlockReq struct {
 type AdviseNewBlockResp struct {
 }
 
-// AdviseBinLogReq defines a request of the AdviseBinLog RPC method.
-type AdviseBinLogReq struct {
-}
-
-// AdviseBinLogResp defines a response of the AdviseBinLog RPC method.
-type AdviseBinLogResp struct {
-}
-
-// AdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
-type AdviseAckedQueryReq struct {
-	Query *types.SignedAckHeader
-}
-
-// AdviseAckedQueryResp defines a response of the AdviseAckedQuery RPC method.
-type AdviseAckedQueryResp struct {
-}
-
 // FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	Height int32
@@ -67,45 +46,6 @@ type FetchBlockResp struct {
 	Block  *types.Block
 }
 
-// SignBillingReq defines a request of the SignBilling RPC method.
-type SignBillingReq struct {
-	pt.BillingRequest
-}
-
-// SignBillingResp defines a response of the SignBilling RPC method.
-type SignBillingResp struct {
-	HeaderHash hash.Hash
-	Signee     *asymmetric.PublicKey
-	Signature  *asymmetric.Signature
-}
-
-// LaunchBillingReq defines a request of LaunchBilling RPC method.
-type LaunchBillingReq struct {
-	Low, High int32
-}
-
-// LaunchBillingResp defines a response of LaunchBilling RPC method.
-type LaunchBillingResp struct {
-}
-
-// SubscribeTransactionsReq defines a request of SubscribeTransaction RPC method.
-type SubscribeTransactionsReq struct {
-	SubscriberID proto.NodeID
-	Height       int32
-}
-
-// SubscribeTransactionsResp defines a response of SubscribeTransaction RPC method.
-type SubscribeTransactionsResp struct {
-}
-
-// CancelSubscriptionReq defines a request of CancelSubscription RPC method.
-type CancelSubscriptionReq struct {
-	SubscriberID proto.NodeID
-}
-
-// CancelSubscriptionResp defines a response of CancelSubscription RPC method.
-type CancelSubscriptionResp struct{}
-
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
 	err error) {
@@ -113,43 +53,9 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 	return
 }
 
-// AdviseBinLog is the RPC method to advise a new binary log to the target server.
-func (s *ChainRPCService) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
-	// TODO(leventeliu): need implementation.
-	return nil
-}
-
-// AdviseAckedQuery is the RPC method to advise a new acknowledged query to the target server.
-func (s *ChainRPCService) AdviseAckedQuery(
-	req *AdviseAckedQueryReq, resp *AdviseAckedQueryResp) error {
-	return s.chain.VerifyAndPushAckedQuery(req.Query)
-}
-
 // FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
 	resp.Height = req.Height
 	resp.Block, err = s.chain.FetchBlock(req.Height)
 	return
-}
-
-// SignBilling is the RPC method to get signature for a billing request from the target server.
-func (s *ChainRPCService) SignBilling(req *SignBillingReq, resp *SignBillingResp) (err error) {
-	resp.HeaderHash = req.BillingRequest.RequestHash
-	resp.Signee, resp.Signature, err = s.chain.SignBilling(&req.BillingRequest)
-	return
-}
-
-// LaunchBilling is the RPC method to launch a new billing process in the target server.
-func (s *ChainRPCService) LaunchBilling(req *LaunchBillingReq, _ *LaunchBillingResp) error {
-	return s.chain.LaunchBilling(req.Low, req.High)
-}
-
-// SubscribeTransactions is the RPC method to fetch subscribe new packed and confirmed transactions from the target server.
-func (s *ChainRPCService) SubscribeTransactions(req *SubscribeTransactionsReq, _ *SubscribeTransactionsResp) error {
-	return s.chain.addSubscription(req.SubscriberID, req.Height)
-}
-
-// CancelSubscription is the RPC method to cancel subscription in the target server.
-func (s *ChainRPCService) CancelSubscription(req *CancelSubscriptionReq, _ *CancelSubscriptionResp) error {
-	return s.chain.cancelSubscription(req.SubscriberID)
 }

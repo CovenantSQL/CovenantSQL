@@ -21,23 +21,24 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// MetricServiceName is the RPC name
+// MetricServiceName is the RPC name.
 const MetricServiceName = "Metric"
 
-// CollectClient is the Metric Collect Client
+// CollectClient is the Metric Collect Client.
 type CollectClient struct {
 	Registry *prometheus.Registry
 }
 
-// NewCollectClient returns a new CollectClient
+// NewCollectClient returns a new CollectClient.
 func NewCollectClient() *CollectClient {
 	reg := StartMetricCollector()
 	if reg == nil {
@@ -49,19 +50,19 @@ func NewCollectClient() *CollectClient {
 	}
 }
 
-// CollectServer is the Metric receiver side
+// CollectServer is the Metric receiver side.
 type CollectServer struct {
-	NodeMetric NodeMetricMap // map[proto.NodeID]MetricMap
+	NodeMetric NodeMetricMap // map[proto.NodeID]SimpleMetricMap
 }
 
-// NewCollectServer returns a new CollectServer
+// NewCollectServer returns a new CollectServer.
 func NewCollectServer() *CollectServer {
 	return &CollectServer{
 		NodeMetric: NodeMetricMap{},
 	}
 }
 
-// UploadMetrics RPC uploads metric info
+// UploadMetrics RPC uploads metric info.
 func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.UploadMetricsResp) (err error) {
 	reqNodeID := req.GetNodeID().ToNodeID()
 	if reqNodeID.IsEmpty() {
@@ -75,7 +76,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		return
 	}
 
-	mfm := make(MetricMap, len(req.MFBytes))
+	mfm := make(SimpleMetricMap, len(req.MFBytes))
 	log.Debugf("RPC received MFS len %d", len(req.MFBytes))
 	for _, mf := range req.MFBytes[:] {
 		bufReader := bytes.NewReader(mf)
@@ -103,7 +104,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 	return
 }
 
-// GatherMetricBytes gathers the registered metric info and encode it to [][]byte
+// GatherMetricBytes gathers the registered metric info and encode it to [][]byte.
 func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 	mfs, err := cc.Registry.Gather()
 	if err != nil {
@@ -116,7 +117,7 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 		buf := new(bytes.Buffer)
 		//enc := expfmt.NewEncoder(buf, expfmt.FmtProtoCompact)
 		//err = enc.Encode(mf)
-		expfmt.MetricFamilyToText(buf, mf)
+		_, err := expfmt.MetricFamilyToText(buf, mf)
 		if err != nil {
 			log.Warnf("encode MetricFamily failed: %s", err)
 			continue
@@ -130,14 +131,14 @@ func (cc *CollectClient) GatherMetricBytes() (mfb [][]byte, err error) {
 	return
 }
 
-// UploadMetrics calls RPC UploadMetrics to upload its metric info
+// UploadMetrics calls RPC UploadMetrics to upload its metric info.
 func (cc *CollectClient) UploadMetrics(BPNodeID proto.NodeID) (err error) {
 	mfb, err := cc.GatherMetricBytes()
 	if err != nil {
 		log.Errorf("GatherMetricBytes failed: %s", err)
 		return
 	}
-	log.Debugf("Calling BP: %s", BPNodeID)
+	log.Debugf("calling BP: %s", BPNodeID)
 	reqType := MetricServiceName + ".UploadMetrics"
 	req := &proto.UploadMetricsReq{
 		MFBytes: mfb,

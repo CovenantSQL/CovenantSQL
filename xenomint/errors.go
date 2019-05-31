@@ -25,14 +25,12 @@ var (
 	ErrMissingParent = errors.New("query missing parent")
 	// ErrInvalidRequest indicates the query is invalid.
 	ErrInvalidRequest = errors.New("invalid request")
-	// ErrQueryExists indicates the query already exists in pool.
-	ErrQueryExists = errors.New("query already exists")
-	// ErrStateClosed indicates the state is closed.
-	ErrStateClosed = errors.New("state is closed")
 	// ErrQueryConflict indicates the there is a conflict on query replay.
 	ErrQueryConflict = errors.New("query conflict")
-	// ErrLocalBehindRemote indicates the local state is behind the remote.
-	ErrLocalBehindRemote = errors.New("local state is behind the remote")
 	// ErrMuxServiceNotFound indicates that the multiplexing service endpoint is not found.
 	ErrMuxServiceNotFound = errors.New("mux service not found")
+	// ErrStatefulQueryParts indicates query contains stateful query parts.
+	ErrStatefulQueryParts = errors.New("query contains stateful query parts")
+	// ErrInvalidTableName indicates query contains invalid table name in ddl statement.
+	ErrInvalidTableName = errors.New("invalid table name in ddl")
 )

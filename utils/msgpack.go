@@ -18,19 +18,16 @@ package utils
 
 import (
 	"bytes"
-	"net"
+	"io"
 	"net/rpc"
 	"reflect"
 
 	"github.com/ugorji/go/codec"
 )
 
-var (
-	msgPackHandle = &codec.MsgpackHandle{
-		WriteExt:    true,
-		RawToString: true,
-	}
-)
+var msgPackHandle = &codec.MsgpackHandle{
+	WriteExt: true,
+}
 
 // RegisterInterfaceToMsgPack binds interface decode/encode to specified implementation.
 func RegisterInterfaceToMsgPack(intf, impl reflect.Type) (err error) {
@@ -39,18 +36,16 @@ func RegisterInterfaceToMsgPack(intf, impl reflect.Type) (err error) {
 
 // DecodeMsgPack reverses the encode operation on a byte slice input.
 func DecodeMsgPack(buf []byte, out interface{}) error {
-	r := bytes.NewBuffer(buf)
-	dec := codec.NewDecoder(r, msgPackHandle)
+	dec := codec.NewDecoder(bytes.NewReader(buf), msgPackHandle)
 	return dec.Decode(out)
 }
 
 // DecodeMsgPackPlain reverses the encode operation on a byte slice input without RawToString setting.
 func DecodeMsgPackPlain(buf []byte, out interface{}) error {
-	r := bytes.NewBuffer(buf)
 	hd := &codec.MsgpackHandle{
 		WriteExt: true,
 	}
-	dec := codec.NewDecoder(r, hd)
+	dec := codec.NewDecoder(bytes.NewReader(buf), hd)
 	return dec.Decode(out)
 }
 
@@ -63,11 +58,11 @@ func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 }
 
 // GetMsgPackServerCodec returns msgpack server codec for connection.
-func GetMsgPackServerCodec(c net.Conn) rpc.ServerCodec {
+func GetMsgPackServerCodec(c io.ReadWriteCloser) rpc.ServerCodec {
 	return codec.MsgpackSpecRpc.ServerCodec(c, msgPackHandle)
 }
 
 // GetMsgPackClientCodec returns msgpack client codec for connection.
-func GetMsgPackClientCodec(c net.Conn) rpc.ClientCodec {
+func GetMsgPackClientCodec(c io.ReadWriteCloser) rpc.ClientCodec {
 	return codec.MsgpackSpecRpc.ClientCodec(c, msgPackHandle)
 }

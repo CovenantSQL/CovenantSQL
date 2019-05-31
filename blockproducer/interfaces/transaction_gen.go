@@ -21,6 +21,20 @@ func (z AccountNonce) Msgsize() (s int) {
 }
 
 // MarshalHash marshals for hash
+func (z TransactionState) MarshalHash() (o []byte, err error) {
+	var b []byte
+	o = hsp.Require(b, z.Msgsize())
+	o = hsp.AppendUint32(o, uint32(z))
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z TransactionState) Msgsize() (s int) {
+	s = hsp.Uint32Size
+	return
+}
+
+// MarshalHash marshals for hash
 func (z TransactionType) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())

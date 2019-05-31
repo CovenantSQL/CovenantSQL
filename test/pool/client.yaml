@@ -1,21 +1,26 @@
-IsTestMode: true
+UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
 PrivateKeyFile: "private.key"
 DHTFileName: "dht.db"
 ListenAddr: "127.0.0.1:2520"
 ThisNodeID: "00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d"
+QPS: 1000
+ChainBusPeriod: 1s
+Period: 3600
+MinProviderDeposit: 1000000
 ValidDNSKeys:
   koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==: cloudflare.com
   mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==: cloudflare.com
+  oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==: cloudflare.com
 MinNodeIDDifficulty: 2
 DNSSeed:
   EnforcedDNSSEC: false
   DNSServers:
-  - 1.1.1.1
-  - 202.46.34.74
-  - 202.46.34.75
-  - 202.46.34.76
+    - 1.1.1.1
+    - 202.46.34.74
+    - 202.46.34.75
+    - 202.46.34.76
 
 BlockProducer:
   PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
@@ -32,24 +37,23 @@ BlockProducer:
     Producer: 0000000000000000000000000000000000000000000000000000000000000001
     MerkleRoot: 0000000000000000000000000000000000000000000000000000000000000001
     ParentHash: 0000000000000000000000000000000000000000000000000000000000000001
-    Timestamp: 2018-08-13T21:59:59.12Z
+    Timestamp: "2019-01-10T12:49:07+08:00"
 KnownNodes:
-- ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
-  Nonce:
-    a: 313283
-    b: 0
-    c: 0
-    d: 0
-  Addr: 127.0.0.1:2530
-  PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
-  Role: Leader
-- ID: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
-  Nonce:
-    a: 22403
-    b: 0
-    c: 0
-    d: 0
-  Addr: ""
-  PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
-  Role: Client
-
+  - ID: 00000bef611d346c0cbe1beaa76e7f0ed705a194fdf9ac3a248ec70e9c198bf9
+    Nonce:
+      a: 313283
+      b: 0
+      c: 0
+      d: 0
+    Addr: 127.0.0.1:2530
+    PublicKey: "02c76216704d797c64c58bc11519fb68582e8e63de7e5b3b2dbbbe8733efe5fd24"
+    Role: Leader
+  - ID: 00000f3b43288fe99831eb533ab77ec455d13e11fc38ec35a42d4edd17aa320d
+    Nonce:
+      a: 22403
+      b: 0
+      c: 0
+      d: 0
+    Addr: ""
+    PublicKey: 02ec784ca599f21ef93fe7abdc68d78817ab6c9b31f2324d15ea174d9da498b4c4
+    Role: Client

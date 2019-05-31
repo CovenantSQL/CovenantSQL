@@ -2,6 +2,8 @@ language: go
 go:
   - 1.10.x
   - 1.11.x
-  - tip
+services:
+  - postgresql
 script:
-  - go test -v -coverprofile=coverage.out
+  - export PSQL_CONN="--username=postgres" DETERMINISTIC="true"
+  - go test -v -coverprofile=coverage.out -bench=. -benchmem

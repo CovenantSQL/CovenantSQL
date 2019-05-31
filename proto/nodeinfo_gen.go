@@ -39,8 +39,8 @@ func (z *AddrAndGas) Msgsize() (s int) {
 func (z *Node) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 5
-	o = append(o, 0x85, 0x85)
+	// map header, size 6
+	o = append(o, 0x86, 0x86)
 	if z.PublicKey == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -50,18 +50,20 @@ func (z *Node) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendString(o, string(z.ID))
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendInt(o, int(z.Role))
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	if oTemp, err := z.Nonce.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
 	}
-	o = append(o, 0x85)
+	o = append(o, 0x86)
 	o = hsp.AppendString(o, z.Addr)
+	o = append(o, 0x86)
+	o = hsp.AppendString(o, z.DirectAddr)
 	return
 }
 
@@ -73,7 +75,7 @@ func (z *Node) Msgsize() (s int) {
 	} else {
 		s += z.PublicKey.Msgsize()
 	}
-	s += 3 + hsp.StringPrefixSize + len(string(z.ID)) + 5 + hsp.IntSize + 6 + z.Nonce.Msgsize() + 5 + hsp.StringPrefixSize + len(z.Addr)
+	s += 3 + hsp.StringPrefixSize + len(string(z.ID)) + 5 + hsp.IntSize + 6 + z.Nonce.Msgsize() + 5 + hsp.StringPrefixSize + len(z.Addr) + 11 + hsp.StringPrefixSize + len(z.DirectAddr)
 	return
 }
 

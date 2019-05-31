@@ -20,26 +20,28 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"math/big"
-	"sync"
+
+	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+	ec "github.com/btcsuite/btcd/btcec"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
-	ec "github.com/btcsuite/btcd/btcec"
 )
 
 var (
 	// BypassSignature is the flag indicate if bypassing signature sign & verify
 	BypassSignature = false
 	bypassS         *Signature
-	mu              sync.Mutex
+	verifyCache     *lru.Cache
 )
 
-// For test Signature.Sign mock
+// For test Signature.Sign mock.
 func init() {
 	priv, _ := ec.NewPrivateKey(ec.S256())
 	ss, _ := (*ec.PrivateKey)(priv).Sign(([]byte)("00000000000000000000000000000000"))
 	bypassS = (*Signature)(ss)
+	verifyCache, _ = lru.New(256)
 }
 
 // Signature is a type representing an ecdsa signature.
@@ -48,7 +50,7 @@ type Signature struct {
 	S *big.Int
 }
 
-// Serialize converts a signature to stirng
+// Serialize converts a signature to stirng.
 func (s *Signature) Serialize() []byte {
 	return (*ec.Signature)(s).Serialize()
 }
@@ -58,13 +60,13 @@ func ParseSignature(sigStr []byte) (*Signature, error) {
 	return ParseDERSignature(sigStr, ec.S256())
 }
 
-// ParseDERSignature recovers the signature from a sigStr
+// ParseDERSignature recovers the signature from a sigStr.
 func ParseDERSignature(sigStr []byte, curve elliptic.Curve) (*Signature, error) {
 	sig, err := ec.ParseDERSignature(sigStr, curve)
 	return (*Signature)(sig), err
 }
 
-// IsEqual return true if two signature is equal
+// IsEqual return true if two signature is equal.
 func (s *Signature) IsEqual(signature *Signature) bool {
 	return (*ec.Signature)(s).IsEqual((*ec.Signature)(signature))
 }
@@ -87,6 +89,7 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 		S: new(big.Int).SetBytes(sb[32:64]),
 	}
 	//s, e := (*ec.PrivateKey)(private).Sign(hash)
+
 	return (*Signature)(s), e
 }
 
@@ -100,12 +103,22 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 		return false
 	}
 
-	signature := make([]byte, 64)
+	cacheKey := make([]byte, 64+len(hash)+ec.PubKeyBytesLenUncompressed)
+	signature := cacheKey[:64]
 	copy(signature, utils.PaddedBigBytes(s.R, 32))
 	copy(signature[32:], utils.PaddedBigBytes(s.S, 32))
+	copy(cacheKey[64:64+len(hash)], hash)
 	signeeBytes := (*ec.PublicKey)(signee).SerializeUncompressed()
-	ret := secp256k1.VerifySignature(signeeBytes, hash, signature)
-	return ret
+	copy(cacheKey[64+len(hash):], signeeBytes)
+
+	if _, ok := verifyCache.Get(string(cacheKey)); ok {
+		return true
+	}
+	valid := secp256k1.VerifySignature(signeeBytes, hash, signature)
+	if valid {
+		verifyCache.Add(string(cacheKey), nil)
+	}
+	return valid
 	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
 }
 
@@ -120,12 +133,12 @@ func (s *Signature) MarshalBinary() (keyBytes []byte, err error) {
 	return
 }
 
-// MarshalHash marshals for hash
+// MarshalHash marshals for hash.
 func (s *Signature) MarshalHash() (keyBytes []byte, err error) {
 	return s.MarshalBinary()
 }
 
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (s Signature) Msgsize() (sz int) {
 	sz = hsp.BytesPrefixSize + 70
 	return

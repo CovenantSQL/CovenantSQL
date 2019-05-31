@@ -17,9 +17,9 @@
 package blockproducer
 
 import (
+	"github.com/pkg/errors"
+
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -28,128 +28,14 @@ type ChainRPCService struct {
 	chain *Chain
 }
 
-// AdviseNewBlockReq defines a request of the AdviseNewBlock RPC method.
-type AdviseNewBlockReq struct {
-	proto.Envelope
-	Block *pt.Block
-}
-
-// AdviseNewBlockResp defines a response of the AdviseNewBlock RPC method.
-type AdviseNewBlockResp struct {
-	proto.Envelope
-}
-
-// AdviseTxBillingReq defines a request of the AdviseTxBilling RPC method.
-type AdviseTxBillingReq struct {
-	proto.Envelope
-	TxBilling *pt.Billing
-}
-
-// AdviseTxBillingResp defines a response of the AdviseTxBilling RPC method.
-type AdviseTxBillingResp struct {
-	proto.Envelope
-}
-
-// FetchBlockReq defines a request of the FetchBlock RPC method.
-type FetchBlockReq struct {
-	proto.Envelope
-	Height uint32
-}
-
-// FetchBlockResp defines a response of the FetchBlock RPC method.
-type FetchBlockResp struct {
-	proto.Envelope
-	Height uint32
-	Count  uint32
-	Block  *pt.Block
-}
-
-// FetchBlockByCountReq define a request of the FetchBlockByCount RPC method.
-type FetchBlockByCountReq struct {
-	proto.Envelope
-	Count uint32
-}
-
-// FetchTxBillingReq defines a request of the FetchTxBilling RPC method.
-type FetchTxBillingReq struct {
-	proto.Envelope
-}
-
-// FetchTxBillingResp defines a response of the FetchTxBilling RPC method.
-type FetchTxBillingResp struct {
-	proto.Envelope
-}
-
-// NextAccountNonceReq defines a request of the NextAccountNonce RPC method.
-type NextAccountNonceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// NextAccountNonceResp defines a response of the NextAccountNonce RPC method.
-type NextAccountNonceResp struct {
-	proto.Envelope
-	Addr  proto.AccountAddress
-	Nonce pi.AccountNonce
-}
-
-// AddTxReq defines a request of the AddTx RPC method.
-type AddTxReq struct {
-	proto.Envelope
-	Tx pi.Transaction
-}
-
-// AddTxResp defines a response of the AddTx RPC method.
-type AddTxResp struct {
-	proto.Envelope
-}
-
-// QueryAccountStableBalanceReq defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountStableBalanceResp defines a request of the QueryAccountStableBalance RPC method.
-type QueryAccountStableBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
-// QueryAccountCovenantBalanceReq defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceReq struct {
-	proto.Envelope
-	Addr proto.AccountAddress
-}
-
-// QueryAccountCovenantBalanceResp defines a request of the QueryAccountCovenantBalance RPC method.
-type QueryAccountCovenantBalanceResp struct {
-	proto.Envelope
-	Addr    proto.AccountAddress
-	OK      bool
-	Balance uint64
-}
-
 // AdviseNewBlock is the RPC method to advise a new block to target server.
-func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) error {
-	s.chain.blocksFromRPC <- req.Block
-	return nil
-}
-
-// AdviseBillingRequest is the RPC method to advise a new billing request to main chain.
-func (s *ChainRPCService) AdviseBillingRequest(req *types.AdviseBillingReq, resp *types.AdviseBillingResp) error {
-	response, err := s.chain.produceBilling(req.Req)
-	if err != nil {
-		return err
-	}
-	resp.Resp = response
+func (s *ChainRPCService) AdviseNewBlock(req *types.AdviseNewBlockReq, resp *types.AdviseNewBlockResp) error {
+	s.chain.pendingBlocks <- req.Block
 	return nil
 }
 
 // FetchBlock is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) error {
+func (s *ChainRPCService) FetchBlock(req *types.FetchBlockReq, resp *types.FetchBlockResp) error {
 	resp.Height = req.Height
 	block, count, err := s.chain.fetchBlockByHeight(req.Height)
 	if err != nil {
@@ -160,8 +46,22 @@ func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) e
 	return err
 }
 
+// FetchLastIrreversibleBlock fetches the last block irreversible block from block producer.
+func (s *ChainRPCService) FetchLastIrreversibleBlock(
+	req *types.FetchLastIrreversibleBlockReq, resp *types.FetchLastIrreversibleBlockResp) error {
+	b, c, h, err := s.chain.fetchLastIrreversibleBlock()
+	if err != nil {
+		return err
+	}
+	resp.Block = b
+	resp.Count = c
+	resp.Height = h
+	resp.SQLChains = s.chain.loadSQLChainProfiles(req.Address)
+	return nil
+}
+
 // FetchBlockByCount is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *FetchBlockResp) error {
+func (s *ChainRPCService) FetchBlockByCount(req *types.FetchBlockByCountReq, resp *types.FetchBlockResp) error {
 	resp.Count = req.Count
 	block, height, err := s.chain.fetchBlockByCount(req.Count)
 	if err != nil {
@@ -173,15 +73,15 @@ func (s *ChainRPCService) FetchBlockByCount(req *FetchBlockByCountReq, resp *Fet
 }
 
 // FetchTxBilling is the RPC method to fetch a known billing tx from the target server.
-func (s *ChainRPCService) FetchTxBilling(req *FetchTxBillingReq, resp *FetchTxBillingResp) error {
+func (s *ChainRPCService) FetchTxBilling(req *types.FetchTxBillingReq, resp *types.FetchTxBillingResp) error {
 	return nil
 }
 
 // NextAccountNonce is the RPC method to query the next nonce of an account.
 func (s *ChainRPCService) NextAccountNonce(
-	req *NextAccountNonceReq, resp *NextAccountNonceResp) (err error,
+	req *types.NextAccountNonceReq, resp *types.NextAccountNonceResp) (err error,
 ) {
-	if resp.Nonce, err = s.chain.ms.nextNonce(req.Addr); err != nil {
+	if resp.Nonce, err = s.chain.nextNonce(req.Addr); err != nil {
 		return
 	}
 	resp.Addr = req.Addr
@@ -189,30 +89,54 @@ func (s *ChainRPCService) NextAccountNonce(
 }
 
 // AddTx is the RPC method to add a transaction.
-func (s *ChainRPCService) AddTx(req *AddTxReq, resp *AddTxResp) (err error) {
-	if req.Tx == nil {
-		return ErrUnknownTransactionType
+func (s *ChainRPCService) AddTx(req *types.AddTxReq, _ *types.AddTxResp) (err error) {
+	s.chain.addTx(req)
+	return
+}
+
+// QueryAccountTokenBalance is the RPC method to query account token balance.
+func (s *ChainRPCService) QueryAccountTokenBalance(
+	req *types.QueryAccountTokenBalanceReq, resp *types.QueryAccountTokenBalanceResp) (err error,
+) {
+	resp.Addr = req.Addr
+	resp.Balance, resp.OK = s.chain.loadAccountTokenBalance(req.Addr, req.TokenType)
+	return
+}
+
+// QuerySQLChainProfile is the RPC method to query SQLChainProfile.
+func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileReq,
+	resp *types.QuerySQLChainProfileResp) (err error) {
+	p, ok := s.chain.loadSQLChainProfile(req.DBID)
+	if ok {
+		resp.Profile = *p
+		return
 	}
-
-	s.chain.pendingTxs <- req.Tx
-
+	err = errors.Wrap(ErrDatabaseNotFound, "rpc query sqlchain profile failed")
 	return
 }
 
-// QueryAccountStableBalance is the RPC method to query acccount stable coin balance.
-func (s *ChainRPCService) QueryAccountStableBalance(
-	req *QueryAccountStableBalanceReq, resp *QueryAccountStableBalanceResp) (err error,
+// QueryTxState is the RPC method to query a transaction state.
+func (s *ChainRPCService) QueryTxState(
+	req *types.QueryTxStateReq, resp *types.QueryTxStateResp) (err error,
 ) {
-	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.ms.loadAccountStableBalance(req.Addr)
+	var state pi.TransactionState
+	if state, err = s.chain.queryTxState(req.Hash); err != nil {
+		return
+	}
+	resp.Hash = req.Hash
+	resp.State = state
 	return
 }
 
-// QueryAccountCovenantBalance is the RPC method to query acccount covenant coin balance.
-func (s *ChainRPCService) QueryAccountCovenantBalance(
-	req *QueryAccountCovenantBalanceReq, resp *QueryAccountCovenantBalanceResp) (err error,
+// QueryAccountSQLChainProfiles is the RPC method to query account sqlchain profiles.
+func (s *ChainRPCService) QueryAccountSQLChainProfiles(
+	req *types.QueryAccountSQLChainProfilesReq, resp *types.QueryAccountSQLChainProfilesResp) (err error,
 ) {
+	var profiles []*types.SQLChainProfile
+	if profiles, err = s.chain.queryAccountSQLChainProfiles(req.Addr); err != nil {
+		return
+	}
 	resp.Addr = req.Addr
-	resp.Balance, resp.OK = s.chain.ms.loadAccountCovenantBalance(req.Addr)
+	resp.Profiles = profiles
 	return
 }

@@ -99,41 +99,10 @@ func (f *Formatter) Format(w io.Writer, style *chroma.Style, iterator chroma.Ite
 	return f.writeHTML(w, style, iterator.Tokens())
 }
 
-func brightenOrDarken(colour chroma.Colour, factor float64) chroma.Colour {
-	if colour.Brightness() < 0.5 {
-		return colour.Brighten(factor)
-	}
-	return colour.Brighten(-factor)
-}
-
-// Ensure that style entries exist for highlighting, etc.
-func (f *Formatter) restyle(style *chroma.Style) (*chroma.Style, error) {
-	builder := style.Builder()
-	bg := builder.Get(chroma.Background)
-	// If we don't have a line highlight colour, make one that is 10% brighter/darker than the background.
-	if !style.Has(chroma.LineHighlight) {
-		highlight := chroma.StyleEntry{Background: bg.Background}
-		highlight.Background = brightenOrDarken(highlight.Background, 0.1)
-		builder.AddEntry(chroma.LineHighlight, highlight)
-	}
-	// If we don't have line numbers, use the text colour but 20% brighter/darker
-	if !style.Has(chroma.LineNumbers) {
-		text := chroma.StyleEntry{Colour: bg.Colour}
-		text.Colour = brightenOrDarken(text.Colour, 0.5)
-		builder.AddEntry(chroma.LineNumbers, text)
-		builder.AddEntry(chroma.LineNumbersTable, text)
-	}
-	return builder.Build()
-}
-
 // We deliberately don't use html/template here because it is two orders of magnitude slower (benchmarked).
 //
 // OTOH we need to be super careful about correct escaping...
-func (f *Formatter) writeHTML(w io.Writer, style *chroma.Style, tokens []*chroma.Token) (err error) { // nolint: gocyclo
-	style, err = f.restyle(style)
-	if err != nil {
-		return err
-	}
+func (f *Formatter) writeHTML(w io.Writer, style *chroma.Style, tokens []chroma.Token) (err error) { // nolint: gocyclo
 	css := f.styleToCSS(style)
 	if !f.Classes {
 		for t, style := range css {
@@ -144,7 +113,10 @@ func (f *Formatter) writeHTML(w io.Writer, style *chroma.Style, tokens []*chroma
 		fmt.Fprint(w, "<html>\n")
 		if f.Classes {
 			fmt.Fprint(w, "<style type=\"text/css\">\n")
-			f.WriteCSS(w, style)
+			err = f.WriteCSS(w, style)
+			if err != nil {
+				return err
+			}
 			fmt.Fprintf(w, "body { %s; }\n", css[chroma.Background])
 			fmt.Fprint(w, "</style>")
 		}
@@ -153,7 +125,7 @@ func (f *Formatter) writeHTML(w io.Writer, style *chroma.Style, tokens []*chroma
 
 	wrapInTable := f.lineNumbers && f.lineNumbersInTable
 
-	lines := splitTokensIntoLines(tokens)
+	lines := chroma.SplitTokensIntoLines(tokens)
 	lineDigits := len(fmt.Sprintf("%d", len(lines)))
 	highlightIndex := 0
 
@@ -274,7 +246,7 @@ func (f *Formatter) styleAttr(styles map[chroma.TokenType]string, tt chroma.Toke
 		if cls == "" {
 			return ""
 		}
-		return string(fmt.Sprintf(` class="%s"`, cls))
+		return fmt.Sprintf(` class="%s"`, cls)
 	}
 	if _, ok := styles[tt]; !ok {
 		tt = tt.SubCategory()
@@ -389,27 +361,4 @@ func compressStyle(s string) string {
 		out = append(out, p)
 	}
 	return strings.Join(out, ";")
-}
-
-func splitTokensIntoLines(tokens []*chroma.Token) (out [][]*chroma.Token) {
-	line := []*chroma.Token{}
-	for _, token := range tokens {
-		for strings.Contains(token.Value, "\n") {
-			parts := strings.SplitAfterN(token.Value, "\n", 2)
-			// Token becomes the tail.
-			token.Value = parts[1]
-
-			// Append the head to the line and flush the line.
-			clone := token.Clone()
-			clone.Value = parts[0]
-			line = append(line, clone)
-			out = append(out, line)
-			line = nil
-		}
-		line = append(line, token)
-	}
-	if len(line) > 0 {
-		out = append(out, line)
-	}
-	return
 }

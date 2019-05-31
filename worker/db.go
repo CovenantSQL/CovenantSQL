@@ -20,10 +20,15 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	//"runtime/trace"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -32,7 +37,8 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/pkg/errors"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 )
 
 const (
@@ -52,7 +58,19 @@ const (
 	PrepareThreshold = 1.0
 
 	// CommitThreshold defines the commit complete threshold.
-	CommitThreshold = 1.0
+	CommitThreshold = 0.0
+
+	// PrepareTimeout defines the prepare timeout config.
+	PrepareTimeout = 10 * time.Second
+
+	// CommitTimeout defines the commit timeout config.
+	CommitTimeout = time.Minute
+
+	// LogWaitTimeout defines the missing log wait timeout config.
+	LogWaitTimeout = 10 * time.Second
+
+	// SlowQuerySampleSize defines the maximum slow query log size (default: 1KB).
+	SlowQuerySampleSize = 1 << 10
 )
 
 // Database defines a single database instance in worker runtime.
@@ -67,17 +85,31 @@ type Database struct {
 	chain          *sqlchain.Chain
 	nodeID         proto.NodeID
 	mux            *DBKayakMuxService
+	privateKey     *asymmetric.PrivateKey
+	accountAddr    proto.AccountAddress
 }
 
 // NewDatabase create a single database instance using config.
-func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (db *Database, err error) {
+func NewDatabase(cfg *DBConfig, peers *proto.Peers,
+	genesis *types.Block) (db *Database, err error) {
 	// ensure dir exists
 	if err = os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return
 	}
 
-	if peers == nil || genesisBlock == nil {
+	if peers == nil || genesis == nil {
 		err = ErrInvalidDBConfig
+		return
+	}
+
+	// get private key
+	var privateKey *asymmetric.PrivateKey
+	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
+		return
+	}
+
+	var accountAddr proto.AccountAddress
+	if accountAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
 		return
 	}
 
@@ -87,6 +119,8 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 		dbID:           cfg.DatabaseID,
 		mux:            cfg.KayakMux,
 		connSeqEvictCh: make(chan uint64, 1),
+		privateKey:     privateKey,
+		accountAddr:    accountAddr,
 	}
 
 	defer func() {
@@ -116,32 +150,33 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 	}
 
 	// init chain
-	chainFile := filepath.Join(cfg.DataDir, SQLChainFileName)
+	chainFile := filepath.Join(cfg.RootDir, SQLChainFileName)
 	if db.nodeID, err = kms.GetLocalNodeID(); err != nil {
 		return
 	}
 
-	// TODO(xq262144): make sqlchain config use of global config object
 	chainCfg := &sqlchain.Config{
 		DatabaseID:      cfg.DatabaseID,
 		ChainFilePrefix: chainFile,
 		DataFile:        storageDSN.Format(),
-		Genesis:         genesisBlock,
+		Genesis:         genesis,
 		Peers:           peers,
 
-		// TODO(xq262144): should refactor server/node definition to conf/proto package
 		// currently sqlchain package only use Server.ID as node id
 		MuxService: cfg.ChainMux,
 		Server:     db.nodeID,
 
-		// TODO(xq262144): currently using fixed period/resolution from sqlchain test case
-		Period:   60 * time.Second,
-		Tick:     10 * time.Second,
-		QueryTTL: 10,
+		Period:            conf.GConf.SQLChainPeriod,
+		Tick:              conf.GConf.SQLChainTick,
+		QueryTTL:          conf.GConf.SQLChainTTL,
+		LastBillingHeight: cfg.LastBillingHeight,
+		UpdatePeriod:      cfg.UpdateBlockCount,
+		IsolationLevel:    cfg.IsolationLevel,
 	}
 	if db.chain, err = sqlchain.NewChain(chainCfg); err != nil {
 		return
-	} else if err = db.chain.Start(); err != nil {
+	}
+	if err = db.chain.Start(); err != nil {
 		return
 	}
 
@@ -156,14 +191,16 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers, genesisBlock *types.Block) (
 		Handler:          db,
 		PrepareThreshold: PrepareThreshold,
 		CommitThreshold:  CommitThreshold,
-		PrepareTimeout:   time.Second,
-		CommitTimeout:    time.Second * 60,
+		PrepareTimeout:   PrepareTimeout,
+		CommitTimeout:    CommitTimeout,
+		LogWaitTimeout:   LogWaitTimeout,
 		Peers:            peers,
 		Wal:              db.kayakWal,
 		NodeID:           db.nodeID,
 		InstanceID:       string(db.dbID),
 		ServiceName:      DBKayakRPCName,
-		MethodName:       DBKayakMethodName,
+		ApplyMethodName:  DBKayakApplyMethodName,
+		FetchMethodName:  DBKayakFetchMethodName,
 	}
 
 	// create kayak runtime
@@ -199,15 +236,101 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 	//	return
 	//}
 
+	var (
+		isSlowQuery uint32
+		tracker     *x.QueryTracker
+		tmStart     = time.Now()
+	)
+
+	// log the query if the underlying storage layer take too long to response
+	slowQueryTimer := time.AfterFunc(db.cfg.SlowQueryTime, func() {
+		// mark as slow query
+		atomic.StoreUint32(&isSlowQuery, 1)
+		db.logSlow(request, false, tmStart)
+	})
+	defer slowQueryTimer.Stop()
+	defer func() {
+		if atomic.LoadUint32(&isSlowQuery) == 1 {
+			// slow query
+			db.logSlow(request, true, tmStart)
+		}
+	}()
+
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		return db.chain.Query(request)
+		if tracker, response, err = db.chain.Query(request, false); err != nil {
+			err = errors.Wrap(err, "failed to query read query")
+			return
+		}
 	case types.WriteQuery:
-		return db.writeQuery(request)
+		if db.cfg.UseEventualConsistency {
+			// reset context
+			request.SetContext(context.Background())
+			if tracker, response, err = db.chain.Query(request, true); err != nil {
+				err = errors.Wrap(err, "failed to execute with eventual consistency")
+				return
+			}
+		} else {
+			if tracker, response, err = db.writeQuery(request); err != nil {
+				err = errors.Wrap(err, "failed to execute")
+				return
+			}
+		}
 	default:
 		// TODO(xq262144): verbose errors with custom error structure
 		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
 	}
+
+	response.Header.ResponseAccount = db.accountAddr
+
+	// build hash
+	if err = response.BuildHash(); err != nil {
+		err = errors.Wrap(err, "failed to build response hash")
+		return
+	}
+
+	if err = db.chain.AddResponse(&response.Header); err != nil {
+		log.WithError(err).Debug("failed to add response to index")
+		return
+	}
+	tracker.UpdateResp(response)
+
+	return
+}
+
+func (db *Database) logSlow(request *types.Request, isFinished bool, tmStart time.Time) {
+	if request == nil {
+		return
+	}
+
+	// sample the queries
+	querySample := ""
+
+	for _, q := range request.Payload.Queries {
+		if len(querySample) < SlowQuerySampleSize {
+			querySample += "; "
+			querySample += q.Pattern
+		} else {
+			break
+		}
+	}
+
+	if len(querySample) >= SlowQuerySampleSize {
+		querySample = querySample[:SlowQuerySampleSize-3]
+		querySample += "..."
+	}
+
+	log.WithFields(log.Fields{
+		"finished": isFinished,
+		"db":       request.Header.DatabaseID,
+		"req_time": request.Header.Timestamp.String(),
+		"req_node": request.Header.NodeID,
+		"count":    request.Header.BatchCount,
+		"type":     request.Header.QueryType.String(),
+		"sample":   querySample,
+		"start":    tmStart.String(),
+		"elapsed":  time.Now().Sub(tmStart).String(),
+	}).Error("slow query detected")
 }
 
 // Ack defines client response ack interface.
@@ -271,12 +394,7 @@ func (db *Database) Destroy() (err error) {
 	return
 }
 
-func (db *Database) writeQuery(request *types.Request) (response *types.Response, err error) {
-	//ctx := context.Background()
-	//ctx, task := trace.NewTask(ctx, "writeQuery")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "writeQueryRegion").End()
-
+func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker, response *types.Response, err error) {
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {
 		path := filepath.Join(db.cfg.DataDir, StorageFileName)
@@ -296,17 +414,21 @@ func (db *Database) writeQuery(request *types.Request) (response *types.Response
 
 	// call kayak runtime Process
 	var result interface{}
-	if result, _, err = db.kayakRuntime.Apply(context.Background(), request); err != nil {
+	if result, _, err = db.kayakRuntime.Apply(request.GetContext(), request); err != nil {
 		err = errors.Wrap(err, "apply failed")
 		return
 	}
 
-	var ok bool
-	if response, ok = (result).(*types.Response); !ok {
+	var (
+		tr *TrackerAndResponse
+		ok bool
+	)
+	if tr, ok = (result).(*TrackerAndResponse); !ok {
 		err = errors.Wrap(err, "invalid response type")
 		return
 	}
-
+	tracker = tr.Tracker
+	response = tr.Response
 	return
 }
 

@@ -26,40 +26,24 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// FJ is short for filepath.Join
+// FJ is short for filepath.Join.
 var FJ = filepath.Join
 
-// CMD is the struct holding exec.Cmd and log path
+// CMD is the struct holding exec.Cmd and log path.
 type CMD struct {
 	Cmd     *exec.Cmd
 	LogPath string
+	LogFD   *os.File
 }
 
-// GetProjectSrcDir gets the src code root
+// GetProjectSrcDir gets the src code root.
 func GetProjectSrcDir() string {
 	_, testFile, _, _ := runtime.Caller(0)
 	return FJ(filepath.Dir(testFile), "../")
 }
 
-// Build runs build.sh
-func Build() (err error) {
-	wd := GetProjectSrcDir()
-	err = os.Chdir(wd)
-	if err != nil {
-		log.WithError(err).Error("change working dir failed")
-		return
-	}
-	cmd := exec.Command("./build.sh")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.WithError(err).Error("build failed")
-	}
-	log.Debugf("build output info: %#v", string(output))
-	return
-}
-
 // RunCommand runs a command and capture its output to a log file,
-//  if toStd is true also output to stdout and stderr
+//  if toStd is true also output to stdout and stderr.
 func RunCommand(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (err error) {
 	cmd, err := RunCommandNB(bin, args, processName, workingDir, logDir, toStd)
 	if err != nil {
@@ -70,6 +54,9 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 		}).WithError(err).Error("start command failed")
 		return
 	}
+	defer func() {
+		_ = cmd.LogFD.Close()
+	}()
 	err = cmd.Cmd.Wait()
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -81,55 +68,39 @@ func RunCommand(bin string, args []string, processName string, workingDir string
 	return
 }
 
-// RunCommandNB starts a non-blocking command
+// RunCommandNB starts a non-blocking command.
 func RunCommandNB(bin string, args []string, processName string, workingDir string, logDir string, toStd bool) (cmd *CMD, err error) {
 	cmd = new(CMD)
-	cmd.LogPath = FJ(logDir, processName+".log")
-	logFD, err := os.Create(cmd.LogPath)
-	if err != nil {
-		log.WithField("path", cmd.LogPath).WithError(err).Error("create log file failed")
-		return
-	}
-
 	err = os.Chdir(workingDir)
 	if err != nil {
 		log.WithField("wd", workingDir).Error("change working dir failed")
 		return
 	}
-	cmd.Cmd = exec.Command(bin, args...)
-	stdoutIn, _ := cmd.Cmd.StdoutPipe()
-	stderrIn, _ := cmd.Cmd.StderrPipe()
 
-	var stdout, stderr io.Writer
+	cmd.LogPath = FJ(logDir, processName+".log")
+	cmd.LogFD, err = os.Create(cmd.LogPath)
+	if err != nil {
+		log.WithField("path", cmd.LogPath).WithError(err).Error("create log file failed")
+		return
+	}
+
+	cmd.Cmd = exec.Command(bin, args...)
+
 	if toStd {
-		stdout = io.MultiWriter(os.Stdout, logFD)
-		stderr = io.MultiWriter(os.Stderr, logFD)
+		cmd.Cmd.Stdout = io.MultiWriter(os.Stdout, cmd.LogFD)
+		cmd.Cmd.Stderr = io.MultiWriter(os.Stderr, cmd.LogFD)
 	} else {
-		stdout = logFD
-		stderr = logFD
+		cmd.Cmd.Stdout = cmd.LogFD
+		cmd.Cmd.Stderr = cmd.LogFD
 	}
 
 	err = cmd.Cmd.Start()
 	if err != nil {
 		log.WithError(err).Error("cmd.Start() failed")
+		_ = cmd.LogFD.Close()
+		cmd = nil
 		return
 	}
-
-	go func() {
-		_, err := io.Copy(stdout, stdoutIn)
-		if err != nil {
-			log.WithError(err).Error("failed to capture stdout")
-			return
-		}
-	}()
-
-	go func() {
-		_, err := io.Copy(stderr, stderrIn)
-		if err != nil {
-			log.WithError(err).Error("failed to capture stderr")
-			return
-		}
-	}()
 
 	return
 }

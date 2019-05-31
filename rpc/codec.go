@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The CovenantSQL Authors.
+ * Copyright 2018-2019 The CovenantSQL Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,26 +17,29 @@
 package rpc
 
 import (
+	"context"
 	"net/rpc"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
-// NodeAwareServerCodec wraps normal rpc.ServerCodec and inject node id during request process
+// NodeAwareServerCodec wraps normal rpc.ServerCodec and inject node id during request process.
 type NodeAwareServerCodec struct {
 	rpc.ServerCodec
 	NodeID *proto.RawNodeID
+	Ctx    context.Context
 }
 
-// NewNodeAwareServerCodec returns new NodeAwareServerCodec with normal rpc.ServerCode and proto.RawNodeID
-func NewNodeAwareServerCodec(codec rpc.ServerCodec, nodeID *proto.RawNodeID) *NodeAwareServerCodec {
+// NewNodeAwareServerCodec returns new NodeAwareServerCodec with normal rpc.ServerCode and proto.RawNodeID.
+func NewNodeAwareServerCodec(ctx context.Context, codec rpc.ServerCodec, nodeID *proto.RawNodeID) *NodeAwareServerCodec {
 	return &NodeAwareServerCodec{
 		ServerCodec: codec,
 		NodeID:      nodeID,
+		Ctx:         ctx,
 	}
 }
 
-// ReadRequestBody override default rpc.ServerCodec behaviour and inject remote node id into request
+// ReadRequestBody override default rpc.ServerCodec behaviour and inject remote node id into request.
 func (nc *NodeAwareServerCodec) ReadRequestBody(body interface{}) (err error) {
 	err = nc.ServerCodec.ReadRequestBody(body)
 	if err != nil {
@@ -51,6 +54,8 @@ func (nc *NodeAwareServerCodec) ReadRequestBody(body interface{}) (err error) {
 	if r, ok := body.(proto.EnvelopeAPI); ok {
 		// inject node id to rpc envelope
 		r.SetNodeID(nc.NodeID)
+		// inject context
+		r.SetContext(nc.Ctx)
 	}
 
 	return

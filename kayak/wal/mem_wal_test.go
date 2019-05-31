@@ -21,8 +21,9 @@ import (
 	"sync"
 	"testing"
 
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	. "github.com/smartystreets/goconvey/convey"
+
+	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 )
 
 func TestMemWal_Write(t *testing.T) {

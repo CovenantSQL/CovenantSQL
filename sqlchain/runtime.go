@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -27,10 +28,18 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// state represents a snapshot of current best chain.
+type state struct {
+	node   *blockNode
+	Head   hash.Hash
+	Height int32
+}
+
 // runtime represents a chain runtime state.
 type runtime struct {
-	wg     sync.WaitGroup
-	stopCh chan struct{}
+	wg     *sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// chainInitTime is the initial cycle time, when the Genesis blcok is produced.
 	chainInitTime time.Time
@@ -39,8 +48,6 @@ type runtime struct {
 
 	// The following fields are copied from config, and should be constant during whole runtime.
 
-	// databaseID is the current runtime database ID.
-	databaseID proto.DatabaseID
 	// period is the block producing cycle.
 	period time.Duration
 	// tick defines the maximum duration between each cycle.
@@ -51,10 +58,6 @@ type runtime struct {
 	blockCacheTTL int32
 	// muxServer is the multiplexing service of sql-chain PRC.
 	muxService *MuxService
-	// price sets query price in gases.
-	price           map[types.QueryType]uint64
-	producingReward uint64
-	billingPeriods  int32
 
 	// peersMutex protects following peers-relative fields.
 	peersMutex sync.Mutex
@@ -73,8 +76,8 @@ type runtime struct {
 	nextTurn int32
 	// head is the current head of the best chain.
 	head *state
-	// forks is the alternative head of the sql-chain.
-	forks []*state
+	// lastBillingHeight is the last success billing height of the current database.
+	lastBillingHeight int32
 
 	// timeMutex protects following time-relative fields.
 	timeMutex sync.Mutex
@@ -84,26 +87,29 @@ type runtime struct {
 	offset time.Duration
 }
 
+func blockCacheTTLRequired(c *Config) (ttl int32) {
+	ttl = c.BlockCacheTTL
+	if ttl < 0 {
+		ttl = 0
+	}
+	return
+}
+
 // newRunTime returns a new sql-chain runtime instance with the specified config.
-func newRunTime(c *Config) (r *runtime) {
+func newRunTime(ctx context.Context, c *Config) (r *runtime) {
+	var cld, ccl = context.WithCancel(ctx)
 	r = &runtime{
-		stopCh:     make(chan struct{}),
-		databaseID: c.DatabaseID,
-		period:     c.Period,
-		tick:       c.Tick,
-		queryTTL:   c.QueryTTL,
-		blockCacheTTL: func() int32 {
-			if c.BlockCacheTTL < minBlockCacheTTL {
-				return minBlockCacheTTL
-			}
-			return c.BlockCacheTTL
-		}(),
-		muxService:      c.MuxService,
-		price:           c.Price,
-		producingReward: c.ProducingReward,
-		billingPeriods:  c.BillingPeriods,
-		peers:           c.Peers,
-		server:          c.Server,
+		wg:     &sync.WaitGroup{},
+		ctx:    cld,
+		cancel: ccl,
+
+		period:        c.Period,
+		tick:          c.Tick,
+		queryTTL:      c.QueryTTL,
+		blockCacheTTL: blockCacheTTLRequired(c),
+		muxService:    c.MuxService,
+		peers:         c.Peers,
+		server:        c.Server,
 		index: func() int32 {
 			if index, found := c.Peers.Find(c.Server); found {
 				return index
@@ -116,10 +122,11 @@ func newRunTime(c *Config) (r *runtime) {
 
 			return -1
 		}(),
-		total:    int32(len(c.Peers.Servers)),
-		nextTurn: 1,
-		head:     &state{},
-		offset:   time.Duration(0),
+		total:             int32(len(c.Peers.Servers)),
+		nextTurn:          1,
+		head:              &state{},
+		lastBillingHeight: c.LastBillingHeight,
+		offset:            time.Duration(0),
 	}
 
 	if c.Genesis != nil {
@@ -135,7 +142,7 @@ func (r *runtime) setGenesis(b *types.Block) {
 	r.head = &state{
 		node:   nil,
 		Head:   *b.GenesisHash(),
-		Height: -1,
+		Height: 0,
 	}
 }
 
@@ -196,19 +203,10 @@ func (r *runtime) setNextTurn() {
 	r.nextTurn++
 }
 
-// getQueryGas gets the consumption of gas for a specified query type.
-func (r *runtime) getQueryGas(t types.QueryType) uint64 {
-	return r.price[t]
-}
-
 // stop sends a signal to the Runtime stop channel by closing it.
-func (r *runtime) stop() {
-	r.stopService()
-	select {
-	case <-r.stopCh:
-	default:
-		close(r.stopCh)
-	}
+func (r *runtime) stop(dbID proto.DatabaseID) {
+	r.stopService(dbID)
+	r.cancel()
 	r.wg.Wait()
 }
 
@@ -289,11 +287,11 @@ func (r *runtime) getServer() proto.NodeID {
 }
 
 func (r *runtime) startService(chain *Chain) {
-	r.muxService.register(r.databaseID, &ChainRPCService{chain: chain})
+	r.muxService.register(chain.databaseID, &ChainRPCService{chain: chain})
 }
 
-func (r *runtime) stopService() {
-	r.muxService.unregister(r.databaseID)
+func (r *runtime) stopService(dbID proto.DatabaseID) {
+	r.muxService.unregister(dbID)
 }
 
 func (r *runtime) isMyTurn() (ret bool) {
@@ -317,6 +315,18 @@ func (r *runtime) getPeers() *proto.Peers {
 	return &peers
 }
 
+func (r *runtime) getLastBillingHeight() int32 {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	return r.lastBillingHeight
+}
+
+func (r *runtime) setLastBillingHeight(h int32) {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	r.lastBillingHeight = h
+}
+
 func (r *runtime) getHead() *state {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
@@ -327,4 +337,24 @@ func (r *runtime) setHead(head *state) {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 	r.head = head
+}
+
+func (r *runtime) goFunc(f func(context.Context)) {
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		f(r.ctx)
+	}()
+}
+
+func (r *runtime) goFuncWithTimeout(f func(ctx context.Context), timeout time.Duration) {
+	r.wg.Add(1)
+	go func() {
+		var ctx, ccl = context.WithTimeout(r.ctx, timeout)
+		defer func() {
+			r.wg.Done()
+			ccl()
+		}()
+		f(ctx)
+	}()
 }

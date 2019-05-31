@@ -1,33 +1,30 @@
 #!/bin/sh
 
-echo nameserver 1.1.1.1 > /etc/resolv.conf
+# echo nameserver 114.114.114.114 > /etc/resolv.conf
+
+[ -s "${COVENANT_ALERT}" ] && [ -x "${COVENANT_ALERT}" ] && (eval "${COVENANT_ALERT}")
 
 case "${COVENANT_ROLE}" in
 miner)
-    exec /app/cql-minerd -config "${COVENANT_CONF}" "${@}"
+    exec /app/cql-minerd -config "${COVENANT_CONF}" -metric-web "${METRIC_WEB_ADDR}" "${@}"
     ;;
 blockproducer)
-    rm -f /app/node_*/chain.db
-    exec /app/cqld -config "${COVENANT_CONF}" "${@}"
+    exec /app/cqld -config "${COVENANT_CONF}" -metric-web "${METRIC_WEB_ADDR}" "${@}"
     ;;
-observer)
-    rm -f /app/node_observer/observer.db
-    exec /app/cql-observer -config "${COVENANT_CONF}" "${@}"
+explorer)
+    exec /app/cql explorer -config "${COVENANT_CONF}" "${@}" "${COVENANTSQL_OBSERVER_ADDR}"
     ;;
 adapter)
-    exec /app/cql-adapter -config "${COVENANT_CONF}" "${@}"
+    exec /app/cql adapter -config "${COVENANT_CONF}" "${@}" "${COVENANTSQL_ADAPTER_ADDR}"
     ;;
 mysql-adapter)
     exec /app/cql-mysql-adapter -config "${COVENANT_CONF}" "${@}"
     ;;
 cli)
-    exec /app/cql -config ${COVENANT_CONF} "${@}"
+    exec /app/cql console -config ${COVENANT_CONF} "${@}"
     ;;
 faucet)
     exec /app/cql-faucet -config ${COVENANT_CONF} "${@}"
-    ;;
-explorer)
-    exec /app/cql-explorer -config ${COVENANT_CONF} "${@}"
     ;;
 esac
 

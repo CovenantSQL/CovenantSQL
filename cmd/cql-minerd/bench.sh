@@ -1,10 +1,27 @@
-#!/bin/bash
+#! /usr/bin/env bash
+set -euo pipefail
 
-../../build.sh && \
-go test -bench=^BenchmarkSQLite$ -benchtime=10s -run ^$ && \
-go test -bench=^BenchmarkMinerOne$ -benchtime=10s -run ^$ && \
-go test -bench=^BenchmarkMinerOneNoSign$ -benchtime=10s -run ^$ && \
-go test -bench=^BenchmarkMinerTwo$ -benchtime=10s -run ^$ && \
-go test -bench=^BenchmarkMinerTwoNoSign$ -benchtime=10s -run ^$ && \
-go test -bench=^BenchmarkMinerThree$ -benchtime=10s -run ^$ && \
-go test -bench=^BenchmarkMinerThreeNoSign$ -benchtime=10s -run ^$
+
+main() {
+    local wd="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.."; pwd)"
+    make -C "$wd" clean
+    make -C "$wd" use_all_cores
+
+    local pkg="github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd"
+    #go test -bench=^BenchmarkSQLite$ -benchtime=10s -run=^$ "$pkg"
+
+    local flags=(
+        "-bench=^BenchmarkMiner$"
+        "-benchtime=10s"
+        "-run=^$"
+    )
+    local i
+    for ((i=1; i<=3; i++)); do
+        go test "${flags[@]}" "$pkg" -bench-miner-count=$i
+        go test "${flags[@]}" "$pkg" -bench-miner-count=$i -bench-bypass-signature 
+        go test "${flags[@]}" "$pkg" -bench-miner-count=$i -bench-eventual-consistency
+        go test "${flags[@]}" "$pkg" -bench-miner-count=$i -bench-bypass-signature -bench-eventual-consistency
+    done
+}
+
+main "$@"

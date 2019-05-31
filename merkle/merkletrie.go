@@ -20,14 +20,14 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
-// Merkle is a merkle tree implementation (https://en.wikipedia.org/wiki/Merkle_tree)
+// Merkle is a merkle tree implementation (https://en.wikipedia.org/wiki/Merkle_tree).
 type Merkle struct {
 	tree []*hash.Hash
 }
 
 // we will not consider overflow because overflow means the length of slice is larger than 2^63
 // Algorithm is from
-// https://web.archive.org/web/20180327073507/graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+// https://web.archive.org/web/20180327073507/graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2.
 func upperPowOfTwo(n uint64) uint64 {
 	n--
 	n |= n >> 1
@@ -41,7 +41,7 @@ func upperPowOfTwo(n uint64) uint64 {
 }
 
 // NewMerkle generate a merkle tree according
-// to some hashable values like transactions or blocks
+// to some hashable values like transactions or blocks.
 func NewMerkle(items []*hash.Hash) *Merkle {
 	if len(items) == 0 {
 		items = []*hash.Hash{{}}
@@ -71,12 +71,12 @@ func NewMerkle(items []*hash.Hash) *Merkle {
 	return merkle
 }
 
-// GetRoot returns the root of merkle tree
+// GetRoot returns the root of merkle tree.
 func (merkle *Merkle) GetRoot() *hash.Hash {
 	return merkle.tree[len(merkle.tree)-1]
 }
 
-// MergeTwoHash computes the hash of the concatenate of two hash
+// MergeTwoHash computes the hash of the concatenate of two hash.
 func MergeTwoHash(l *hash.Hash, r *hash.Hash) *hash.Hash {
 	result := hash.THashH(append(append([]byte{}, (*l)[:]...), (*r)[:]...))
 	return &result

@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"time"
@@ -27,8 +28,10 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	_ "github.com/CovenantSQL/CovenantSQL/utils/log/debug"
 )
 
 const logo = `
@@ -50,15 +53,16 @@ var (
 	// profile
 	cpuProfile string
 	memProfile string
+	metricWeb  string
 
 	// other
 	noLogo      bool
 	showVersion bool
 	configFile  string
-	genKeyPair  bool
 
-	clientMode      bool
-	clientOperation string
+	wsapiAddr string
+
+	logLevel string
 )
 
 const name = `cqld`
@@ -67,34 +71,36 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
-	flag.BoolVar(&asymmetric.BypassSignature, "bypassSignature", false,
+	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
 		"Disable signature sign and verify, for testing")
-	flag.StringVar(&configFile, "config", "./config.yaml", "Config file path")
+	flag.StringVar(&configFile, "config", "~/.cql/config.yaml", "Config file path")
 
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
+	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
-	flag.BoolVar(&clientMode, "client", false, "run as client")
-	flag.StringVar(&clientOperation, "operation", "FindNeighbor", "client operation")
+	flag.StringVar(&wsapiAddr, "wsapi", "", "Address of the websocket JSON-RPC API, run as API Node")
+	flag.StringVar(&logLevel, "log-level", "", "Service log level")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
+		_, _ = fmt.Fprintf(os.Stderr, "\n%s\n\n", desc)
+		_, _ = fmt.Fprintf(os.Stderr, "Usage: %s [arguments]\n", name)
 		flag.PrintDefaults()
 	}
 }
 
 func initLogs() {
 	log.Infof("%#v starting, version %#v, commit %#v, branch %#v", name, version, commit, branch)
-	log.Infof("%#v, target architecture is %#v, operating system target is %#v", runtime.Version(), runtime.GOARCH, runtime.GOOS)
+	log.Infof("%#v, target architecture is %#v, operating system target is %#v",
+		runtime.Version(), runtime.GOARCH, runtime.GOOS)
 	log.Infof("role: %#v", conf.RoleTag)
 }
 
 func main() {
+	flag.Parse()
+	log.SetStringLevel(logLevel, log.InfoLevel)
 	// set random
 	rand.Seed(time.Now().UnixNano())
-	log.SetLevel(log.DebugLevel)
-	flag.Parse()
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",
@@ -102,8 +108,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	configFile = utils.HomeDirExpand(configFile)
+
 	flag.Visit(func(f *flag.Flag) {
-		log.Infof("Args %#v : %s", f.Name, f.Value)
+		log.Infof("args %#v : %s", f.Name, f.Value)
 	})
 
 	var err error
@@ -114,7 +122,7 @@ func main() {
 
 	kms.InitBP()
 	log.Debugf("config:\n%#v", conf.GConf)
-	// BP DO NOT Generate new key pair
+	// BP Never Generate new key pair
 	conf.GConf.GenerateKeyPair = false
 
 	// init log
@@ -124,21 +132,19 @@ func main() {
 		fmt.Print(logo)
 	}
 
+	if len(metricWeb) > 0 {
+		err = metric.InitMetricWeb(metricWeb)
+		if err != nil {
+			log.Errorf("start metric web server on %s failed: %v", metricWeb, err)
+			os.Exit(-1)
+		}
+	}
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
-	utils.StartProfile(cpuProfile, memProfile)
+	_ = utils.StartProfile(cpuProfile, memProfile)
 	defer utils.StopProfile()
 
-	if clientMode {
-		if err := runClient(conf.GConf.ThisNodeID); err != nil {
-			log.WithError(err).Fatal("run client failed")
-		} else {
-			log.Info("run client success")
-		}
-		return
-	}
-
 	if err := runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr); err != nil {
-		log.WithError(err).Fatal("run kayak failed")
+		log.WithError(err).Fatal("run block producer node failed")
 	}
 
 	log.Info("server stopped")

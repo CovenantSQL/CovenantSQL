@@ -25,20 +25,22 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	. "github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
-const DHTStorePath = "./DHTStore"
+const DHTStorePath = "./DHTStore.keystore"
 
 func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
-	os.Remove(DHTStorePath)
-	defer os.Remove(DHTStorePath + "1")
+	utils.RemoveAll(DHTStorePath + "*")
+	defer utils.RemoveAll(DHTStorePath + "*")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 	dht, _ := NewDHTService(DHTStorePath+"1", new(consistent.KMSStorage), false)
@@ -201,8 +203,8 @@ func TestDHTService_FindNeighbor_FindNode(t *testing.T) {
 }
 
 func TestDHTService_Ping(t *testing.T) {
-	os.Remove(DHTStorePath)
-	defer os.Remove(DHTStorePath)
+	utils.RemoveAll(DHTStorePath + "*")
+	defer utils.RemoveAll(DHTStorePath + "*")
 	log.SetLevel(log.DebugLevel)
 	addr := "127.0.0.1:0"
 
@@ -266,4 +268,63 @@ func TestDHTService_Ping(t *testing.T) {
 	}
 	log.Debugf("respA2: %v", respA2)
 	rc.Close()
+}
+
+func TestPermitCheckFunc(t *testing.T) {
+	cases := [...]struct {
+		envelop *proto.Envelope
+		method  RemoteFunc
+		expect  bool
+	}{
+		{
+			envelop: &proto.Envelope{},
+			method:  DHTPing,
+			expect:  true,
+		}, {
+			envelop: &Envelope{NodeID: kms.AnonymousRawNodeID},
+			method:  DHTPing,
+			expect:  true,
+		}, {
+			envelop: &Envelope{NodeID: kms.AnonymousRawNodeID},
+			method:  DHTFindNode,
+			expect:  false,
+		}, {
+			envelop: &Envelope{NodeID: &proto.RawNodeID{}},
+			method:  DHTFindNode,
+			expect:  true,
+		}, {
+			envelop: &Envelope{NodeID: &proto.RawNodeID{}},
+			method:  DHTFindNeighbor,
+			expect:  true,
+		}, {
+			envelop: &Envelope{NodeID: &proto.RawNodeID{}},
+			method:  MetricUploadMetrics,
+			expect:  true,
+		}, {
+			envelop: &Envelope{NodeID: &proto.RawNodeID{}},
+			method:  DHTGSetNode,
+			expect:  false,
+		}, {
+			envelop: &Envelope{NodeID: &proto.RawNodeID{}},
+			method:  DBSDeploy,
+			expect:  false,
+		}, {
+			envelop: &Envelope{NodeID: &proto.RawNodeID{}},
+			method:  0xffffffff,
+			expect:  false,
+		},
+	}
+	for i, v := range cases {
+		if ret := IsPermitted(v.envelop, v.method); ret != v.expect {
+			t.Errorf("case failed: i=%d, case=%v, expect=%v, return=%v",
+				i, v, v.expect, ret)
+		}
+	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(func() int {
+		permissionCheckFunc = nil
+		return m.Run()
+	}())
 }

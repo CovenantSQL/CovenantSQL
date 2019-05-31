@@ -74,12 +74,12 @@ func TestBigMax(t *testing.T) {
 
 	max1 := BigMax(a, b)
 	if max1 != a {
-		t.Errorf("Expected %d got %d", a, max1)
+		t.Errorf("expected %d got %d", a, max1)
 	}
 
 	max2 := BigMax(b, a)
 	if max2 != a {
-		t.Errorf("Expected %d got %d", a, max2)
+		t.Errorf("expected %d got %d", a, max2)
 	}
 }
 
@@ -89,12 +89,12 @@ func TestBigMin(t *testing.T) {
 
 	min1 := BigMin(a, b)
 	if min1 != b {
-		t.Errorf("Expected %d got %d", b, min1)
+		t.Errorf("expected %d got %d", b, min1)
 	}
 
 	min2 := BigMin(b, a)
 	if min2 != b {
-		t.Errorf("Expected %d got %d", b, min2)
+		t.Errorf("expected %d got %d", b, min2)
 	}
 }
 
@@ -231,7 +231,7 @@ func TestBigEndianByteAt(t *testing.T) {
 		v := new(big.Int).SetBytes(b)
 		actual := bigEndianByteAt(v, test.y)
 		if actual != test.exp {
-			t.Fatalf("Expected  [%v] %v:th byte to be %v, was %v.", test.x, test.y, test.exp, actual)
+			t.Fatalf("expected  [%v] %v:th byte to be %v, was %v.", test.x, test.y, test.exp, actual)
 		}
 
 	}
@@ -265,7 +265,7 @@ func TestLittleEndianByteAt(t *testing.T) {
 		v := new(big.Int).SetBytes(b)
 		actual := Byte(v, 32, test.y)
 		if actual != test.exp {
-			t.Fatalf("Expected  [%v] %v:th byte to be %v, was %v.", test.x, test.y, test.exp, actual)
+			t.Fatalf("expected  [%v] %v:th byte to be %v, was %v.", test.x, test.y, test.exp, actual)
 		}
 
 	}
@@ -311,7 +311,7 @@ func TestExp(t *testing.T) {
 	}
 	for _, test := range tests {
 		if result := Exp(test.base, test.exponent); result.Cmp(test.result) != 0 {
-			t.Errorf("Exp(%d, %d) = %d, want %d", test.base, test.exponent, result, test.result)
+			t.Errorf("exp(%d, %d) = %d, want %d", test.base, test.exponent, result, test.result)
 		}
 	}
 }

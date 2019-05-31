@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Package cpuminer implements CPU based PoW functions
+// Package cpuminer implements CPU based PoW functions.
 package cpuminer
 
 import (
@@ -24,14 +24,14 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// NonceInfo contains nonce and the difficulty to the block
+// NonceInfo contains nonce and the difficulty to the block.
 type NonceInfo struct {
 	Nonce      Uint256
 	Difficulty int
 	Hash       hash.Hash // Hash can be used as raw NodeID
 }
 
-// MiningBlock contains Data tobe mined
+// MiningBlock contains Data tobe mined.
 type MiningBlock struct {
 	Data []byte
 	// NonceChan is used to notify the got nonce
@@ -45,24 +45,24 @@ type MiningBlock struct {
 // 	"S/Kademlia: A Practicable Approach Towards Secure Key-Based Routing"
 // 	- Section 4.1. Secure nodeID assignment.
 // 	- Figure 3. Static (left) and dynamic (right) crypto puzzles for nodeID
-// 		generation
+// 		generation.
 type CPUMiner struct {
 	quit chan struct{}
 }
 
-// NewCPUMiner init A new CPU miner
+// NewCPUMiner init A new CPU miner.
 func NewCPUMiner(quit chan struct{}) *CPUMiner {
 	return &CPUMiner{quit: quit}
 }
 
-// HashBlock calculate the hash of MiningBlock
+// HashBlock calculate the hash of MiningBlock.
 func HashBlock(data []byte, nonce Uint256) hash.Hash {
 	return hash.THashH(append(data, nonce.Bytes()...))
 }
 
 // ComputeBlockNonce find nonce make HashBlock() match the MiningBlock Difficulty from the startNonce
 // if interrupted or stopped highest difficulty nonce will be sent to the NonceCh
-//  HACK(auxten): make calculation parallel
+//  HACK(auxten): make calculation parallel.
 func (miner *CPUMiner) ComputeBlockNonce(
 	block MiningBlock,
 	startNonce Uint256,
@@ -75,11 +75,11 @@ func (miner *CPUMiner) ComputeBlockNonce(
 	for i := startNonce; ; i.Inc() {
 		select {
 		case <-block.Stop:
-			log.Info("Stop block nonce job")
+			log.Info("stop block nonce job")
 			block.NonceChan <- bestNonce
 			return errors.New("mining job stopped")
 		case <-miner.quit:
-			log.Info("Stop block nonce worker")
+			log.Info("stop block nonce worker")
 			block.NonceChan <- bestNonce
 			return errors.New("miner interrupted")
 		default:

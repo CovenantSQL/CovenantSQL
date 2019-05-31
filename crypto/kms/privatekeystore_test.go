@@ -23,15 +23,19 @@ import (
 	"os"
 	"testing"
 
+	"github.com/btcsuite/btcutil/base58"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
 	privateKeyPath = "./.testprivatekey"
 	password       = "auxten"
+	salt           = "auxten-key-salt-auxten"
 )
 
 func TestSaveLoadPrivateKey(t *testing.T) {
@@ -81,7 +85,7 @@ func TestLoadPrivateKey(t *testing.T) {
 	})
 	Convey("not key file2", t, func() {
 		defer os.Remove("./.notkey")
-		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.notkey", enc, 0600)
 		lk, err := LoadPrivateKey("./.notkey", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)
@@ -89,10 +93,33 @@ func TestLoadPrivateKey(t *testing.T) {
 	})
 	Convey("hash not match", t, func() {
 		defer os.Remove("./.HashNotMatch")
-		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
 		lk, err := LoadPrivateKey("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
+		So(lk, ShouldBeNil)
+	})
+	Convey("invalid base58 version", t, func() {
+		defer os.Remove("./.Base58VersionNotMatch")
+		var invalidPrivateKeyStoreVersion byte = 0x1
+		privateKeyBytes, _ := hex.DecodeString("f7c0bc718eb0df81e796a11e6f62e23cd2be0a4bdcca30df40d4d915cc3be3ff")
+		privateKey, _ := asymmetric.PrivKeyFromBytes(privateKeyBytes)
+		serializedKey := privateKey.Serialize()
+		keyHash := hash.DoubleHashB(serializedKey)
+		rawData := append(keyHash, serializedKey...)
+		encKey, _ := symmetric.EncryptWithPassword(rawData, []byte(password), []byte(salt))
+		invalidBase58EncKey := base58.CheckEncode(encKey, invalidPrivateKeyStoreVersion)
+		ioutil.WriteFile("./.Base58VersionNotMatch", []byte(invalidBase58EncKey), 0600)
+		lk, err := LoadPrivateKey("./.Base58VersionNotMatch", []byte(password))
+		So(err, ShouldEqual, ErrInvalidBase58Version)
+		So(lk, ShouldBeNil)
+	})
+	Convey("invalid base58 checksum", t, func() {
+		defer os.Remove("./.Base58InvalidChecksum")
+		invalidBase58Str := "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+		ioutil.WriteFile("./.Base58InvalidChecksum", []byte(invalidBase58Str), 0600)
+		lk, err := LoadPrivateKey("./.Base58InvalidChecksum", []byte(password))
+		So(err, ShouldEqual, base58.ErrChecksum)
 		So(lk, ShouldBeNil)
 	})
 }
@@ -129,14 +156,14 @@ func TestInitLocalKeyPair(t *testing.T) {
 func TestInitLocalKeyPair_error(t *testing.T) {
 	Convey("hash not match", t, func() {
 		defer os.Remove("./.HashNotMatch")
-		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
 		err := InitLocalKeyPair("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
 	})
 	Convey("ErrNotKeyFile", t, func() {
 		defer os.Remove("./.ErrNotKeyFile")
-		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password))
+		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password), []byte(salt))
 		ioutil.WriteFile("./.ErrNotKeyFile", enc, 0600)
 		err := InitLocalKeyPair("./.ErrNotKeyFile", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)

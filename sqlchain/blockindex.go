@@ -19,6 +19,7 @@ package sqlchain
 import (
 	"encoding/binary"
 	"sync"
+	"sync/atomic"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -26,39 +27,41 @@ import (
 
 type blockNode struct {
 	parent *blockNode
-	block  *types.Block
+	block  atomic.Value // store *types.Block
 	hash   hash.Hash
 	height int32 // height is the chain height of the head
 	count  int32 // count counts the blocks (except genesis) at this head
 }
 
-func newBlockNode(height int32, block *types.Block, parent *blockNode) *blockNode {
-	return &blockNode{
-		hash:   *block.BlockHash(),
-		parent: parent,
-		block:  block,
-		height: height,
-		count: func() int32 {
-			if parent != nil {
-				return parent.count + 1
-			}
-
-			return 0
-		}(),
+func newBlockNodeEx(height int32, hash *hash.Hash, block *types.Block, parent *blockNode) *blockNode {
+	var count int32
+	if parent != nil {
+		count = parent.count + 1
 	}
+	node := &blockNode{
+		hash:   *hash,
+		parent: parent,
+		height: height,
+		count:  count,
+	}
+	node.block.Store(block)
+	return node
 }
 
-func (n *blockNode) initBlockNode(height int32, block *types.Block, parent *blockNode) {
-	n.block = block
-	n.hash = *block.BlockHash()
-	n.parent = nil
-	n.height = height
-	n.count = 0
+func newBlockNode(height int32, block *types.Block, parent *blockNode) *blockNode {
+	return newBlockNodeEx(height, block.BlockHash(), block, parent)
+}
 
-	if parent != nil {
-		n.parent = parent
-		n.count = parent.count + 1
+func (n *blockNode) load() *types.Block {
+	return n.block.Load().(*types.Block)
+}
+
+func (n *blockNode) clear() (cleared bool) {
+	if n.load() != nil {
+		cleared = true
+		n.block.Store((*types.Block)(nil))
 	}
+	return
 }
 
 func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
@@ -71,6 +74,21 @@ func (n *blockNode) ancestor(height int32) (ancestor *blockNode) {
 
 	// The block at this height may not exist
 	if ancestor != nil && ancestor.height < height {
+		ancestor = nil
+	}
+
+	return
+}
+
+func (n *blockNode) ancestorByCount(count int32) (ancestor *blockNode) {
+	if count < 0 || count > n.count {
+		return nil
+	}
+
+	for ancestor = n; ancestor != nil && ancestor.count > count; ancestor = ancestor.parent {
+	}
+
+	if ancestor != nil && ancestor.count < count {
 		ancestor = nil
 	}
 

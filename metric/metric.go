@@ -19,33 +19,17 @@ package metric
 import (
 	"sort"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
-)
 
-const (
-	// KB is 1024 Bytes
-	KB int64 = 1024
-	// MB is 1024 KB
-	MB int64 = KB * 1024
-	// GB is 1024 MB
-	GB int64 = MB * 1024
-	// TB is 1024 GB
-	TB int64 = GB * 1024
-	// PB is 1024 TB
-	PB int64 = TB * 1024
-	// EB is 1024 PB
-	EB int64 = TB * 1024
-	// ZB is 1024 EB
-	ZB int64 = TB * 1024
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("CovenantSQL"))
 }
 
-// StartMetricCollector starts collector registered in NewNodeCollector()
+// StartMetricCollector starts collector registered in NewNodeCollector().
 func StartMetricCollector() (registry *prometheus.Registry) {
 	nc, err := NewNodeCollector()
 	if err != nil {
@@ -60,7 +44,7 @@ func StartMetricCollector() (registry *prometheus.Registry) {
 		return nil
 	}
 
-	log.Info("Enabled collectors:")
+	log.Info("enabled collectors:")
 	var collectors []string
 	for n := range nc.Collectors {
 		collectors = append(collectors, n)

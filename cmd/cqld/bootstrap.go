@@ -18,42 +18,36 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
-	"github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	pt "github.com/CovenantSQL/CovenantSQL/blockproducer/types"
-	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/CovenantSQL/CovenantSQL/kayak"
-	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	kl "github.com/CovenantSQL/CovenantSQL/kayak/wal"
-	"github.com/CovenantSQL/CovenantSQL/metric"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
+
+	"github.com/CovenantSQL/CovenantSQL/api"
+	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
+	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
-	kayakServiceName = "Kayak"
-	kayakMethodName  = "Call"
-	kayakWalFileName = "kayak.ldb"
+	dhtGossipTimeout = time.Second * 20
 )
 
 func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
-	rootPath := conf.GConf.WorkingRoot
-
-	genesis := loadGenesis()
+	genesis, err := loadGenesis()
+	if err != nil {
+		return
+	}
 
 	var masterKey []byte
-	if !conf.GConf.IsTestMode {
+	if !conf.GConf.UseTestMasterKey {
 		// read master key
 		fmt.Print("Type in Master key to continue: ")
 		masterKey, err = terminal.ReadPassword(syscall.Stdin)
@@ -77,6 +71,18 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
+	mode := bp.BPMode
+	if wsapiAddr != "" {
+		mode = bp.APINodeMode
+	}
+
+	if mode == bp.APINodeMode {
+		if err = rpc.RegisterNodeToBP(30 * time.Second); err != nil {
+			log.WithError(err).Fatal("register node to BP")
+			return
+		}
+	}
+
 	var server *rpc.Server
 
 	// create server
@@ -87,87 +93,6 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		return
 	}
 
-	// init storage
-	log.Info("init storage")
-	var st *LocalStorage
-	if st, err = initStorage(conf.GConf.DHTFileName); err != nil {
-		log.WithError(err).Error("init storage failed")
-		return
-	}
-
-	// init kayak
-	log.Info("init kayak runtime")
-	var kayakRuntime *kayak.Runtime
-	if kayakRuntime, err = initKayakTwoPC(rootPath, thisNode, peers, st, server); err != nil {
-		log.WithError(err).Error("init kayak runtime failed")
-		return
-	}
-
-	// init kayak and consistent
-	log.Info("init kayak and consistent runtime")
-	kvServer := &KayakKVServer{
-		Runtime:   kayakRuntime,
-		KVStorage: st,
-	}
-	dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
-	if err != nil {
-		log.WithError(err).Error("init consistent hash failed")
-		return
-	}
-
-	// set consistent handler to kayak storage
-	kvServer.KVStorage.consistent = dht.Consistent
-
-	// register service rpc
-	log.Info("register dht service rpc")
-	err = server.RegisterService(route.DHTRPCName, dht)
-	if err != nil {
-		log.WithError(err).Error("register dht service failed")
-		return
-	}
-
-	// init metrics
-	log.Info("register metric service rpc")
-	metricService := metric.NewCollectServer()
-	if err = server.RegisterService(metric.MetricServiceName, metricService); err != nil {
-		log.WithError(err).Error("init metric service failed")
-		return
-	}
-
-	// init block producer database service
-	log.Info("register block producer database service rpc")
-	var dbService *bp.DBService
-	if dbService, err = initDBService(kvServer, metricService); err != nil {
-		log.WithError(err).Error("init block producer db service failed")
-		return
-	}
-	if err = server.RegisterService(route.BPDBRPCName, dbService); err != nil {
-		log.WithError(err).Error("init block producer db service failed")
-		return
-	}
-
-	// init main chain service
-	log.Info("register main chain service rpc")
-	chainConfig := bp.NewConfig(
-		genesis,
-		conf.GConf.BP.ChainFileName,
-		server,
-		peers,
-		nodeID,
-		time.Minute,
-		20*time.Second,
-	)
-	chain, err := bp.NewChain(chainConfig)
-	if err != nil {
-		log.WithError(err).Error("init chain failed")
-		return
-	}
-	chain.Start()
-	defer chain.Stop()
-
-	log.Info(conf.StartSucceedMessage)
-	//go periodicPingBlockProducer()
-
 	// start server
 	go func() {
 		server.Serve()
@@ -177,16 +102,80 @@ func runNode(nodeID proto.NodeID, listenAddr string) (err error) {
 		server.Stop()
 	}()
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
+	if mode == bp.BPMode {
+		// init storage
+		log.Info("init storage")
+		var st *LocalStorage
+		if st, err = initStorage(conf.GConf.DHTFileName); err != nil {
+			log.WithError(err).Error("init storage failed")
+			return err
+		}
 
-	<-signalCh
+		// init dht node server
+		log.Info("init consistent runtime")
+		kvServer := NewKVServer(thisNode.ID, peers, st, dhtGossipTimeout)
+		dht, err := route.NewDHTService(conf.GConf.DHTFileName, kvServer, true)
+		if err != nil {
+			log.WithError(err).Error("init consistent hash failed")
+			return err
+		}
+		defer kvServer.Stop()
 
+		// set consistent handler to local storage
+		kvServer.storage.consistent = dht.Consistent
+
+		// register gossip service rpc
+		gossipService := NewGossipService(kvServer)
+		log.Info("register dht gossip service rpc")
+		err = server.RegisterService(route.DHTGossipRPCName, gossipService)
+		if err != nil {
+			log.WithError(err).Error("register dht gossip service failed")
+			return err
+		}
+
+		// register dht service rpc
+		log.Info("register dht service rpc")
+		err = server.RegisterService(route.DHTRPCName, dht)
+		if err != nil {
+			log.WithError(err).Error("register dht service failed")
+			return err
+		}
+	}
+
+	// init main chain service
+	log.Info("register main chain service rpc")
+	chainConfig := &bp.Config{
+		Mode:           mode,
+		Genesis:        genesis,
+		DataFile:       conf.GConf.BP.ChainFileName,
+		Server:         server,
+		Peers:          peers,
+		NodeID:         nodeID,
+		Period:         conf.GConf.BPPeriod,
+		Tick:           conf.GConf.BPTick,
+		BlockCacheSize: 1000,
+	}
+	chain, err := bp.NewChain(chainConfig)
+	if err != nil {
+		log.WithError(err).Error("init chain failed")
+		return err
+	}
+	chain.Start()
+	defer chain.Stop()
+
+	log.Info(conf.StartSucceedMessage)
+
+	// start json-rpc server
+	if mode == bp.APINodeMode {
+		log.Info("wsapi: start service")
+		go func() {
+			if err := api.Serve(wsapiAddr, conf.GConf.BP.ChainFileName); err != nil {
+				log.WithError(err).Error("wsapi: start service")
+			}
+		}()
+	}
+
+	<-utils.WaitForExit()
 	return
 }
 
@@ -200,82 +189,22 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	return
 }
 
-func initKayakTwoPC(rootDir string, node *proto.Node, peers *proto.Peers, h kt.Handler, server *rpc.Server) (runtime *kayak.Runtime, err error) {
-	// create kayak config
-	log.Info("create kayak config")
-
-	walPath := filepath.Join(rootDir, kayakWalFileName)
-
-	var logWal kt.Wal
-	if logWal, err = kl.NewLevelDBWal(walPath); err != nil {
-		err = errors.Wrap(err, "init kayak log pool failed")
-		return
-	}
-
-	config := &kt.RuntimeConfig{
-		Handler:          h,
-		PrepareThreshold: 1.0,
-		CommitThreshold:  1.0,
-		PrepareTimeout:   time.Second,
-		CommitTimeout:    time.Second * 60,
-		Peers:            peers,
-		Wal:              logWal,
-		NodeID:           node.ID,
-		ServiceName:      kayakServiceName,
-		MethodName:       kayakMethodName,
-	}
-
-	// create kayak runtime
-	log.Info("init kayak runtime")
-	if runtime, err = kayak.NewRuntime(config); err != nil {
-		err = errors.Wrap(err, "init kayak runtime failed")
-		return
-	}
-
-	// register rpc service
-	if _, err = NewKayakService(server, kayakServiceName, runtime); err != nil {
-		err = errors.Wrap(err, "init kayak rpc service failed")
-		return
-	}
-
-	// init runtime
-	log.Info("start kayak runtime")
-	runtime.Start()
+func initDHTGossip() (err error) {
+	log.Info("init gossip service")
 
 	return
 }
 
-func initDBService(kvServer *KayakKVServer, metricService *metric.CollectServer) (dbService *bp.DBService, err error) {
-	var serviceMap *bp.DBServiceMap
-	if serviceMap, err = bp.InitServiceMap(kvServer); err != nil {
-		log.WithError(err).Error("init bp database service map failed")
-		return
-	}
-
-	dbService = &bp.DBService{
-		AllocationRounds: bp.DefaultAllocationRounds, //
-		ServiceMap:       serviceMap,
-		Consistent:       kvServer.KVStorage.consistent,
-		NodeMetrics:      &metricService.NodeMetric,
-	}
-
-	return
-}
-
-func loadGenesis() *types.Block {
+func loadGenesis() (genesis *types.BPBlock, err error) {
 	genesisInfo := conf.GConf.BP.BPGenesis
 	log.WithField("config", genesisInfo).Info("load genesis config")
 
-	genesis := &types.Block{
-		SignedHeader: types.SignedHeader{
-			Header: types.Header{
-				Version:    genesisInfo.Version,
-				Producer:   proto.AccountAddress(genesisInfo.Producer),
-				MerkleRoot: genesisInfo.MerkleRoot,
-				ParentHash: genesisInfo.ParentHash,
-				Timestamp:  genesisInfo.Timestamp,
+	genesis = &types.BPBlock{
+		SignedHeader: types.BPSignedHeader{
+			BPHeader: types.BPHeader{
+				Version:   genesisInfo.Version,
+				Timestamp: genesisInfo.Timestamp,
 			},
-			BlockHash: genesisInfo.BlockHash,
 		},
 	}
 
@@ -285,13 +214,16 @@ func loadGenesis() *types.Block {
 			"stableCoinBalance":   ba.StableCoinBalance,
 			"covenantCoinBalance": ba.CovenantCoinBalance,
 		}).Debug("setting one balance fixture in genesis block")
-		genesis.Transactions = append(genesis.Transactions, pt.NewBaseAccount(
-			&pt.Account{
-				Address:             proto.AccountAddress(ba.Address),
-				StableCoinBalance:   ba.StableCoinBalance,
-				CovenantCoinBalance: ba.CovenantCoinBalance,
+		genesis.Transactions = append(genesis.Transactions, types.NewBaseAccount(
+			&types.Account{
+				Address:      proto.AccountAddress(ba.Address),
+				TokenBalance: [types.SupportTokenNumber]uint64{ba.StableCoinBalance, ba.CovenantCoinBalance},
 			}))
 	}
 
-	return genesis
+	// Rewrite genesis merkle and block hash
+	if err = genesis.SetHash(); err != nil {
+		return
+	}
+	return
 }

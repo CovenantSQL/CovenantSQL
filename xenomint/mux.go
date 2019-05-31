@@ -17,13 +17,13 @@
 package xenomint
 
 import (
-	//"context"
-	//"runtime/trace"
 	"sync"
+	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/rpc"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // MuxService defines multiplexing service of xenomint chain.
@@ -85,24 +85,41 @@ type MuxQueryResponse struct {
 
 // Query is the RPC method to process database query on mux service.
 func (s *MuxService) Query(req *MuxQueryRequest, resp *MuxQueryResponse) (err error) {
-	//var ctx, task = trace.NewTask(context.Background(), "MuxService.Query")
-	//defer task.End()
-	//defer trace.StartRegion(ctx, "Total").End()
 	var (
 		c *Chain
 		r *types.Response
+
+		start = time.Now()
+
+		routed, queried, responded time.Duration
 	)
+	defer func() {
+		var fields = log.Fields{}
+		if routed > 0 {
+			fields["1#routed"] = float64(routed.Nanoseconds()) / 1000
+		}
+		if queried > 0 {
+			fields["2#queried"] = float64((queried - routed).Nanoseconds()) / 1000
+		}
+		if responded > 0 {
+			fields["3#responded"] = float64((responded - queried).Nanoseconds()) / 1000
+		}
+		log.WithFields(fields).Debug("MuxService.Query duration stat (us)")
+	}()
 	if c, err = s.route(req.DatabaseID); err != nil {
 		return
 	}
+	routed = time.Since(start)
 	if r, err = c.Query(req.Request); err != nil {
 		return
 	}
+	queried = time.Since(start)
 	resp = &MuxQueryResponse{
 		Envelope:   req.Envelope,
 		DatabaseID: req.DatabaseID,
 		Response:   r,
 	}
+	responded = time.Since(start)
 	return
 }
 

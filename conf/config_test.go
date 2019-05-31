@@ -23,13 +23,14 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
 )
 
 const testFile = "./.configtest"
@@ -62,25 +63,21 @@ func TestConf(t *testing.T) {
 		},
 		ChainFileName: "",
 		BPGenesis: BPGenesisInfo{
-			Version:    1,
-			Producer:   h,
-			MerkleRoot: h,
-			ParentHash: h,
-			Timestamp:  time.Now().UTC(),
-			BlockHash:  h,
+			Version:   1,
+			Timestamp: time.Now().UTC(),
 		},
 	}
 	Convey("LoadConfig", t, func() {
 		defer os.Remove(testFile)
 		config := &Config{
-			IsTestMode:      false,
-			GenerateKeyPair: false,
-			WorkingRoot:     "",
-			PubKeyStoreFile: "",
-			PrivateKeyFile:  "",
-			DHTFileName:     "",
-			ListenAddr:      "",
-			ThisNodeID:      "",
+			UseTestMasterKey: false,
+			GenerateKeyPair:  false,
+			WorkingRoot:      "",
+			PubKeyStoreFile:  "",
+			PrivateKeyFile:   "",
+			DHTFileName:      "",
+			ListenAddr:       "",
+			ThisNodeID:       "",
 			ValidDNSKeys: map[string]string{
 				// Cloudflare.com DNSKEY. SEE: `dig +multi cloudflare.com DNSKEY`
 				"koPbw9wmYZ7ggcjnQ6ayHyhHaDNMYELKTqT+qRGrZpWSccr/lBcrm10Z1PuQHB3Azhii+sb0PYFkH1ruxLhe5g==": "cloudflare.com",

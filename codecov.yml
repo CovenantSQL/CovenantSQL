@@ -30,5 +30,8 @@ comment:
 ignore:
   - "vendor"
   - "cmd"
+  - "sqlchain/observer"
+  - "sqlchain/adapter"
+  - "test"
   - "crypto/secp256k1"
   - "_example/**/*"

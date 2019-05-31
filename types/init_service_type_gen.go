@@ -11,7 +11,7 @@ func (z *InitService) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 1
-	o = append(o, 0x81, 0x81)
+	o = append(o, 0x81)
 	if oTemp, err := z.Envelope.MarshalHash(); err != nil {
 		return nil, err
 	} else {
@@ -31,8 +31,18 @@ func (z *InitServiceResponse) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 1
-	o = append(o, 0x81, 0x81)
-	if oTemp, err := z.Header.MarshalHash(); err != nil {
+	// map header, size 2
+	// map header, size 1
+	o = append(o, 0x81, 0x82, 0x81)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.Header.InitServiceResponseHeader.Instances)))
+	for za0001 := range z.Header.InitServiceResponseHeader.Instances {
+		if oTemp, err := z.Header.InitServiceResponseHeader.Instances[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	if oTemp, err := z.Header.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -42,7 +52,11 @@ func (z *InitServiceResponse) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *InitServiceResponse) Msgsize() (s int) {
-	s = 1 + 7 + z.Header.Msgsize()
+	s = 1 + 7 + 1 + 26 + 1 + 10 + hsp.ArrayHeaderSize
+	for za0001 := range z.Header.InitServiceResponseHeader.Instances {
+		s += z.Header.InitServiceResponseHeader.Instances[za0001].Msgsize()
+	}
+	s += 28 + z.Header.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }
 
@@ -51,7 +65,7 @@ func (z *InitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 1
-	o = append(o, 0x81, 0x81)
+	o = append(o, 0x81)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.Instances)))
 	for za0001 := range z.Instances {
 		if oTemp, err := z.Instances[za0001].MarshalHash(); err != nil {
@@ -76,21 +90,34 @@ func (z *InitServiceResponseHeader) Msgsize() (s int) {
 func (z *ResourceMeta) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
-	// map header, size 4
-	o = append(o, 0x84, 0x84)
-	o = hsp.AppendUint16(o, z.Node)
-	o = append(o, 0x84)
-	o = hsp.AppendUint64(o, z.Space)
-	o = append(o, 0x84)
+	// map header, size 9
+	o = append(o, 0x89)
+	o = hsp.AppendFloat64(o, z.ConsistencyLevel)
+	o = hsp.AppendString(o, z.EncryptionKey)
+	o = hsp.AppendInt(o, z.IsolationLevel)
+	o = hsp.AppendFloat64(o, z.LoadAvgPerCPU)
 	o = hsp.AppendUint64(o, z.Memory)
-	o = append(o, 0x84)
-	o = hsp.AppendUint64(o, z.LoadAvgPerCPU)
+	o = hsp.AppendUint16(o, z.Node)
+	o = hsp.AppendUint64(o, z.Space)
+	o = hsp.AppendArrayHeader(o, uint32(len(z.TargetMiners)))
+	for za0001 := range z.TargetMiners {
+		if oTemp, err := z.TargetMiners[za0001].MarshalHash(); err != nil {
+			return nil, err
+		} else {
+			o = hsp.AppendBytes(o, oTemp)
+		}
+	}
+	o = hsp.AppendBool(o, z.UseEventualConsistency)
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ResourceMeta) Msgsize() (s int) {
-	s = 1 + 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 7 + hsp.Uint64Size + 14 + hsp.Uint64Size
+	s = 1 + 17 + hsp.Float64Size + 14 + hsp.StringPrefixSize + len(z.EncryptionKey) + 15 + hsp.IntSize + 14 + hsp.Float64Size + 7 + hsp.Uint64Size + 5 + hsp.Uint16Size + 6 + hsp.Uint64Size + 13 + hsp.ArrayHeaderSize
+	for za0001 := range z.TargetMiners {
+		s += z.TargetMiners[za0001].Msgsize()
+	}
+	s += 23 + hsp.BoolSize
 	return
 }
 
@@ -99,7 +126,12 @@ func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 4
-	o = append(o, 0x84, 0x84)
+	o = append(o, 0x84)
+	if oTemp, err := z.DatabaseID.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	if z.GenesisBlock == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -109,7 +141,6 @@ func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
 	if z.Peers == nil {
 		o = hsp.AppendNil(o)
 	} else {
@@ -119,14 +150,7 @@ func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x84)
 	if oTemp, err := z.ResourceMeta.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
-	o = append(o, 0x84)
-	if oTemp, err := z.DatabaseID.MarshalHash(); err != nil {
 		return nil, err
 	} else {
 		o = hsp.AppendBytes(o, oTemp)
@@ -136,7 +160,7 @@ func (z *ServiceInstance) MarshalHash() (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ServiceInstance) Msgsize() (s int) {
-	s = 1 + 13
+	s = 1 + 11 + z.DatabaseID.Msgsize() + 13
 	if z.GenesisBlock == nil {
 		s += hsp.NilSize
 	} else {
@@ -148,7 +172,7 @@ func (z *ServiceInstance) Msgsize() (s int) {
 	} else {
 		s += z.Peers.Msgsize()
 	}
-	s += 13 + z.ResourceMeta.Msgsize() + 11 + z.DatabaseID.Msgsize()
+	s += 13 + z.ResourceMeta.Msgsize()
 	return
 }
 
@@ -157,8 +181,14 @@ func (z *SignedInitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 	var b []byte
 	o = hsp.Require(b, z.Msgsize())
 	// map header, size 2
+	o = append(o, 0x82)
+	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
+		return nil, err
+	} else {
+		o = hsp.AppendBytes(o, oTemp)
+	}
 	// map header, size 1
-	o = append(o, 0x82, 0x82, 0x81, 0x81)
+	o = append(o, 0x81)
 	o = hsp.AppendArrayHeader(o, uint32(len(z.InitServiceResponseHeader.Instances)))
 	for za0001 := range z.InitServiceResponseHeader.Instances {
 		if oTemp, err := z.InitServiceResponseHeader.Instances[za0001].MarshalHash(); err != nil {
@@ -167,21 +197,14 @@ func (z *SignedInitServiceResponseHeader) MarshalHash() (o []byte, err error) {
 			o = hsp.AppendBytes(o, oTemp)
 		}
 	}
-	o = append(o, 0x82)
-	if oTemp, err := z.DefaultHashSignVerifierImpl.MarshalHash(); err != nil {
-		return nil, err
-	} else {
-		o = hsp.AppendBytes(o, oTemp)
-	}
 	return
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *SignedInitServiceResponseHeader) Msgsize() (s int) {
-	s = 1 + 26 + 1 + 10 + hsp.ArrayHeaderSize
+	s = 1 + 28 + z.DefaultHashSignVerifierImpl.Msgsize() + 26 + 1 + 10 + hsp.ArrayHeaderSize
 	for za0001 := range z.InitServiceResponseHeader.Instances {
 		s += z.InitServiceResponseHeader.Instances[za0001].Msgsize()
 	}
-	s += 28 + z.DefaultHashSignVerifierImpl.Msgsize()
 	return
 }

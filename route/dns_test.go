@@ -21,11 +21,12 @@ import (
 	"runtime"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestResolver(t *testing.T) {
@@ -68,8 +69,8 @@ func TestResolver(t *testing.T) {
 		BPmap := initBPNodeIDs()
 		log.Debugf("BPmap: %v", BPmap)
 		BPs := GetBPs()
-		dc := NewDNSClient()
-		ips, err := dc.GetBPFromDNSSeed(BPDomain)
+		dc := IPv6SeedClient{}
+		ips, err := dc.GetBPFromDNSSeed(TestDomain)
 
 		log.Debugf("BPs: %v", BPs)
 		So(len(BPs), ShouldBeGreaterThanOrEqualTo, len(ips))

@@ -1,4 +1,4 @@
-This doc introduce the usage of covenantSQL client. Client is used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
+This doc introduce the usage of CovenantSQL client. Client is used for creating, querying, updating, and deleting the SQLChain and database adhere to the SQLChain.
 
 ## Prerequisites
 
@@ -6,32 +6,37 @@ Make sure that `$GOPATH/bin` is in your `$PATH`
 
 ```bash
 $ go get github.com/CovenantSQL/CovenantSQL/client
-$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql-utils
+$ go get github.com/CovenantSQL/CovenantSQL/cmd/cql
 ```
 
 and import `client` package if you want to use it in your code.
 
-### Generating Default Config File
-
-```bash
-$ cql-utils -tool confgen -root bp
-Generating key pair...
-Enter master key(press Enter for default: ""):
-⏎
-Private key file: bp/private.key
-Public key's hex: 02296ea73240dcd69d2b3f1fb754c8debdf68c62147488abb10165428667ec8cbd
-Generated key pair.
-Generating nonce...
-nonce: {{731613648 0 0 0} 11 001ea9c8381c4e8bb875372df9e02cd74326cbec33ef6f5d4c6829fcbf5012e9}
-node id: 001ea9c8381c4e8bb875372df9e02cd74326cbec33ef6f5d4c6829fcbf5012e9
-Generated nonce.
-Generating config file...
-Generated nonce.
-```
 
 ## Initialize a CovenantSQL Client
 
-You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. If you generate a config file with `cql-utils`, you can find the config file in the directory that `cql-utils` create.
+You need to provide a config and a master key for initialization. The master key is used to encrypt/decrypt local key pair. Here is how to generate a default config with master key
+
+### Generating Default Config File
+
+Run `cql` like below. Enter a master key (like a password) for generating local key pair. After that, it may take a few seconds with a private key file and config.yaml file generated in `~/.cql/` folder.
+
+```bash
+$ cql generate config
+Generating key pair...
+Enter master key(press Enter for default: ""):
+⏎
+Private key file: ~/.cql/private.key
+Public key's hex: 025abec9b0072615170f4acf4a2fa1162a13864bb66bc3f140b29f6bf50ceafc75
+Generated key pair.
+Generating nonce...
+INFO[0005] cpu: 1
+INFO[0005] position: 0, shift: 0x0, i: 0
+nonce: {{1450338416 0 0 0} 26 0000002dd8bdb50ba0270642e4c4bc593c1630ef7784653f311b3c3d6374e514}
+node id: 0000002dd8bdb50ba0270642e4c4bc593c1630ef7784653f311b3c3d6374e514
+Generated nonce.
+Generating config file...
+Generated config.
+```
 
 After you prepare your master key and config file, CovenantSQL client can be initialized by:
 
@@ -46,91 +51,51 @@ client.Init(configFile, masterKey)
 To create a new SQL Chain, the number of node should be provided:
 
 ```go
-var dsn string
-dsn, err := client.ResourceMeta{Node: uint16(nodeCnt)}
+var (
+	dsn string
+	meta client.ResourceMeta
+)
+meta.Node = uint16(nodeCount)
+dsn, err = client.Create(meta)
 // process err
-var cfg *client.Config
-cfg, err = client.ParseDSN(dsn)
-// process err
 ```
-
-Database ID can be found in `cfg`:
-
-```go
-databaseID := cfg.DatabaseID
-```
-
-In all:
-
-```go
-func Create(nodeCnt uint16) (dbID string, err error) {
-	var dsn string
-	if dsn, err = client.Create(client.ResourceMeta{Node: uint16(nodeCnt)}); err != nil {
-		return
-	}
-
-	var cfg *client.Config
-	if cfg, err = client.ParseDSN(dsn); err != nil {
-		return
-	}
-
-	dbID = cfg.DatabaseID
-	return
-}
-```
+And you will get a dsn string. It represents a database instance, use it for queries.
 
 ### Query and Exec
 
-When you get the database ID, you can query or execute some sql on SQL Chain as follows:
+When you get the dsn, you can query or execute some sql on SQL Chain as follows:
 
 ```go
-func Query(dbID string, query string) (result , err error) {
-	var conn *sql.DB
-	if conn, err = s.getConn(dbID); err != nil {
-		return
-	}
-	defer conn.Close()
 
-	var rows *sql.Rows
-	if rows, err = conn.Query(query); err != nil {
-		return
-	}
-	defer rows.Close()
+	db, err := sql.Open("covenantsql", dsn)
+	// process err
 
-	// read the rows of rows
-}
+	_, err = db.Exec("CREATE TABLE testSimple ( column int );")
+	// process err
 
-func Exec(dbID string, query string) (err error) {
-	var conn *sql.DB
-	if conn, err = s.getConn(dbID); err != nil {
-		return
-	}
-	defer conn.Close()
+	_, err = db.Exec("INSERT INTO testSimple VALUES(?);", 42)
+	// process err
 
-	_, err = conn.Exec(query)
+	row := db.QueryRow("SELECT column FROM testSimple LIMIT 1;")
 
-	return
-}
+	var result int
+	err = row.Scan(&result)
+	// process err
+	fmt.Printf("SELECT column FROM testSimple LIMIT 1; result %d\n", result)
 
-func getConn(dbID string) (db *sql.DB, err error) {
-	cfg := client.NewConfig()
-	cfg.DatabaseID = dbID
+	err = db.Close()
+	// process err
 
-	return sql.Open("covenantsql", cfg.FormatDSN())
-}
 ```
+It just like other standard go sql database.
 
 ### Drop the Database
 
-Drop your database on SQL Chain is very easy with your database ID:
+Drop your database on SQL Chain is very easy with your dsn string:
 
 ```go
-func Drop(dbID string) (err error) {
-	cfg := client.NewConfig()
-	cfg.DatabaseID = dbID
-	err = client.Drop(cfg.FormatDSN())
-	return
-}
+	err = client.Drop(dsn)
+	// process err
 ```
 
 ### Full Example

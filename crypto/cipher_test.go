@@ -20,11 +20,13 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// Test 1: Encryption and decryption
+// Test 1: Encryption and decryption.
 func TestCipheringBasic(t *testing.T) {
 	privkey, _, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
@@ -124,7 +126,7 @@ func TestCipheringErrors(t *testing.T) {
 	for i, test := range tests1 {
 		_, err = DecryptAndCheck(privkey, test.ciphertext)
 		if err == nil {
-			t.Errorf("Decrypt #%d did not get error", i)
+			t.Errorf("decrypt #%d did not get error", i)
 		}
 	}
 
@@ -152,4 +154,14 @@ func TestAddPKCSPadding(t *testing.T) {
 		So(cleanData, ShouldResemble, data)
 		So(err, ShouldBeNil)
 	})
+	Convey("non-padding", t, func() {
+		data := []byte("xxxxxxxxxxxxxxxx")
+		padData := AddPKCSPadding(data)
+		log.Infof("len %d after pkcs#7: %d", len(data), len(padData))
+		cleanData, err := RemovePKCSPadding(padData)
+
+		So(cleanData, ShouldResemble, data)
+		So(err, ShouldBeNil)
+	})
+
 }

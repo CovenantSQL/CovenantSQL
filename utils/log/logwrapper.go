@@ -46,12 +46,17 @@ const (
 	DebugLevel
 )
 
-// PkgDebugLogFilter is the log filter
-// if package name exists and log level is more verbose, the log will be dropped
-var PkgDebugLogFilter = map[string]logrus.Level{
-	"metric": InfoLevel,
-	"rpc":    InfoLevel,
-}
+var (
+	// PkgDebugLogFilter is the log filter
+	// if package name exists and log level is more verbose, the log will be dropped
+	PkgDebugLogFilter = map[string]logrus.Level{
+		"metric": InfoLevel,
+		"rpc":    InfoLevel,
+	}
+	// SimpleLog is the flag of simple log format
+	// "Y" for true, "N" for false. defined in `go build`
+	SimpleLog = "N"
+)
 
 // Logger wraps logrus logger type.
 type Logger logrus.Logger
@@ -64,7 +69,26 @@ type CallerHook struct {
 	StackLevels []logrus.Level
 }
 
-// NewCallerHook creates new CallerHook
+func init() {
+	AddHook(StandardCallerHook())
+}
+
+//var (
+//	// std is the name of the standard logger in stdlib `log`
+//	std = logrus.New()
+//)
+
+// StandardLogger returns the standard logger.
+func StandardLogger() *Logger {
+	return (*Logger)(logrus.StandardLogger())
+}
+
+// Printf logs a message at level Info on the standard logger.
+func (l *Logger) Printf(format string, args ...interface{}) {
+	Printf(format, args...)
+}
+
+// NewCallerHook creates new CallerHook.
 func NewCallerHook(stackLevels []logrus.Level) *CallerHook {
 	return &CallerHook{
 		StackLevels: stackLevels,
@@ -74,6 +98,11 @@ func NewCallerHook(stackLevels []logrus.Level) *CallerHook {
 // StandardCallerHook is a convenience initializer for LogrusStackHook{} with
 // default args.
 func StandardCallerHook() *CallerHook {
+	// defined in `go build`
+	if SimpleLog == "Y" {
+		return NewCallerHook([]logrus.Level{})
+	}
+
 	return NewCallerHook(
 		[]logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel},
 	)
@@ -98,6 +127,10 @@ func (hook *CallerHook) Fire(entry *logrus.Entry) error {
 
 // Levels define hook applicable level.
 func (hook *CallerHook) Levels() []logrus.Level {
+	// defined in `go build`
+	if SimpleLog == "Y" {
+		return []logrus.Level{}
+	}
 	return []logrus.Level{
 		logrus.PanicLevel,
 		logrus.FatalLevel,
@@ -161,20 +194,6 @@ func (hook *CallerHook) caller(entry *logrus.Entry) (relFuncName, caller string)
 	return relFuncName, caller
 }
 
-func init() {
-	AddHook(StandardCallerHook())
-}
-
-//var (
-//	// std is the name of the standard logger in stdlib `log`
-//	std = logrus.New()
-//)
-
-// StandardLogger returns the standard logger.
-func StandardLogger() *Logger {
-	return (*Logger)(logrus.StandardLogger())
-}
-
 // SetOutput sets the standard logger output.
 func SetOutput(out io.Writer) {
 	logrus.SetOutput(out)
@@ -193,6 +212,20 @@ func SetLevel(level logrus.Level) {
 // GetLevel returns the standard logger level.
 func GetLevel() logrus.Level {
 	return logrus.GetLevel()
+}
+
+// ParseLevel parse the level string and returns the logger level.
+func ParseLevel(lvl string) (logrus.Level, error) {
+	return logrus.ParseLevel(lvl)
+}
+
+// SetStringLevel enforce current log level.
+func SetStringLevel(lvl string, defaultLevel logrus.Level) {
+	if lvl, err := ParseLevel(lvl); err != nil {
+		SetLevel(defaultLevel)
+	} else {
+		SetLevel(lvl)
+	}
 }
 
 // AddHook adds a hook to the standard logger hooks.
@@ -260,26 +293,21 @@ func Error(args ...interface{}) {
 	logrus.Error(args...)
 }
 
-// Panic logs a message at level Panic on the standard logger.
-func Panic(args ...interface{}) {
-	//std.WithField("Func", getFuncPath(2)).Panic(args...)
-	logrus.Panic(args...)
-}
-
 // Fatal logs a message at level Fatal on the standard logger.
 func Fatal(args ...interface{}) {
 	//std.WithField("Func", getFuncPath(2)).Fatal(args...)
 	logrus.Fatal(args...)
 }
 
+// Panic logs a message at level Panic on the standard logger.
+func Panic(args ...interface{}) {
+	//std.WithField("Func", getFuncPath(2)).Panic(args...)
+	logrus.Panic(args...)
+}
+
 // Debugf logs a message at level Debug on the standard logger.
 func Debugf(format string, args ...interface{}) {
 	logrus.Debugf(format, args...)
-}
-
-// Printf logs a message at level Info on the standard logger.
-func (l *Logger) Printf(format string, args ...interface{}) {
-	Printf(format, args...)
 }
 
 // Printf logs a message at level Info on the standard logger.
@@ -307,13 +335,13 @@ func Errorf(format string, args ...interface{}) {
 	logrus.Errorf(format, args...)
 }
 
-// Panicf logs a message at level Panic on the standard logger.
-func Panicf(format string, args ...interface{}) {
-	logrus.Panicf(format, args...)
-}
-
 // Fatalf logs a message at level Fatal on the standard logger.
 func Fatalf(format string, args ...interface{}) {
+	logrus.Fatalf(format, args...)
+}
+
+// Panicf logs a message at level Panic on the standard logger.
+func Panicf(format string, args ...interface{}) {
 	logrus.Panicf(format, args...)
 }
 
@@ -347,12 +375,12 @@ func Errorln(args ...interface{}) {
 	logrus.Errorln(args...)
 }
 
-// Panicln logs a message at level Panic on the standard logger.
-func Panicln(args ...interface{}) {
-	logrus.Panicln(args...)
-}
-
 // Fatalln logs a message at level Fatal on the standard logger.
 func Fatalln(args ...interface{}) {
 	logrus.Fatalln(args...)
+}
+
+// Panicln logs a message at level Panic on the standard logger.
+func Panicln(args ...interface{}) {
+	logrus.Panicln(args...)
 }

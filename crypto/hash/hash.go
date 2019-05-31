@@ -18,11 +18,13 @@ package hash
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/bits"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 // HashSize of array used to store hashes.  See Hash.
@@ -48,6 +50,18 @@ func (h Hash) String() string {
 	return hex.EncodeToString(h[:])
 }
 
+// Short returns the hexadecimal string of the first `n` reversed byte(s).
+func (h Hash) Short(n int) string {
+	for i := 0; i < HashSize/2; i++ {
+		h[i], h[HashSize-1-i] = h[HashSize-1-i], h[i]
+	}
+	var l = HashSize
+	if n < l {
+		l = n
+	}
+	return hex.EncodeToString(h[:l])
+}
+
 // AsBytes returns internal bytes of hash.
 func (h Hash) AsBytes() []byte {
 	return h[:]
@@ -65,12 +79,12 @@ func (h *Hash) CloneBytes() []byte {
 	return newHash
 }
 
-// MarshalHash marshals for hash
+// MarshalHash marshals for hash.
 func (h *Hash) MarshalHash() (o []byte, err error) {
 	return h.CloneBytes(), nil
 }
 
-// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (h *Hash) Msgsize() (s int) {
 	return hsp.BytesPrefixSize + HashSize
 }
@@ -100,7 +114,7 @@ func (h *Hash) IsEqual(target *Hash) bool {
 }
 
 // Difficulty returns the leading Zero **bit** count of Hash in binary.
-//  return -1 indicate the Hash pointer is nil
+//  return -1 indicate the Hash pointer is nil.
 func (h *Hash) Difficulty() (difficulty int) {
 	if h == nil {
 		return -1
@@ -115,6 +129,23 @@ func (h *Hash) Difficulty() (difficulty int) {
 		}
 	}
 	return HashSize * 8
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (h Hash) MarshalJSON() ([]byte, error) {
+	return json.Marshal(h.String())
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (h *Hash) UnmarshalJSON(data []byte) (err error) {
+	var s string
+	if err = json.Unmarshal(data, &s); err != nil {
+		return
+	}
+	if err = Decode(h, s); err != nil {
+		return
+	}
+	return nil
 }
 
 // MarshalYAML implements the yaml.Marshaler interface.

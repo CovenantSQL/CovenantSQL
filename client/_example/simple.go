@@ -21,28 +21,33 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
+	_ "github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func main() {
 	log.SetLevel(log.InfoLevel)
-	var config, password, dsn string
+	var dsn string
 
-	flag.StringVar(&config, "config", "./conf/config.yaml", "config file path")
-	flag.StringVar(&dsn, "dsn", "", "database url")
-	flag.StringVar(&password, "password", "", "master key password for covenantsql")
+	flag.StringVar(&dsn, "dsn", "", "Database url")
 	flag.Parse()
 
-	err := client.Init(config, []byte(password))
-	if err != nil {
-		log.Fatal(err)
-	}
+	// If your CovenantSQL config.yaml is not in ~/.cql/config.yaml
+	// Uncomment and edit following code
+	/*
+			config := "/data/myconfig/config.yaml"
+			password := "mypassword"
+		    err := client.Init(config, []byte(password))
+		    if err != nil {
+		        log.Fatal(err)
+		    }
+	*/
 
 	db, err := sql.Open("covenantsql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	_, err = db.Exec("DROP TABLE IF EXISTS testSimple;")
 	if err != nil {
@@ -73,5 +78,4 @@ func main() {
 	}
 	fmt.Printf("SELECT nonIndexedColumn FROM testSimple LIMIT 1; result %d\n", result)
 
-	err = db.Close()
 }

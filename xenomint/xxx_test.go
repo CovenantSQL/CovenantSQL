@@ -21,8 +21,9 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	//"runtime/trace"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -43,11 +44,12 @@ const (
 
 	benchmarkVNum = 3
 	benchmarkVLen = 333
-	// benchmarkKeySpace defines the key space for benchmarking.
-	//
-	// We will have `benchmarkKeySpace` preserved records in the generated testing table and
-	// another `benchmarkKeySpace` constructed incoming records returned from the setup function.
-	benchmarkKeySpace = 100000
+
+	benchmarkReservedKeyOffset = 0
+	benchmarkReservedKeyLength = 100000
+	benchmarkNewKeyOffset      = benchmarkReservedKeyOffset + benchmarkReservedKeyLength
+	benchmarkNewKeyLength      = 100000
+	benchmarkMaxKey            = benchmarkNewKeyOffset + benchmarkNewKeyLength
 )
 
 var (
@@ -134,7 +136,7 @@ func createNodesWithPublicKey(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			miner.ComputeBlockNonce(block, next, diff)
+			_ = miner.ComputeBlockNonce(block, next, diff)
 		}()
 		ni = <-nic
 		nis[i] = proto.Node{
@@ -149,6 +151,41 @@ func createNodesWithPublicKey(
 	return
 }
 
+type keygen interface {
+	next() int
+	reset()
+}
+
+type permKeygen struct {
+	offset int
+	length int
+	perm   []int
+	pos    int32
+}
+
+func newPermKeygen(offset, length int) *permKeygen {
+	return &permKeygen{
+		offset: offset,
+		length: length,
+		perm:   rand.Perm(length),
+	}
+}
+
+func (k *permKeygen) next() int {
+	var pos = atomic.AddInt32(&k.pos, 1) - 1
+	if pos >= int32(k.length) {
+		panic("permKeygen: keys have been exhausted")
+	}
+	return k.perm[pos] + k.offset
+}
+
+func (k *permKeygen) reset() { k.pos = 0 }
+
+var (
+	allKeyPermKeygen = newPermKeygen(0, benchmarkMaxKey)
+	newKeyPermKeygen = newPermKeygen(benchmarkNewKeyOffset, benchmarkNewKeyLength)
+)
+
 func setup() {
 	const minNoFile uint64 = 4096
 	var (
@@ -162,16 +199,18 @@ func setup() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	// Set NOFILE limit
-	if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
-	}
-	if lmt.Max < minNoFile {
-		panic("insufficient max RLIMIT_NOFILE")
-	}
-	lmt.Cur = lmt.Max
-	if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
-		panic(err)
+	if runtime.GOOS == "linux" {
+		// Set NOFILE limit
+		if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+			panic(err)
+		}
+		if lmt.Max < minNoFile {
+			panic("insufficient max RLIMIT_NOFILE")
+		}
+		lmt.Cur = lmt.Max
+		if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
+			panic(err)
+		}
 	}
 
 	// Initialze kms
@@ -189,16 +228,8 @@ func setup() {
 		panic(err)
 	}
 
-	// Setup runtime trace for testing
-	//if testingTraceFile, err = ioutil.TempFile("", "CovenantSQL.trace."); err != nil {
-	//	panic(err)
-	//}
-	//if err = trace.Start(testingTraceFile); err != nil {
-	//	panic(err)
-	//}
-
-	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
+	log.SetOutput(os.Stdout)
 }
 
 func teardown() {

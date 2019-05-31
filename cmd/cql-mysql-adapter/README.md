@@ -22,7 +22,7 @@ Generate the main configuration file. Same as [Generating Default Config File in
 Start the mysql adapter by following commands:
 
 ```shell
-$ cql-mysql-adapter -config config.yaml
+$ cql-mysql-adapter
 ```
 
 The default mysql user is ```root``` and the default mysql password is ```calvin```, which can be modified as optional arguments of mysql adapter.
@@ -33,10 +33,10 @@ Avaiable command-line arguments are:
 ```shell
 $ cql-mysql-adapter --help
 Usage of ./cql-mysql-adapter:
-  -bypassSignature
+  -bypass-signature
     	Disable signature sign and verify, for testing
   -config string
-    	config file for mysql adapter (default "./config.yaml")
+    	config file for mysql adapter (default "~/.cql/config.yaml")
   -listen string
     	listen address for mysql adapter (default "127.0.0.1:4664")
   -mysql-password string

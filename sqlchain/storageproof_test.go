@@ -44,7 +44,7 @@ func TestNewAnswer(t *testing.T) {
 	answer := NewAnswer("aaa", "bbb", hash.HashH([]byte{1, 2, 3, 4, 5}))
 
 	if !reflect.DeepEqual(*answer, wantedAnswer) {
-		t.Errorf("The answer is %+v, should be %+v", answer, wantedAnswer)
+		t.Errorf("the answer is %+v, should be %+v", answer, wantedAnswer)
 	}
 }
 
@@ -61,7 +61,7 @@ func TestGetNextPuzzle(t *testing.T) {
 	wantedIndex += int32(hash.FNVHash32uint([]byte(previousBlock.ID)))
 	wantedIndex %= totalRecordsInSQLChain
 	if index != wantedIndex {
-		t.Errorf("The next sql index is %+v, should be %+v. "+
+		t.Errorf("the next sql index is %+v, should be %+v. "+
 			"Answers are %+v, and the previous block is %+v",
 			index, wantedIndex, answers, previousBlock)
 	}
@@ -69,13 +69,13 @@ func TestGetNextPuzzle(t *testing.T) {
 	// void answer
 	index, err = getNextPuzzle(voidAnswer, previousBlock)
 	if err == nil {
-		t.Errorf("Index is %d, but should be failed", index)
+		t.Errorf("index is %d, but should be failed", index)
 	}
 
 	// void block
 	index, err = getNextPuzzle(answers, voidBlock)
 	if err == nil {
-		t.Errorf("Index is %d, but should be failed", index)
+		t.Errorf("index is %d, but should be failed", index)
 	}
 }
 
@@ -86,31 +86,31 @@ func TestGetNextVerifier(t *testing.T) {
 	}
 	wantedVerifier := int32(hash.FNVHash32uint([]byte(previousBlock.ID))) % int32(len(currentBlock.Nodes))
 	if verifier != wantedVerifier {
-		t.Errorf("The next verifier is %d, should be %d", verifier, wantedVerifier)
+		t.Errorf("the next verifier is %d, should be %d", verifier, wantedVerifier)
 	}
 
 	// void previousBlock
 	verifier, err = getNextVerifier(voidBlock, currentBlock)
 	if err == nil {
-		t.Errorf("Verifier is %d, but should be failed", verifier)
+		t.Errorf("verifier is %d, but should be failed", verifier)
 	}
 
 	// void currentBlock
 	verifier, err = getNextVerifier(previousBlock, voidBlock)
 	if err == nil {
-		t.Errorf("Verifier is %d, but should be failed", verifier)
+		t.Errorf("verifier is %d, but should be failed", verifier)
 	}
 }
 
 func TestSelectRecord(t *testing.T) {
 	if strings.Compare(selectRecord(0), "hello world") != 0 {
-		t.Error("It should be hello world")
+		t.Error("it should be hello world")
 	}
 }
 
 func TestCheckValid(t *testing.T) {
 	if !CheckValid(answers) {
-		t.Error("It should be true")
+		t.Error("it should be true")
 	}
 }
 
@@ -127,25 +127,25 @@ func TestGenerateAnswer(t *testing.T) {
 	answerHash := hash.HashH(append(record, []byte(currentNode.ID)...))
 	wantedAnswer := NewAnswer(previousBlock.ID, currentNode.ID, answerHash)
 	if !reflect.DeepEqual(*answer, *wantedAnswer) {
-		t.Errorf("Answer is %s, should be %s", *answer, *wantedAnswer)
+		t.Errorf("answer is %s, should be %s", *answer, *wantedAnswer)
 	}
 
 	// void answers
 	answer, err = GenerateAnswer(voidAnswer, previousBlock, currentNode)
 	if err == nil {
-		t.Errorf("Answer is %+v, should be failed", answer)
+		t.Errorf("answer is %+v, should be failed", answer)
 	}
 
 	// void block
 	answer, err = GenerateAnswer(answers, voidBlock, currentNode)
 	if err == nil {
-		t.Errorf("Answer is %+v, should be failed", answer)
+		t.Errorf("answer is %+v, should be failed", answer)
 	}
 
 	// void node
 	answer, err = GenerateAnswer(answers, previousBlock, voidNode)
 	if err == nil {
-		t.Errorf("Answer is %+v, should be failed", answer)
+		t.Errorf("answer is %+v, should be failed", answer)
 	}
 
 }

@@ -360,7 +360,7 @@ func TestMultiChain(t *testing.T) {
 						// Send a random query
 						err = cli.query(types.ReadQuery, []types.Query{
 							buildQuery(`SELECT v FROM t1 WHERE k=?`, rand.Intn(5)),
-						})
+						}, rand.Int()%10 != 0)
 						if err != nil {
 							t.Errorf("error occurred: %v", err)
 						}

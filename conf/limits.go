@@ -16,6 +16,8 @@
 
 package conf
 
+import "time"
+
 const (
 	// MaxPendingTxsPerAccount defines the limit of pending transactions of one account.
 	MaxPendingTxsPerAccount = 1000
@@ -34,4 +36,5 @@ const (
 	// block producers.
 	MaxTxBroadcastTTL = 1
 	MaxCachedBlock    = 1000
+	TCPDialTimeout    = 10 * time.Second
 )

@@ -25,6 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 )
 
@@ -59,7 +60,7 @@ func (c *RawCaller) resetClient() (err error) {
 	}
 
 	var conn net.Conn
-	if conn, err = net.Dial("tcp", c.targetAddr); err != nil {
+	if conn, err = net.DialTimeout("tcp", c.targetAddr, conf.TCPDialTimeout); err != nil {
 		err = errors.Wrapf(err, "dial to target %s failed", c.targetAddr)
 		return
 	}

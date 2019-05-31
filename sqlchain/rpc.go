@@ -35,23 +35,6 @@ type AdviseNewBlockReq struct {
 type AdviseNewBlockResp struct {
 }
 
-// AdviseBinLogReq defines a request of the AdviseBinLog RPC method.
-type AdviseBinLogReq struct {
-}
-
-// AdviseBinLogResp defines a response of the AdviseBinLog RPC method.
-type AdviseBinLogResp struct {
-}
-
-// AdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
-type AdviseAckedQueryReq struct {
-	Query *types.SignedAckHeader
-}
-
-// AdviseAckedQueryResp defines a response of the AdviseAckedQuery RPC method.
-type AdviseAckedQueryResp struct {
-}
-
 // FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	Height int32
@@ -68,18 +51,6 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 	err error) {
 	s.chain.blocks <- req.Block
 	return
-}
-
-// AdviseBinLog is the RPC method to advise a new binary log to the target server.
-func (s *ChainRPCService) AdviseBinLog(req *AdviseBinLogReq, resp *AdviseBinLogResp) error {
-	// TODO(leventeliu): need implementation.
-	return nil
-}
-
-// AdviseAckedQuery is the RPC method to advise a new acknowledged query to the target server.
-func (s *ChainRPCService) AdviseAckedQuery(
-	req *AdviseAckedQueryReq, resp *AdviseAckedQueryResp) error {
-	return s.chain.VerifyAndPushAckedQuery(req.Query)
 }
 
 // FetchBlock is the RPC method to fetch a known block from the target server.

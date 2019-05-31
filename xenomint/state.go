@@ -287,7 +287,9 @@ func (s *State) readTx(
 		if cnames, ctypes, data, ierr = readSingle(ctx, querier, &v); ierr != nil {
 			err = errors.Wrapf(ierr, "query at #%d failed", i)
 			// Add to failed pool list
+			s.Lock()
 			s.pool.setFailed(req)
+			s.Unlock()
 			return
 		}
 	}

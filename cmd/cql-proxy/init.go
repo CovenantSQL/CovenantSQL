@@ -137,11 +137,13 @@ func initSession(e *gin.Engine, cfg *config.Config) {
 
 		c.Next()
 
-		sessionExpireSeconds := int64(cfg.AdminAuth.OAuthExpires / time.Second)
-		s := c.MustGet("session").(*model.AdminSession)
+		if !c.IsAborted() {
+			sessionExpireSeconds := int64(cfg.AdminAuth.OAuthExpires / time.Second)
+			s := c.MustGet("session").(*model.AdminSession)
 
-		if s.ID != "" {
-			_, _ = model.SaveAdminSession(c, s, sessionExpireSeconds)
+			if s.ID != "" {
+				_, _ = model.SaveAdminSession(c, s, sessionExpireSeconds)
+			}
 		}
 	})
 }

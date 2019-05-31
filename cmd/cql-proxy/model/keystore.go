@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -37,32 +37,32 @@ type DeveloperPrivateKey struct {
 	Key       *asymmetric.PrivateKey `db:"-"`
 }
 
-func (p *DeveloperPrivateKey) LoadPrivateKey(password []byte) (err error) {
-	p.Key, err = kms.DecodePrivateKey(p.RawKey, password)
+func (p *DeveloperPrivateKey) LoadPrivateKey() (err error) {
+	p.Key, err = kms.DecodePrivateKey(p.RawKey, []byte{})
 	return
 }
 
-func GetPrivateKey(c *gin.Context, developer int64, account utils.AccountAddress, password []byte) (p *DeveloperPrivateKey, err error) {
+func GetPrivateKey(c *gin.Context, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
 	if p, err = GetAccount(c, developer, account); err != nil || p == nil {
 		return
 	}
 
 	// validate key password
-	if err = p.LoadPrivateKey(password); err != nil {
+	if err = p.LoadPrivateKey(); err != nil {
 		p = nil
 	}
 
 	return
 }
 
-func AddNewPrivateKey(c *gin.Context, developer int64, password []byte) (p *DeveloperPrivateKey, err error) {
+func AddNewPrivateKey(c *gin.Context, developer int64) (p *DeveloperPrivateKey, err error) {
 	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
 	privateKey, pubKey, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		return
 	}
 
-	keyBytes, err := kms.EncodePrivateKey(privateKey, password)
+	keyBytes, err := kms.EncodePrivateKey(privateKey, []byte{})
 	if err != nil {
 		return
 	}
@@ -84,16 +84,10 @@ func AddNewPrivateKey(c *gin.Context, developer int64, password []byte) (p *Deve
 	return
 }
 
-func SavePrivateKey(c *gin.Context, developer int64, keyBytes []byte, password []byte) (
+func SavePrivateKey(c *gin.Context, developer int64, key *asymmetric.PrivateKey) (
 	p *DeveloperPrivateKey, err error) {
 	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
 	exists := true
-
-	// check key
-	key, err := kms.DecodePrivateKey(keyBytes, password)
-	if err != nil {
-		return
-	}
 
 	account, err := crypto.PubKeyHash(key.PubKey())
 	if err != nil {
@@ -114,7 +108,7 @@ func SavePrivateKey(c *gin.Context, developer int64, keyBytes []byte, password [
 		exists = false
 	}
 
-	if p.RawKey, err = kms.EncodePrivateKey(key, password); err != nil {
+	if p.RawKey, err = kms.EncodePrivateKey(key, []byte{}); err != nil {
 		p = nil
 		return
 	}
@@ -130,9 +124,9 @@ func SavePrivateKey(c *gin.Context, developer int64, keyBytes []byte, password [
 	return
 }
 
-func DeletePrivateKey(c *gin.Context, developer int64, account utils.AccountAddress, password []byte) (
+func DeletePrivateKey(c *gin.Context, developer int64, account utils.AccountAddress) (
 	p *DeveloperPrivateKey, err error) {
-	p, err = GetPrivateKey(c, developer, account, password)
+	p, err = GetPrivateKey(c, developer, account)
 	if err != nil {
 		return
 	}

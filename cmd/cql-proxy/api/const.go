@@ -17,18 +17,6 @@
 package api
 
 const (
-	argID        = "id"
-	argAccount   = "account"
-	argEmail     = "email"
-	argDatabase  = "db"
-	argTx        = "tx"
-	argNodeCount = "node_count"
-	argPassword  = "password"
-	argKey       = "key"
-	argAmount    = "amount"
-	argBalance   = "balance"
-	argState     = "state"
-
 	keyAuth   = "auth"
 	keyConfig = "config"
 )

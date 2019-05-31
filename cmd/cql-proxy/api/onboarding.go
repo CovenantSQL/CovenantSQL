@@ -36,7 +36,7 @@ import (
 
 func genKeyPair(c *gin.Context) {
 	r := struct {
-		Password string `json:"password" form:"password" binding:"required"`
+		Password string `json:"password" form:"password"`
 	}{}
 
 	if err := c.ShouldBind(&r); err != nil {
@@ -47,7 +47,7 @@ func genKeyPair(c *gin.Context) {
 	// save key to persistence
 	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
 
-	p, err := model.AddNewPrivateKey(c, developer, []byte(r.Password))
+	p, err := model.AddNewPrivateKey(c, developer)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -60,16 +60,22 @@ func genKeyPair(c *gin.Context) {
 		return
 	}
 
+	keyBytes, err := kms.EncodePrivateKey(p.Key, []byte(r.Password))
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
 	responseWithData(c, http.StatusOK, gin.H{
-		argAccount: p.Account,
-		argKey:     string(p.RawKey),
+		"account": p.Account,
+		"key":     string(keyBytes),
 	})
 }
 
 func uploadKeyPair(c *gin.Context) {
 	r := struct {
 		Key      string `json:"key" form:"key" binding:"required"`
-		Password string `json:"password" form:"password" binding:"required"`
+		Password string `json:"password" form:"password"`
 	}{}
 
 	if err := c.ShouldBind(&r); err != nil {
@@ -77,10 +83,17 @@ func uploadKeyPair(c *gin.Context) {
 		return
 	}
 
+	// decode key
+	key, err := kms.DecodePrivateKey([]byte(r.Key), []byte(r.Password))
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
 	// save key to persistence
 	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
 
-	p, err := model.SavePrivateKey(c, developer, []byte(r.Key), []byte(r.Password))
+	p, err := model.SavePrivateKey(c, developer, key)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -94,14 +107,13 @@ func uploadKeyPair(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		argAccount: p.Account,
+		"account": p.Account,
 	})
 }
 
 func deleteKeyPair(c *gin.Context) {
 	r := struct {
-		Account  utils.AccountAddress `json:"account" form:"account" uri:"account" binding:"required,len=64"`
-		Password string               `json:"password" form:"password" binding:"required"`
+		Account utils.AccountAddress `json:"account" form:"account" uri:"account" binding:"required,len=64"`
 	}{}
 
 	// ignore validation, check in later ShouldBind
@@ -115,7 +127,7 @@ func deleteKeyPair(c *gin.Context) {
 	// check and delete private key
 	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
 
-	p, err := model.DeletePrivateKey(c, developer, r.Account, []byte(r.Password))
+	p, err := model.DeletePrivateKey(c, developer, r.Account)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -133,7 +145,7 @@ func deleteKeyPair(c *gin.Context) {
 func downloadKeyPair(c *gin.Context) {
 	r := struct {
 		Account  utils.AccountAddress `json:"account" form:"account" uri:"account" binding:"required,len=64"`
-		Password string               `json:"password" form:"password" binding:"required"`
+		Password string               `json:"password" form:"password"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)
@@ -146,7 +158,7 @@ func downloadKeyPair(c *gin.Context) {
 	// check private key
 	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
 
-	p, err := model.GetPrivateKey(c, developer, r.Account, []byte(r.Password))
+	p, err := model.GetPrivateKey(c, developer, r.Account)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -159,13 +171,12 @@ func downloadKeyPair(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		argKey: string(privateKeyBytes),
+		"key": string(privateKeyBytes),
 	})
 }
 
 func topUp(c *gin.Context) {
 	r := struct {
-		Password string           `json:"password" form:"password" binding:"required"`
 		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required"`
 		Amount   uint64           `json:"amount" form:"amount" binding:"required"`
 	}{}
@@ -192,7 +203,7 @@ func topUp(c *gin.Context) {
 		return
 	}
 
-	if err = p.LoadPrivateKey([]byte(r.Password)); err != nil {
+	if err = p.LoadPrivateKey(); err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -237,8 +248,8 @@ func topUp(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		argTx:     tx.Hash().String(),
-		argAmount: r.Amount,
+		"tx":     tx.Hash().String(),
+		"amount": r.Amount,
 	})
 }
 
@@ -292,9 +303,9 @@ func applyToken(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		argID:     ar.ID,
-		argTx:     txHash.String(),
-		argAmount: amount,
+		"id":     ar.ID,
+		"tx":     txHash.String(),
+		"amount": amount,
 	})
 }
 
@@ -375,95 +386,21 @@ func getBalance(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		argBalance: resp.Balance,
+		"balance": resp.Balance,
 	})
 }
 
 func createDB(c *gin.Context) {
-	r := struct {
-		Password  string `json:"password" form:"password" binding:"required"`
-		NodeCount uint16 `json:"node" form:"node" binding:"gt=0"`
-	}{}
+	if tx, dbID, status, err := createDatabase(c); err != nil {
+		abortWithError(c, status, err)
+	} else {
+		// enqueue task
 
-	if err := c.ShouldBind(&r); err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
+		responseWithData(c, status, gin.H{
+			"tx": tx,
+			"db": dbID,
+		})
 	}
-
-	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
-	p, err := model.GetMainAccount(c, developer)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
-	}
-
-	if err = p.LoadPrivateKey([]byte(r.Password)); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	accountAddr, err := p.Account.Get()
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	nonceReq := new(types.NextAccountNonceReq)
-	nonceResp := new(types.NextAccountNonceResp)
-	nonceReq.Addr = accountAddr
-
-	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
-	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	meta := client.ResourceMeta{}
-	meta.Node = r.NodeCount
-	meta.GasPrice = client.DefaultGasPrice
-	meta.AdvancePayment = client.DefaultAdvancePayment
-
-	var (
-		txReq  = new(types.AddTxReq)
-		txResp = new(types.AddTxResp)
-	)
-
-	txReq.TTL = 1
-	txReq.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
-		Owner: accountAddr,
-		ResourceMeta: types.ResourceMeta{
-			TargetMiners:           meta.TargetMiners,
-			Node:                   meta.Node,
-			Space:                  meta.Space,
-			Memory:                 meta.Memory,
-			LoadAvgPerCPU:          meta.LoadAvgPerCPU,
-			EncryptionKey:          meta.EncryptionKey,
-			UseEventualConsistency: meta.UseEventualConsistency,
-			ConsistencyLevel:       meta.ConsistencyLevel,
-			IsolationLevel:         meta.IsolationLevel,
-		},
-		GasPrice:       meta.GasPrice,
-		AdvancePayment: meta.AdvancePayment,
-		TokenType:      types.Particle,
-		Nonce:          nonceResp.Nonce,
-	})
-
-	if err = txReq.Tx.Sign(p.Key); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	if err = rpc.RequestBP(route.MCCAddTx.String(), txReq, txResp); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	dbID := proto.FromAccountAndNonce(accountAddr, uint32(nonceResp.Nonce))
-
-	responseWithData(c, http.StatusOK, gin.H{
-		"tx": txReq.Tx.Hash(),
-		"db": dbID,
-	})
 }
 
 func databaseBalance(c *gin.Context) {
@@ -547,7 +484,7 @@ func waitTx(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		argState: txState.String(),
+		"state": txState.String(),
 	})
 }
 
@@ -617,6 +554,91 @@ func setMainAccount(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, nil)
+
+	return
+}
+
+func createDatabase(c *gin.Context) (tx hash.Hash, dbID proto.DatabaseID, status int, err error) {
+	r := struct {
+		NodeCount uint16 `json:"node" form:"node" binding:"gt=0"`
+	}{}
+
+	if err = c.ShouldBind(&r); err != nil {
+		status = http.StatusBadRequest
+		return
+	}
+
+	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
+	p, err := model.GetMainAccount(c, developer)
+	if err != nil {
+		status = http.StatusForbidden
+		return
+	}
+
+	if err = p.LoadPrivateKey(); err != nil {
+		status = http.StatusInternalServerError
+		return
+	}
+
+	accountAddr, err := p.Account.Get()
+	if err != nil {
+		status = http.StatusBadRequest
+		return
+	}
+
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = accountAddr
+
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		status = http.StatusInternalServerError
+		return
+	}
+
+	meta := client.ResourceMeta{}
+	meta.Node = r.NodeCount
+	meta.GasPrice = client.DefaultGasPrice
+	meta.AdvancePayment = client.DefaultAdvancePayment
+
+	var (
+		txReq  = new(types.AddTxReq)
+		txResp = new(types.AddTxResp)
+	)
+
+	txReq.TTL = 1
+	txReq.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
+		Owner: accountAddr,
+		ResourceMeta: types.ResourceMeta{
+			TargetMiners:           meta.TargetMiners,
+			Node:                   meta.Node,
+			Space:                  meta.Space,
+			Memory:                 meta.Memory,
+			LoadAvgPerCPU:          meta.LoadAvgPerCPU,
+			EncryptionKey:          meta.EncryptionKey,
+			UseEventualConsistency: meta.UseEventualConsistency,
+			ConsistencyLevel:       meta.ConsistencyLevel,
+			IsolationLevel:         meta.IsolationLevel,
+		},
+		GasPrice:       meta.GasPrice,
+		AdvancePayment: meta.AdvancePayment,
+		TokenType:      types.Particle,
+		Nonce:          nonceResp.Nonce,
+	})
+
+	if err = txReq.Tx.Sign(p.Key); err != nil {
+		status = http.StatusInternalServerError
+		return
+	}
+
+	if err = rpc.RequestBP(route.MCCAddTx.String(), txReq, txResp); err != nil {
+		status = http.StatusInternalServerError
+		return
+	}
+
+	tx = txReq.Tx.Hash()
+	status = http.StatusOK
+	dbID = proto.FromAccountAndNonce(accountAddr, uint32(nonceResp.Nonce))
 
 	return
 }

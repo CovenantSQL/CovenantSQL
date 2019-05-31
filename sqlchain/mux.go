@@ -61,34 +61,6 @@ type MuxAdviseNewBlockResp struct {
 	AdviseNewBlockResp
 }
 
-// MuxAdviseBinLogReq defines a request of the AdviseBinLog RPC method.
-type MuxAdviseBinLogReq struct {
-	proto.Envelope
-	proto.DatabaseID
-	AdviseBinLogReq
-}
-
-// MuxAdviseBinLogResp defines a response of the AdviseBinLog RPC method.
-type MuxAdviseBinLogResp struct {
-	proto.Envelope
-	proto.DatabaseID
-	AdviseBinLogResp
-}
-
-// MuxAdviseAckedQueryReq defines a request of the AdviseAckedQuery RPC method.
-type MuxAdviseAckedQueryReq struct {
-	proto.Envelope
-	proto.DatabaseID
-	AdviseAckedQueryReq
-}
-
-// MuxAdviseAckedQueryResp defines a response of the AdviseAckedQuery RPC method.
-type MuxAdviseAckedQueryResp struct {
-	proto.Envelope
-	proto.DatabaseID
-	AdviseAckedQueryResp
-}
-
 // MuxFetchBlockReq defines a request of the FetchBlock RPC method.
 type MuxFetchBlockReq struct {
 	proto.Envelope
@@ -109,30 +81,6 @@ func (s *MuxService) AdviseNewBlock(req *MuxAdviseNewBlockReq, resp *MuxAdviseNe
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
 		return v.(*ChainRPCService).AdviseNewBlock(&req.AdviseNewBlockReq, &resp.AdviseNewBlockResp)
-	}
-
-	return ErrUnknownMuxRequest
-}
-
-// AdviseBinLog is the RPC method to advise a new binary log to the target server.
-func (s *MuxService) AdviseBinLog(req *MuxAdviseBinLogReq, resp *MuxAdviseBinLogResp) error {
-	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
-		resp.Envelope = req.Envelope
-		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).AdviseBinLog(&req.AdviseBinLogReq, &resp.AdviseBinLogResp)
-	}
-
-	return ErrUnknownMuxRequest
-}
-
-// AdviseAckedQuery is the RPC method to advise a new acknowledged query to the target server.
-func (s *MuxService) AdviseAckedQuery(
-	req *MuxAdviseAckedQueryReq, resp *MuxAdviseAckedQueryResp) error {
-	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
-		resp.Envelope = req.Envelope
-		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).AdviseAckedQuery(
-			&req.AdviseAckedQueryReq, &resp.AdviseAckedQueryResp)
 	}
 
 	return ErrUnknownMuxRequest

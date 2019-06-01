@@ -165,6 +165,12 @@ bin/cql-fuse:
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
+bin/cql-secure-gateway:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_client)" \
+		-o bin/cql-secure-gateway \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-secure-gateway
+
 bin/cql-mysql-adapter:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \

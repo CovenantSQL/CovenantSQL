@@ -51,7 +51,40 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.GET("/database", databaseList)
 			v3AdminLogin.POST("/database", createDB)
 			v3AdminLogin.POST("/database/:db/topup", topUp)
+			v3AdminLogin.GET("/database/:db/pricing", databasePricing)
 			v3AdminLogin.GET("/database/:db", databaseBalance)
+
+			v3AdminLogin.GET("/task", listTasks)
+			v3AdminLogin.GET("/task/:id", getTask)
+			v3AdminLogin.DELETE("/task/:id", cancelTask)
+
+			// derived api from database management
+			v3AdminLogin.POST("/project/:db/topup", topUp)
+			v3AdminLogin.GET("/project/:db/pricing", databasePricing)
+			v3AdminLogin.GET("/project/:db/balance", databaseBalance)
+
+			v3AdminLogin.POST("/project", createProject)
+			v3AdminLogin.POST("/project/:db/users", preRegisterUser)
+			v3AdminLogin.GET("/project/:db/users/:uid", queryProjectUser)
+			v3AdminLogin.PUT("/project/:db:/users/:uid", updateProjectUser)
+			v3AdminLogin.PUT("/project/:db/config/:item", updateProjectConfigItem)
+			v3AdminLogin.PATCH("/project/:db/config", updateProjectConfig)
+			v3AdminLogin.GET("/project/:db/config", getProjectConfig)
+			v3AdminLogin.GET("/project/:db/audits", getProjectAudits)
+			v3AdminLogin.POST("/project/:db/table", createProjectTable)
+			v3AdminLogin.PATCH("/project/:db/table/:table", addFieldsToProjectTable)
+			v3AdminLogin.DELETE("/project/:db/table/:table", dropProjectTable)
 		}
+	}
+
+	// user auth
+	{
+		v3.GET("/auth/authorize", userOAuthAuthorize)
+		v3.POST("/auth/callback", userOAuthCallback)
+	}
+	v3UserLogin := v3.Group("/")
+	v3UserLogin.Use(userCheck)
+	{
+		v3UserLogin.GET("/userinfo", getUserInfo)
 	}
 }

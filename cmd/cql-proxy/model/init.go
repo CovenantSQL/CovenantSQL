@@ -16,15 +16,13 @@
 
 package model
 
-import (
-	"gopkg.in/gorp.v1"
-)
+import gorp "gopkg.in/gorp.v1"
 
 func AddTables(dbMap *gorp.DbMap) {
 	dbMap.AddTableWithName(Developer{}, "developer").
 		SetKeys(true, "ID").
 		ColMap("GithubID").SetUnique(true)
-	dbMap.AddTableWithName(AdminSession{}, "admin_session").
+	dbMap.AddTableWithName(Session{}, "admin_session").
 		SetKeys(false, "ID")
 	dbMap.AddTableWithName(TokenApply{}, "token_apply").
 		SetKeys(false, "ID")

@@ -18,12 +18,14 @@ package storage
 
 import (
 	"database/sql"
+
+	gorp "gopkg.in/gorp.v1"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
-	"gopkg.in/gorp.v1"
 )
 
-func NewStorage(cfg *config.StorageConfig) (storage *gorp.DbMap, err error) {
+func NewDatabase(cfg *config.StorageConfig) (storage *gorp.DbMap, err error) {
 	var db *sql.DB
 
 	if cfg == nil {

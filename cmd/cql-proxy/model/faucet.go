@@ -17,12 +17,13 @@
 package model
 
 import (
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
-	"gopkg.in/gorp.v1"
 	"time"
+
+	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
+	gorp "gopkg.in/gorp.v1"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
 
 type TokenApply struct {
@@ -33,11 +34,10 @@ type TokenApply struct {
 	Created   int64                `db:"created"`
 }
 
-func CheckTokenApplyLimits(c *gin.Context, developer int64, account utils.AccountAddress, userLimits int64, accountLimits int64) (err error) {
+func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.AccountAddress, userLimits int64, accountLimits int64) (err error) {
 	beginOfTheDay := time.Now().UTC().Truncate(24 * time.Hour).Unix()
-	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
 
-	recordCount, err := dbMap.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "developer_id" = ?`,
+	recordCount, err := db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "developer_id" = ?`,
 		beginOfTheDay, developer)
 	if err != nil {
 		return
@@ -48,7 +48,7 @@ func CheckTokenApplyLimits(c *gin.Context, developer int64, account utils.Accoun
 		return
 	}
 
-	recordCount, err = dbMap.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "account" = ?`,
+	recordCount, err = db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "account" = ?`,
 		beginOfTheDay, account)
 	if err != nil {
 		return
@@ -62,7 +62,7 @@ func CheckTokenApplyLimits(c *gin.Context, developer int64, account utils.Accoun
 	return
 }
 
-func AddTokenApplyRecord(c *gin.Context, developer int64, account utils.AccountAddress, amount uint64) (r *TokenApply, err error) {
+func AddTokenApplyRecord(db *gorp.DbMap, developer int64, account utils.AccountAddress, amount uint64) (r *TokenApply, err error) {
 	applicationID := uuid.Must(uuid.NewV4()).String()
 
 	r = &TokenApply{
@@ -73,6 +73,6 @@ func AddTokenApplyRecord(c *gin.Context, developer int64, account utils.AccountA
 		Created:   time.Now().Unix(),
 	}
 
-	err = c.MustGet(keyDB).(*gorp.DbMap).Insert(r)
+	err = db.Insert(r)
 	return
 }

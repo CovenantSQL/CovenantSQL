@@ -18,6 +18,9 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 )
 
 func abortWithError(c *gin.Context, code int, err error) {
@@ -36,4 +39,16 @@ func responseWithData(c *gin.Context, code int, data interface{}) {
 		"msg":     "",
 		"data":    data,
 	})
+}
+
+func getSession(c *gin.Context) *model.Session {
+	return c.MustGet("session").(*model.Session)
+}
+
+func getDeveloperID(c *gin.Context) int64 {
+	return getSession(c).MustGetInt("developer_id")
+}
+
+func getAdminAuth(c *gin.Context) *auth.AdminAuth {
+	return getSession(c).MustGet(keyAuth).(*auth.AdminAuth)
 }

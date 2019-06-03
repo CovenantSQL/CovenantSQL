@@ -29,21 +29,22 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/task"
 )
 
 func initServer(cfg *config.Config) (server *http.Server, err error) {
 	e := gin.Default()
 	e.Use(gin.Recovery())
-	corsCfg := cors.DefaultConfig()
-	corsCfg.AllowAllOrigins = true
-	corsCfg.AddAllowHeaders("X-CQL-Token")
-	e.Use(cors.New(corsCfg))
+
+	initCors(e)
 
 	// init admin auth
-	_ = initAuth(e, cfg)
+	initAuth(e, cfg)
 
 	// init storage
-	if _, err = initStorage(e, cfg); err != nil {
+	var db *gorp.DbMap
+
+	if db, err = initDB(e, cfg); err != nil {
 		return
 	}
 
@@ -51,10 +52,10 @@ func initServer(cfg *config.Config) (server *http.Server, err error) {
 	initSession(e, cfg)
 
 	// init config
-	e.Use(func(c *gin.Context) {
-		c.Set("config", cfg)
-		c.Next()
-	})
+	initConfig(e, cfg)
+
+	// init task manager
+	initTaskManager(e, cfg, db)
 
 	api.AddRoutes(e)
 
@@ -66,8 +67,16 @@ func initServer(cfg *config.Config) (server *http.Server, err error) {
 	return
 }
 
-func initStorage(e *gin.Engine, cfg *config.Config) (st *gorp.DbMap, err error) {
-	st, err = storage.NewStorage(cfg.Storage)
+func initCors(e *gin.Engine) {
+	corsCfg := cors.DefaultConfig()
+	corsCfg.AllowAllOrigins = true
+	corsCfg.AddAllowHeaders("X-CQL-Token")
+	e.Use(cors.New(corsCfg))
+
+}
+
+func initDB(e *gin.Engine, cfg *config.Config) (st *gorp.DbMap, err error) {
+	st, err = storage.NewDatabase(cfg.Storage)
 	if err != nil {
 		return
 	}
@@ -97,6 +106,29 @@ func initAuth(e *gin.Engine, cfg *config.Config) (authz *auth.AdminAuth) {
 	return
 }
 
+func initTaskManager(e *gin.Engine, cfg *config.Config, db *gorp.DbMap) (tm *task.Manager) {
+	e.Use(func(c *gin.Context) {
+		tm = task.NewManager(cfg, db)
+
+		tm.Register(model.TaskCreateDB, api.CreateDatabaseTask)
+		tm.Register(model.TaskApplyToken, api.ApplyTokenTask)
+		tm.Register(model.TaskTopUp, api.TopUpTask)
+		tm.Register(model.TaskCreateProject, api.CreateProjectTask)
+
+		c.Set("task", tm)
+		c.Next()
+	})
+
+	return
+}
+
+func initConfig(e *gin.Engine, cfg *config.Config) {
+	e.Use(func(c *gin.Context) {
+		c.Set("config", cfg)
+		c.Next()
+	})
+}
+
 func initSession(e *gin.Engine, cfg *config.Config) {
 	e.Use(func(c *gin.Context) {
 		// load session
@@ -123,7 +155,7 @@ func initSession(e *gin.Engine, cfg *config.Config) {
 			}
 
 			if token != "" {
-				if _, err := model.GetAdminSession(c, token); err == nil {
+				if _, err := model.GetSession(c, token); err == nil {
 					break
 				} else {
 					token = ""
@@ -139,10 +171,10 @@ func initSession(e *gin.Engine, cfg *config.Config) {
 
 		if !c.IsAborted() {
 			sessionExpireSeconds := int64(cfg.AdminAuth.OAuthExpires / time.Second)
-			s := c.MustGet("session").(*model.AdminSession)
+			s := c.MustGet("session").(*model.Session)
 
 			if s.ID != "" {
-				_, _ = model.SaveAdminSession(c, s, sessionExpireSeconds)
+				_, _ = model.SaveSession(c, s, sessionExpireSeconds)
 			}
 		}
 	})

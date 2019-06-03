@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 )
@@ -39,7 +38,7 @@ func adminOAuthAuthorize(c *gin.Context) {
 		return
 	}
 
-	authz := c.MustGet(keyAuth).(*auth.AdminAuth)
+	authz := getAdminAuth(c)
 	state := uuid.Must(uuid.NewV4()).String()
 	url := authz.AuthURL(state, r.Callback)
 
@@ -61,14 +60,14 @@ func adminOAuthCallback(c *gin.Context) {
 		return
 	}
 
-	authz := c.MustGet(keyAuth).(*auth.AdminAuth)
+	authz := getAdminAuth(c)
 	userInfo, err := authz.HandleLogin(c, r.Code)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
 	}
 
-	d, err := model.UpdateDeveloper(c, userInfo.ID, userInfo.Name, userInfo.Email, userInfo.Extra)
+	d, err := model.UpdateDeveloper(model.GetDB(c), userInfo.ID, userInfo.Name, userInfo.Email, userInfo.Extra)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -76,7 +75,7 @@ func adminOAuthCallback(c *gin.Context) {
 
 	// save session
 	sessionExpireSeconds := int64(c.MustGet(keyConfig).(*config.Config).AdminAuth.OAuthExpires / time.Second)
-	s, err := model.NewAdminSession(c, sessionExpireSeconds)
+	s, err := model.NewSession(c, sessionExpireSeconds)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -97,8 +96,9 @@ func adminOAuthCallback(c *gin.Context) {
 }
 
 func adminCheck(c *gin.Context) {
-	s := c.MustGet("session").(*model.AdminSession)
-	if rv, ok := s.Get("admin"); ok && rv.(bool) {
+	s := getSession(c)
+
+	if s.MustGetBool("admin") {
 		c.Next()
 		return
 	}
@@ -107,8 +107,8 @@ func adminCheck(c *gin.Context) {
 }
 
 func getDeveloperInfo(c *gin.Context) {
-	developer := int64(c.MustGet("session").(*model.AdminSession).MustGet("developer_id").(float64))
-	d, err := model.GetDeveloper(c, developer)
+	developer := getDeveloperID(c)
+	d, err := model.GetDeveloper(model.GetDB(c), developer)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return

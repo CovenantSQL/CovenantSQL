@@ -19,7 +19,6 @@ package model
 import (
 	"time"
 
-	"github.com/gin-gonic/gin"
 	gorp "gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
@@ -42,8 +41,8 @@ func (p *DeveloperPrivateKey) LoadPrivateKey() (err error) {
 	return
 }
 
-func GetPrivateKey(c *gin.Context, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
-	if p, err = GetAccount(c, developer, account); err != nil || p == nil {
+func GetPrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
+	if p, err = GetAccount(db, developer, account); err != nil || p == nil {
 		return
 	}
 
@@ -55,8 +54,8 @@ func GetPrivateKey(c *gin.Context, developer int64, account utils.AccountAddress
 	return
 }
 
-func AddNewPrivateKey(c *gin.Context, developer int64) (p *DeveloperPrivateKey, err error) {
-	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
+func AddNewPrivateKey(db *gorp.DbMap, developer int64) (p *DeveloperPrivateKey, err error) {
+	dbMap := db
 	privateKey, pubKey, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
 		return
@@ -84,9 +83,9 @@ func AddNewPrivateKey(c *gin.Context, developer int64) (p *DeveloperPrivateKey, 
 	return
 }
 
-func SavePrivateKey(c *gin.Context, developer int64, key *asymmetric.PrivateKey) (
+func SavePrivateKey(db *gorp.DbMap, developer int64, key *asymmetric.PrivateKey) (
 	p *DeveloperPrivateKey, err error) {
-	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
+	dbMap := db
 	exists := true
 
 	account, err := crypto.PubKeyHash(key.PubKey())
@@ -96,7 +95,7 @@ func SavePrivateKey(c *gin.Context, developer int64, key *asymmetric.PrivateKey)
 
 	accountAddr := utils.NewAccountAddress(account)
 
-	if p, err = GetAccount(c, developer, accountAddr); err != nil {
+	if p, err = GetAccount(db, developer, accountAddr); err != nil {
 		// not exists
 		err = nil
 		p = &DeveloperPrivateKey{
@@ -124,32 +123,32 @@ func SavePrivateKey(c *gin.Context, developer int64, key *asymmetric.PrivateKey)
 	return
 }
 
-func DeletePrivateKey(c *gin.Context, developer int64, account utils.AccountAddress) (
+func DeletePrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddress) (
 	p *DeveloperPrivateKey, err error) {
-	p, err = GetPrivateKey(c, developer, account)
+	p, err = GetPrivateKey(db, developer, account)
 	if err != nil {
 		return
 	}
 
-	_, err = c.MustGet(keyDB).(*gorp.DbMap).Delete(p)
+	_, err = db.Delete(p)
 	return
 }
 
-func GetAccount(c *gin.Context, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
-	err = c.MustGet(keyDB).(*gorp.DbMap).SelectOne(&p,
+func GetAccount(db *gorp.DbMap, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
+	err = db.SelectOne(&p,
 		`SELECT * FROM "private_keys" WHERE "account" = ? AND "developer_id" = ? LIMIT 1`,
 		account, developer)
 	return
 }
 
-func GetAllAccounts(c *gin.Context, developer int64) (keys []*DeveloperPrivateKey, err error) {
-	_, err = c.MustGet(keyDB).(*gorp.DbMap).Select(&keys,
+func GetAllAccounts(db *gorp.DbMap, developer int64) (keys []*DeveloperPrivateKey, err error) {
+	_, err = db.Select(&keys,
 		`SELECT * FROM "private_keys" WHERE "developer_id" = ?`, developer)
 	return
 }
 
-func GetAccountByID(c *gin.Context, developer int64, id int64) (p *DeveloperPrivateKey, err error) {
-	err = c.MustGet(keyDB).(*gorp.DbMap).SelectOne(&p,
+func GetAccountByID(db *gorp.DbMap, developer int64, id int64) (p *DeveloperPrivateKey, err error) {
+	err = db.SelectOne(&p,
 		`SELECT * FROM "private_keys" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`,
 		id, developer)
 	return

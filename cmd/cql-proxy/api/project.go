@@ -16,9 +16,57 @@
 
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"context"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	gorp "gopkg.in/gorp.v1"
+
+	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+)
 
 func createProject(c *gin.Context) {
+	// create database first and apply settings to the database
+	tx, dbID, status, err := createDatabase(c)
+	if err != nil {
+		abortWithError(c, status, err)
+		return
+	}
+
+	// wait for tx
+	txState, err := client.WaitTxConfirmation(c, tx)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	_ = txState
+
+	// init database with project meta tables
+	// TODO()
+
+	// save project structures
+	developer := getDeveloperID(c)
+	_, err = model.BindProject(model.GetDB(c), dbID, developer)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"db": dbID,
+	})
+}
+
+func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (
+	r map[string]interface{}, err error) {
+	return
+}
+
+func preRegisterUser(c *gin.Context) {
 
 }
 

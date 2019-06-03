@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package api
+package model
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"gopkg.in/gorp.v1"
+)
 
-func userOAuthAuthorize(c *gin.Context) {
-	// load providers from project config
-}
-
-func userOAuthCallback(c *gin.Context) {
-
-}
-
-func userCheck(c *gin.Context) {
-
-}
-
-func getUserInfo(c *gin.Context) {
-
+func GetDB(c *gin.Context) *gorp.DbMap {
+	return c.MustGet(keyDB).(*gorp.DbMap)
 }

@@ -20,8 +20,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
@@ -48,9 +47,8 @@ func (d *Developer) LoadExtra() (err error) {
 	return
 }
 
-func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string, extra map[string]interface{}) (d *Developer, err error) {
-	dbMap := c.MustGet(keyDB).(*gorp.DbMap)
-	err = dbMap.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`, githubID)
+func UpdateDeveloper(db *gorp.DbMap, githubID int64, name string, email string, extra map[string]interface{}) (d *Developer, err error) {
+	err = db.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`, githubID)
 	exists := true
 	now := time.Now().Unix()
 
@@ -82,34 +80,34 @@ func UpdateDeveloper(c *gin.Context, githubID int64, name string, email string, 
 
 	// update user info
 	if exists {
-		_, err = dbMap.Update(d)
+		_, err = db.Update(d)
 	} else {
-		err = dbMap.Insert(d)
+		err = db.Insert(d)
 	}
 
 	return
 }
 
-func SetMainAccount(c *gin.Context, developerID int64, account utils.AccountAddress) (err error) {
+func SetMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddress) (err error) {
 	// query account for existence
-	ar, err := GetAccount(c, developerID, account)
+	ar, err := GetAccount(db, developerID, account)
 	if err != nil {
 		return
 	}
 
-	_, err = c.MustGet(keyDB).(*gorp.DbMap).Exec(
+	_, err = db.Exec(
 		`UPDATE "developer" SET "main_account" = ? WHERE "id" = ?`, ar.ID, developerID)
 	return
 }
 
-func SetIfNoMainAccount(c *gin.Context, developerID int64, account utils.AccountAddress) (err error) {
-	d, err := GetDeveloper(c, developerID)
+func SetIfNoMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddress) (err error) {
+	d, err := GetDeveloper(db, developerID)
 	if err != nil {
 		return
 	}
 
 	if d.MainAccount != 0 {
-		_, err = GetAccountByID(c, developerID, d.MainAccount)
+		_, err = GetAccountByID(db, developerID, d.MainAccount)
 		if err == nil {
 			return
 		}
@@ -117,20 +115,20 @@ func SetIfNoMainAccount(c *gin.Context, developerID int64, account utils.Account
 		err = nil
 	}
 
-	err = SetMainAccount(c, developerID, account)
+	err = SetMainAccount(db, developerID, account)
 
 	return
 }
 
-func FixDeletedMainAccount(c *gin.Context, developerID int64, account int64) (err error) {
-	_, err = c.MustGet(keyDB).(*gorp.DbMap).Exec(
+func FixDeletedMainAccount(db *gorp.DbMap, developerID int64, account int64) (err error) {
+	_, err = db.Exec(
 		`UPDATE "developer" SET "main_account" = 0 WHERE "id" = ? AND "main_account" = ?`,
 		developerID, account)
 	return
 }
 
-func GetDeveloper(c *gin.Context, developerID int64) (d *Developer, err error) {
-	err = c.MustGet(keyDB).(*gorp.DbMap).SelectOne(&d,
+func GetDeveloper(db *gorp.DbMap, developerID int64) (d *Developer, err error) {
+	err = db.SelectOne(&d,
 		`SELECT * FROM "developer" WHERE "id" = ? LIMIT 1`, developerID)
 	if err != nil {
 		return
@@ -140,13 +138,13 @@ func GetDeveloper(c *gin.Context, developerID int64) (d *Developer, err error) {
 	return
 }
 
-func GetMainAccount(c *gin.Context, developerID int64) (p *DeveloperPrivateKey, err error) {
-	d, err := GetDeveloper(c, developerID)
+func GetMainAccount(db *gorp.DbMap, developerID int64) (p *DeveloperPrivateKey, err error) {
+	d, err := GetDeveloper(db, developerID)
 	if err != nil {
 		return
 	}
 
-	p, err = GetAccountByID(c, developerID, d.MainAccount)
+	p, err = GetAccountByID(db, developerID, d.MainAccount)
 	if err != nil {
 		p = nil
 		return

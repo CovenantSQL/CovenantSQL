@@ -20,11 +20,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"net/http"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"

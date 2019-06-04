@@ -17,11 +17,13 @@
 package api
 
 import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
-	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 func genKeyPair(c *gin.Context) {

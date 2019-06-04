@@ -17,6 +17,8 @@
 package auth
 
 import (
+	"net/http"
+
 	"github.com/dghubble/gologin"
 	"github.com/dghubble/gologin/facebook"
 	"github.com/dghubble/gologin/google"
@@ -26,7 +28,6 @@ import (
 	"golang.org/x/oauth2"
 	facebookOAuth2 "golang.org/x/oauth2/facebook"
 	googleOAuth2 "golang.org/x/oauth2/google"
-	"net/http"
 )
 
 const argProvider = "provider"

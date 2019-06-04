@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )

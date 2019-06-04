@@ -18,7 +18,7 @@ package model
 
 import (
 	"github.com/gin-gonic/gin"
-	"gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v1"
 )
 
 func GetDB(c *gin.Context) *gorp.DbMap {

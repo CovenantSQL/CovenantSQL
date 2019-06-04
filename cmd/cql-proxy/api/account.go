@@ -18,6 +18,12 @@ package api
 
 import (
 	"context"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+	gorp "gopkg.in/gorp.v1"
+
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -25,10 +31,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
-	"gopkg.in/gorp.v1"
-	"net/http"
 )
 
 func applyToken(c *gin.Context) {

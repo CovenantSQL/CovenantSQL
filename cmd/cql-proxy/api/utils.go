@@ -21,6 +21,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/task"
 )
 
 func abortWithError(c *gin.Context, code int, err error) {
@@ -51,4 +52,8 @@ func getDeveloperID(c *gin.Context) int64 {
 
 func getAdminAuth(c *gin.Context) *auth.AdminAuth {
 	return getSession(c).MustGet(keyAuth).(*auth.AdminAuth)
+}
+
+func getTaskManager(c *gin.Context) *task.Manager {
+	return getSession(c).MustGet("task").(*task.Manager)
 }

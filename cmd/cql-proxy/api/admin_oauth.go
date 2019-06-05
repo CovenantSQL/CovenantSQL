@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 )
 
@@ -74,7 +73,7 @@ func adminOAuthCallback(c *gin.Context) {
 	}
 
 	// save session
-	sessionExpireSeconds := int64(c.MustGet(keyConfig).(*config.Config).AdminAuth.OAuthExpires / time.Second)
+	sessionExpireSeconds := int64(getConfig(c).AdminAuth.OAuthExpires / time.Second)
 	s, err := model.NewSession(c, sessionExpireSeconds)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)

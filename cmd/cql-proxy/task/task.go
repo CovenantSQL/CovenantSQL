@@ -22,11 +22,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const MaxTaskPerRound = 10
@@ -41,7 +43,7 @@ type taskItem struct {
 	cancel context.CancelFunc
 	task   *model.Task
 	err    error
-	result map[string]interface{}
+	result gin.H
 }
 
 type Manager struct {
@@ -59,8 +61,7 @@ type Manager struct {
 	wg        sync.WaitGroup
 }
 
-type HandleFunc func(c context.Context, config *config.Config, db *gorp.DbMap, t *model.Task) (
-	r map[string]interface{}, err error)
+type HandleFunc func(c context.Context, config *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error)
 
 func NewManager(config *config.Config, db *gorp.DbMap) *Manager {
 	return &Manager{
@@ -128,7 +129,7 @@ func (m *Manager) Wait(ctx context.Context, id int64) (err error) {
 	}
 }
 
-func (m *Manager) New(tt model.TaskType, developer int64, args map[string]interface{}) (id int64, err error) {
+func (m *Manager) New(tt model.TaskType, developer int64, args gin.H) (id int64, err error) {
 	t, err := model.NewTask(m.db, tt, developer, args)
 	if err != nil {
 		return
@@ -138,8 +139,9 @@ func (m *Manager) New(tt model.TaskType, developer int64, args map[string]interf
 
 	select {
 	case m.newCh <- t:
+		log.Debugf("created new task: %v", t.LogData())
 	case <-m.ctx.Done():
-		t.Result = map[string]interface{}{
+		t.Result = gin.H{
 			"error": m.ctx.Err(),
 		}
 		_ = model.UpdateTask(m.db, t)
@@ -189,8 +191,10 @@ func (m *Manager) run() {
 			}
 		case tsk := <-m.newCh:
 			// new task
-			m.runTask(tsk)
-		case <-time.After(30 * time.Second):
+			if _, ok := m.taskMap[tsk.ID]; !ok {
+				m.runTask(tsk)
+			}
+		case <-time.After(10 * time.Second):
 			// poll database for existing task
 			tasks, err := model.ListIncompleteTask(m.db, MaxTaskPerRound)
 
@@ -202,7 +206,9 @@ func (m *Manager) run() {
 				switch t.State {
 				case model.TaskReady:
 					// start job
-					m.runTask(t)
+					if _, ok := m.taskMap[t.ID]; !ok {
+						m.runTask(t)
+					}
 				case model.TaskRunning:
 					// check running state
 					if _, ok := m.taskMap[t.ID]; !ok {
@@ -220,6 +226,11 @@ func (m *Manager) run() {
 						err:  errors.New("invalid task"),
 					})
 				}
+			}
+
+			// log running tasks
+			for _, t := range m.taskMap {
+				log.Debugf("task still running: %v", t.task.LogData())
 			}
 
 		}
@@ -246,13 +257,15 @@ func (m *Manager) runTask(t *model.Task) {
 		return
 	}
 
+	log.Debugf("task scheduled to run: %v", t.LogData())
+
 	m.wg.Add(1)
 
 	go func() {
 		defer func() {
 			// panic recover
 			if r := recover(); r != nil {
-				ti.err = errors.New(fmt.Sprint(r))
+				ti.err = fmt.Errorf("%v", r)
 			}
 
 			// send finish trigger
@@ -272,12 +285,10 @@ func (m *Manager) runTask(t *model.Task) {
 		}
 
 		result, err := h(tCtx, m.config, m.db, ti.task)
+		ti.result = result
 		if err != nil {
 			// task is failed
 			ti.err = errors.Wrapf(err, "execute task %d failed", ti.task.ID)
-			return
-		} else {
-			ti.result = result
 		}
 	}()
 }
@@ -291,8 +302,8 @@ func (m *Manager) cleanupTask(t *taskItem) {
 
 	if t.err != nil {
 		t.task.State = model.TaskFailed
-		t.task.Result = map[string]interface{}{
-			"error":  t.err,
+		t.task.Result = gin.H{
+			"error":  t.err.Error(),
 			"result": t.task.Result,
 		}
 	} else {
@@ -303,6 +314,8 @@ func (m *Manager) cleanupTask(t *taskItem) {
 	if err != nil {
 		return
 	}
+
+	log.Debugf("task cleanup: %v", t.task.LogData())
 
 	// trigger wait
 	if waits, ok := m.waitMap[t.task.ID]; ok {

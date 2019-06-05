@@ -25,9 +25,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
-
 	"github.com/CovenantSQL/CovenantSQL/client"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -53,6 +52,7 @@ func init() {
 }
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

@@ -17,11 +17,20 @@
 package api
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/task"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	"github.com/CovenantSQL/CovenantSQL/rpc"
+	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 func abortWithError(c *gin.Context, code int, err error) {
@@ -51,9 +60,53 @@ func getDeveloperID(c *gin.Context) int64 {
 }
 
 func getAdminAuth(c *gin.Context) *auth.AdminAuth {
-	return getSession(c).MustGet(keyAuth).(*auth.AdminAuth)
+	return c.MustGet("auth").(*auth.AdminAuth)
 }
 
 func getTaskManager(c *gin.Context) *task.Manager {
-	return getSession(c).MustGet("task").(*task.Manager)
+	return c.MustGet("task").(*task.Manager)
+}
+
+func getConfig(c *gin.Context) *config.Config {
+	return c.MustGet("config").(*config.Config)
+}
+
+func getDatabaseProfile(dbID proto.DatabaseID) (profile *types.SQLChainProfile, err error) {
+	req := &types.QuerySQLChainProfileReq{
+		DBID: dbID,
+	}
+	resp := &types.QuerySQLChainProfileResp{}
+
+	err = mux.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp)
+	if err != nil {
+		return
+	}
+
+	profile = &resp.Profile
+
+	return
+}
+
+func getDatabaseLeaderNodeID(dbID proto.DatabaseID) (nodeID proto.NodeID, err error) {
+	profile, err := getDatabaseProfile(dbID)
+	if err != nil {
+		return
+	}
+
+	if len(profile.Miners) == 0 {
+		err = errors.New("not enough miners")
+		return
+	}
+
+	nodeID = profile.Miners[0].NodeID
+
+	return
+}
+
+func getNodePCaller(nodeID proto.NodeID) rpc.PCaller {
+	return rpc.NewPersistentCaller(nodeID)
+}
+
+func formatUnixTime(t int64) string {
+	return time.Unix(t, 0).UTC().String()
 }

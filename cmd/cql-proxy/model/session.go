@@ -29,11 +29,11 @@ import (
 )
 
 type Session struct {
-	ID       string                 `db:"id"`
-	RawStore []byte                 `db:"store"`
-	Store    map[string]interface{} `db:"-"`
-	Created  int64                  `db:"created"`
-	Expire   int64                  `db:"expire"`
+	ID       string `db:"id"`
+	RawStore []byte `db:"store"`
+	Store    gin.H  `db:"-"`
+	Created  int64  `db:"created"`
+	Expire   int64  `db:"expire"`
 }
 
 func (s *Session) Get(key string) (value interface{}, exists bool) {
@@ -134,7 +134,7 @@ func (s *Session) GetBool(key string) (value bool, exists bool) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		value = rrv.Uint() != 0
 	case reflect.Float32, reflect.Float64:
-		value = rrv.Float() > math.Nextafter(1, 2)-1
+		value = math.Abs(rrv.Float()) > 0
 	case reflect.Bool:
 		value = rrv.Bool()
 	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan, reflect.String:
@@ -190,14 +190,14 @@ func (s *Session) Deserialize() (err error) {
 		return
 	}
 	if s.Store == nil {
-		s.Store = make(map[string]interface{})
+		s.Store = gin.H{}
 	}
 	return
 }
 
 func NewEmptySession(c *gin.Context) (s *Session) {
 	s = &Session{
-		Store: make(map[string]interface{}),
+		Store: gin.H{},
 	}
 
 	c.Set("session", s)
@@ -212,7 +212,7 @@ func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
 		ID:      id,
 		Created: now,
 		Expire:  now + expire,
-		Store:   make(map[string]interface{}),
+		Store:   gin.H{},
 	}
 
 	err = GetDB(c).Insert(s)

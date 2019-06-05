@@ -25,6 +25,7 @@ import (
 	"github.com/dghubble/gologin/twitter"
 	"github.com/dghubble/oauth1"
 	twitterOAuth1 "github.com/dghubble/oauth1/twitter"
+	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	facebookOAuth2 "golang.org/x/oauth2/facebook"
 	googleOAuth2 "golang.org/x/oauth2/google"
@@ -42,7 +43,7 @@ type UserAuth struct {
 	providers map[string]*provider
 }
 
-func (a *UserAuth) AddProvider(name string, callback string, appID string, appSecret string, extraConfig map[string]interface{}) (err error) {
+func (a *UserAuth) AddProvider(name string, callback string, appID string, appSecret string, extraConfig gin.H) (err error) {
 	switch name {
 	case "google":
 		cfg := &oauth2.Config{

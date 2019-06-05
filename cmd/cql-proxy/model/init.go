@@ -28,6 +28,8 @@ func AddTables(dbMap *gorp.DbMap) {
 		SetKeys(false, "ID")
 	dbMap.AddTableWithName(DeveloperPrivateKey{}, "private_keys").
 		SetKeys(true, "ID")
+	dbMap.AddTableWithName(Task{}, "task").
+		SetKeys(true, "ID")
 
 	return
 }

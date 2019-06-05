@@ -18,7 +18,9 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -40,7 +42,7 @@ func applyToken(c *gin.Context) {
 		accountLimits int64
 	)
 
-	cfg := c.MustGet(keyConfig).(*config.Config)
+	cfg := getConfig(c)
 	if cfg != nil && cfg.Faucet != nil && cfg.Faucet.Enabled {
 		amount = cfg.Faucet.Amount
 		userLimits = cfg.Faucet.AccountDailyQuota
@@ -63,29 +65,19 @@ func applyToken(c *gin.Context) {
 		return
 	}
 
-	accountAddr, err := p.Account.Get()
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	txHash, err := client.TransferToken(accountAddr, amount, types.Particle)
-	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	// add record
-	ar, err := model.AddTokenApplyRecord(model.GetDB(c), developer, p.Account, amount)
+	// run task
+	taskID, err := getTaskManager(c).New(model.TaskApplyToken, developer, gin.H{
+		"account": p.Account,
+		"amount":  amount,
+	})
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		"id":     ar.ID,
-		"tx":     txHash.String(),
-		"amount": amount,
+		"task_id": taskID,
+		"amount":  amount,
 	})
 }
 
@@ -192,7 +184,44 @@ func setMainAccount(c *gin.Context) {
 	return
 }
 
-func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (
-	r map[string]interface{}, err error) {
+func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
+	args := struct {
+		Account utils.AccountAddress `json:"account"`
+		Amount  uint64               `json:"amount"`
+	}{}
+
+	err = json.Unmarshal(t.RawArgs, &args)
+	if err != nil {
+		return
+	}
+
+	accountAddr, err := args.Account.Get()
+	if err != nil {
+		return
+	}
+
+	txHash, err := client.TransferToken(accountAddr, args.Amount, types.Particle)
+	if err != nil {
+		return
+	}
+
+	// add record
+	ar, err := model.AddTokenApplyRecord(db, t.Developer, args.Account, args.Amount)
+	if err != nil {
+		return
+	}
+
+	// wait for transaction to complete in several cycles
+	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancelCtx()
+
+	lastState, err := waitForTxState(timeoutCtx, txHash)
+	r = gin.H{
+		"id":      ar.ID,
+		"account": args.Account,
+		"tx":      txHash.String(),
+		"state":   lastState.String(),
+	}
+
 	return
 }

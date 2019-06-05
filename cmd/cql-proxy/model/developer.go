@@ -20,21 +20,22 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	gorp "gopkg.in/gorp.v1"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
 
 type Developer struct {
-	ID          int64                  `db:"id"`
-	Name        string                 `db:"name"`
-	Email       string                 `db:"email"`
-	RawExtra    []byte                 `db:"extra"`
-	Created     int64                  `db:"created"`
-	MainAccount int64                  `db:"main_account"`
-	LastLogin   int64                  `db:"last_login"`
-	GithubID    int64                  `db:"github_id"`
-	Extra       map[string]interface{} `db:"-"`
+	ID          int64  `db:"id"`
+	Name        string `db:"name"`
+	Email       string `db:"email"`
+	RawExtra    []byte `db:"extra"`
+	Created     int64  `db:"created"`
+	MainAccount int64  `db:"main_account"`
+	LastLogin   int64  `db:"last_login"`
+	GithubID    int64  `db:"github_id"`
+	Extra       gin.H  `db:"-"`
 }
 
 func (d *Developer) SaveExtra() (err error) {
@@ -47,7 +48,7 @@ func (d *Developer) LoadExtra() (err error) {
 	return
 }
 
-func UpdateDeveloper(db *gorp.DbMap, githubID int64, name string, email string, extra map[string]interface{}) (d *Developer, err error) {
+func UpdateDeveloper(db *gorp.DbMap, githubID int64, name string, email string, extra gin.H) (d *Developer, err error) {
 	err = db.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`, githubID)
 	exists := true
 	now := time.Now().Unix()

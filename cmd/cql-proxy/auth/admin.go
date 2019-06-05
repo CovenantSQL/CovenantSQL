@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 
@@ -41,10 +42,10 @@ type AdminAuth struct {
 }
 
 type UserInfo struct {
-	ID    int64                  `json:"id"`
-	Name  string                 `json:"name"`
-	Email string                 `json:"email"`
-	Extra map[string]interface{} `json:"-"`
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Extra gin.H  `json:"-"`
 }
 
 func NewAdminAuth(cfg *config.AdminAuthConfig) (a *AdminAuth) {

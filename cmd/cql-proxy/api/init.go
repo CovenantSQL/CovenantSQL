@@ -66,7 +66,7 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.POST("/project", createProject)
 			v3AdminLogin.POST("/project/:db/users", preRegisterUser)
 			v3AdminLogin.GET("/project/:db/users/:uid", queryProjectUser)
-			v3AdminLogin.PUT("/project/:db:/users/:uid", updateProjectUser)
+			v3AdminLogin.PUT("/project/:db/users/:uid", updateProjectUser)
 			v3AdminLogin.PUT("/project/:db/config/:item", updateProjectConfigItem)
 			v3AdminLogin.PATCH("/project/:db/config", updateProjectConfig)
 			v3AdminLogin.GET("/project/:db/config", getProjectConfig)

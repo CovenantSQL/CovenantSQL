@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -61,7 +62,7 @@ type UserAuthConfig struct {
 	Providers []string `yaml:"Providers"`
 
 	// provider specific configs, first key is provider id, second key is provide config item.
-	Extra map[string]map[string]interface{} `yaml:"Extra"`
+	Extra map[string]gin.H `yaml:"Extra"`
 }
 
 // Config defines the configurable options for proxy service.

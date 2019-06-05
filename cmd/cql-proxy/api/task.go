@@ -26,15 +26,22 @@ import (
 
 func listTasks(c *gin.Context) {
 	r := struct {
-		Limit int64 `json:"limit" form:"limit"`
+		All    bool  `json:"all" form:"all"`
+		Offset int64 `json:"offset" form:"offset" binding:"gte=0"`
+		Limit  int64 `json:"limit" form:"limit" binding:"gte=0"`
 	}{}
 
 	if r.Limit == 0 {
 		r.Limit = 20
 	}
 
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
 	developer := getDeveloperID(c)
-	tasks, err := model.ListTask(model.GetDB(c), developer, r.Limit)
+	tasks, err := model.ListTask(model.GetDB(c), developer, r.All, r.Offset, r.Limit)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -45,11 +52,11 @@ func listTasks(c *gin.Context) {
 	for _, t := range tasks {
 		resp = append(resp, gin.H{
 			"id":       t.ID,
-			"type":     t.Type,
-			"state":    t.State,
-			"created":  t.Created,
-			"updated":  t.Updated,
-			"finished": t.Finished,
+			"type":     t.Type.String(),
+			"state":    t.State.String(),
+			"created":  formatUnixTime(t.Created),
+			"updated":  formatUnixTime(t.Updated),
+			"finished": formatUnixTime(t.Finished),
 		})
 	}
 
@@ -78,7 +85,18 @@ func getTask(c *gin.Context) {
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		"task": task,
+		"task": func(t *model.Task) gin.H {
+			return gin.H{
+				"id":       t.ID,
+				"type":     t.Type.String(),
+				"state":    t.State.String(),
+				"args":     t.Args,
+				"result":   t.Result,
+				"created":  formatUnixTime(t.Created),
+				"updated":  formatUnixTime(t.Updated),
+				"finished": formatUnixTime(t.Finished),
+			}
+		}(task),
 	})
 }
 
@@ -102,5 +120,5 @@ func cancelTask(c *gin.Context) {
 	}
 
 	// call task executor to abort
-	_ = task
+	getTaskManager(c).Kill(task.ID)
 }

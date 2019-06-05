@@ -72,7 +72,6 @@ func initCors(e *gin.Engine) {
 	corsCfg.AllowAllOrigins = true
 	corsCfg.AddAllowHeaders("X-CQL-Token")
 	e.Use(cors.New(corsCfg))
-
 }
 
 func initDB(e *gin.Engine, cfg *config.Config) (st *gorp.DbMap, err error) {
@@ -93,11 +92,13 @@ func initDB(e *gin.Engine, cfg *config.Config) (st *gorp.DbMap, err error) {
 		c.Set("db", st)
 		c.Next()
 	})
+
 	return
 }
 
 func initAuth(e *gin.Engine, cfg *config.Config) (authz *auth.AdminAuth) {
 	authz = auth.NewAdminAuth(cfg.AdminAuth)
+
 	e.Use(func(c *gin.Context) {
 		c.Set("auth", authz)
 		c.Next()
@@ -107,14 +108,16 @@ func initAuth(e *gin.Engine, cfg *config.Config) (authz *auth.AdminAuth) {
 }
 
 func initTaskManager(e *gin.Engine, cfg *config.Config, db *gorp.DbMap) (tm *task.Manager) {
+	tm = task.NewManager(cfg, db)
+
+	tm.Register(model.TaskCreateDB, api.CreateDatabaseTask)
+	tm.Register(model.TaskApplyToken, api.ApplyTokenTask)
+	tm.Register(model.TaskTopUp, api.TopUpTask)
+	tm.Register(model.TaskCreateProject, api.CreateProjectTask)
+
+	tm.Start()
+
 	e.Use(func(c *gin.Context) {
-		tm = task.NewManager(cfg, db)
-
-		tm.Register(model.TaskCreateDB, api.CreateDatabaseTask)
-		tm.Register(model.TaskApplyToken, api.ApplyTokenTask)
-		tm.Register(model.TaskTopUp, api.TopUpTask)
-		tm.Register(model.TaskCreateProject, api.CreateProjectTask)
-
 		c.Set("task", tm)
 		c.Next()
 	})

@@ -18,15 +18,19 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	gorp "gopkg.in/gorp.v1"
 
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -35,22 +39,35 @@ import (
 )
 
 func createDB(c *gin.Context) {
-	if tx, dbID, status, err := createDatabase(c); err != nil {
-		abortWithError(c, status, err)
-	} else {
-		// enqueue task
+	r := struct {
+		NodeCount uint16 `json:"node" form:"node" binding:"gt=0"`
+	}{}
 
-		responseWithData(c, status, gin.H{
-			"tx": tx,
-			"db": dbID,
-		})
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
 	}
+
+	developer := getDeveloperID(c)
+
+	// run task
+	taskID, err := getTaskManager(c).New(model.TaskCreateDB, developer, gin.H{
+		"node_count": r.NodeCount,
+	})
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"task_id": taskID,
+	})
 }
 
 func topUp(c *gin.Context) {
 	r := struct {
 		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required"`
-		Amount   uint64           `json:"amount" form:"amount" binding:"required"`
+		Amount   uint64           `json:"amount" form:"amount" binding:"gt=0"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)
@@ -60,68 +77,21 @@ func topUp(c *gin.Context) {
 		return
 	}
 
-	dbAccount, err := r.Database.AccountAddress()
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	// check private key
 	developer := getDeveloperID(c)
 
-	p, err := model.GetMainAccount(model.GetDB(c), developer)
-	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	if err = p.LoadPrivateKey(); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	accountAddr, err := p.Account.Get()
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	nonceReq := new(types.NextAccountNonceReq)
-	nonceResp := new(types.NextAccountNonceResp)
-	nonceReq.Addr = accountAddr
-
-	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
-	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	tx := types.NewTransfer(&types.TransferHeader{
-		Sender:    accountAddr,
-		Receiver:  dbAccount,
-		Amount:    r.Amount,
-		TokenType: types.Particle,
-		Nonce:     nonceResp.Nonce,
+	// run task
+	taskID, err := getTaskManager(c).New(model.TaskTopUp, developer, gin.H{
+		"db":     r.Database,
+		"amount": r.Amount,
 	})
-
-	err = tx.Sign(p.Key)
-	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	addTxReq := new(types.AddTxReq)
-	addTxResp := new(types.AddTxResp)
-	addTxReq.Tx = tx
-	err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		"tx":     tx.Hash().String(),
-		"amount": r.Amount,
+		"task_id": taskID,
+		"amount":  r.Amount,
 	})
 }
 
@@ -258,31 +228,20 @@ func databaseList(c *gin.Context) {
 	})
 }
 
-func createDatabase(c *gin.Context) (tx hash.Hash, dbID proto.DatabaseID, status int, err error) {
-	r := struct {
-		NodeCount uint16 `json:"node" form:"node" binding:"gt=0"`
-	}{}
-
-	if err = c.ShouldBind(&r); err != nil {
-		status = http.StatusBadRequest
-		return
-	}
-
-	developer := getDeveloperID(c)
-	p, err := model.GetMainAccount(model.GetDB(c), developer)
+func createDatabase(db *gorp.DbMap, developer int64, nodeCount uint16) (tx hash.Hash, dbID proto.DatabaseID, key *asymmetric.PrivateKey, err error) {
+	p, err := model.GetMainAccount(db, developer)
 	if err != nil {
-		status = http.StatusForbidden
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
-		status = http.StatusInternalServerError
 		return
 	}
 
+	key = p.Key
+
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		status = http.StatusBadRequest
 		return
 	}
 
@@ -292,12 +251,11 @@ func createDatabase(c *gin.Context) (tx hash.Hash, dbID proto.DatabaseID, status
 
 	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
 	if err != nil {
-		status = http.StatusInternalServerError
 		return
 	}
 
 	meta := client.ResourceMeta{}
-	meta.Node = r.NodeCount
+	meta.Node = nodeCount
 	meta.GasPrice = client.DefaultGasPrice
 	meta.AdvancePayment = client.DefaultAdvancePayment
 
@@ -327,28 +285,149 @@ func createDatabase(c *gin.Context) (tx hash.Hash, dbID proto.DatabaseID, status
 	})
 
 	if err = txReq.Tx.Sign(p.Key); err != nil {
-		status = http.StatusInternalServerError
 		return
 	}
 
 	if err = rpc.RequestBP(route.MCCAddTx.String(), txReq, txResp); err != nil {
-		status = http.StatusInternalServerError
 		return
 	}
 
 	tx = txReq.Tx.Hash()
-	status = http.StatusOK
 	dbID = proto.FromAccountAndNonce(accountAddr, uint32(nonceResp.Nonce))
 
 	return
 }
 
-func CreateDatabaseTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (
-	r map[string]interface{}, err error) {
+func waitForTxState(ctx context.Context, tx hash.Hash) (state pi.TransactionState, err error) {
+	req := &types.QueryTxStateReq{
+		Hash: tx,
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		case <-time.After(time.Second * 10):
+			resp := &types.QueryTxStateResp{}
+			err = rpc.RequestBP(route.MCCQueryTxState.String(), req, resp)
+			if err != nil {
+				continue
+			}
+
+			state = resp.State
+
+			switch resp.State {
+			case pi.TransactionStateConfirmed:
+				return
+			case pi.TransactionStateExpired, pi.TransactionStateNotFound:
+				// set error
+				err = errors.New("transaction expired")
+				return
+			}
+		}
+	}
+}
+
+func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
+	args := struct {
+		NodeCount uint16 `json:"node_count"`
+	}{}
+
+	err = json.Unmarshal(t.RawArgs, &args)
+	if err != nil {
+		return
+	}
+
+	tx, dbID, _, err := createDatabase(db, t.Developer, args.NodeCount)
+	if err != nil {
+		return
+	}
+
+	// wait for transaction to complete in several cycles
+	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancelCtx()
+
+	lastState, err := waitForTxState(timeoutCtx, tx)
+	r = gin.H{
+		"db":    dbID,
+		"tx":    tx.String(),
+		"state": lastState.String(),
+	}
+
 	return
 }
 
-func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (
-	r map[string]interface{}, err error) {
+func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
+	args := struct {
+		Database proto.DatabaseID `json:"db"`
+		Amount   uint64           `json:"amount"`
+	}{}
+
+	err = json.Unmarshal(t.RawArgs, &args)
+	if err != nil {
+		return
+	}
+
+	dbAccount, err := args.Database.AccountAddress()
+	if err != nil {
+		return
+	}
+
+	p, err := model.GetMainAccount(db, t.Developer)
+	if err != nil {
+		return
+	}
+
+	if err = p.LoadPrivateKey(); err != nil {
+		return
+	}
+
+	accountAddr, err := p.Account.Get()
+	if err != nil {
+		return
+	}
+
+	nonceReq := new(types.NextAccountNonceReq)
+	nonceResp := new(types.NextAccountNonceResp)
+	nonceReq.Addr = accountAddr
+
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		return
+	}
+
+	tx := types.NewTransfer(&types.TransferHeader{
+		Sender:    accountAddr,
+		Receiver:  dbAccount,
+		Amount:    args.Amount,
+		TokenType: types.Particle,
+		Nonce:     nonceResp.Nonce,
+	})
+
+	err = tx.Sign(p.Key)
+	if err != nil {
+		return
+	}
+
+	addTxReq := new(types.AddTxReq)
+	addTxResp := new(types.AddTxResp)
+	addTxReq.Tx = tx
+	err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
+	if err != nil {
+		return
+	}
+
+	// wait for transaction to complete in several cycles
+	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancelCtx()
+
+	lastState, err := waitForTxState(timeoutCtx, tx.Hash())
+	r = gin.H{
+		"db":    args.Database,
+		"tx":    tx.Hash().String(),
+		"state": lastState.String(),
+	}
+
 	return
 }

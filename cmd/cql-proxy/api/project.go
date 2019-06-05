@@ -18,51 +18,90 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	gorp "gopkg.in/gorp.v1"
 
-	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
+	"github.com/CovenantSQL/CovenantSQL/conf"
 )
 
 func createProject(c *gin.Context) {
-	// create database first and apply settings to the database
-	tx, dbID, status, err := createDatabase(c)
-	if err != nil {
-		abortWithError(c, status, err)
+	r := struct {
+		NodeCount uint16 `json:"node" form:"node" binding:"gt=0"`
+	}{}
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	// wait for tx
-	txState, err := client.WaitTxConfirmation(c, tx)
-	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	_ = txState
-
-	// init database with project meta tables
-	// TODO()
-
-	// save project structures
 	developer := getDeveloperID(c)
-	_, err = model.BindProject(model.GetDB(c), dbID, developer)
+
+	// run task
+	taskID, err := getTaskManager(c).New(model.TaskCreateProject, developer, gin.H{
+		"node_count": r.NodeCount,
+	})
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		"db": dbID,
+		"task_id": taskID,
 	})
 }
 
-func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (
-	r map[string]interface{}, err error) {
+func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
+	args := struct {
+		NodeCount uint16 `json:"node_count"`
+	}{}
+
+	err = json.Unmarshal(t.RawArgs, &args)
+	if err != nil {
+		return
+	}
+
+	tx, dbID, key, err := createDatabase(db, t.Developer, args.NodeCount)
+	if err != nil {
+		return
+	}
+
+	// wait for transaction to complete in several cycles
+	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancelCtx()
+
+	lastState, err := waitForTxState(timeoutCtx, tx)
+	if err != nil {
+		r = gin.H{
+			"db":    dbID,
+			"tx":    tx.String(),
+			"state": lastState.String(),
+		}
+
+		return
+	}
+
+	// wait for database to ready
+	nodeID, err := getDatabaseLeaderNodeID(dbID)
+	if err != nil {
+		return
+	}
+
+	projectDB := storage.NewImpersonatedDB(
+		conf.GConf.ThisNodeID,
+		getNodePCaller(nodeID),
+		dbID,
+		key,
+	)
+
+	_ = projectDB
+
 	return
 }
 

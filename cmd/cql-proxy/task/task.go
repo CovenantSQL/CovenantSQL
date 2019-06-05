@@ -82,6 +82,7 @@ func (m *Manager) Start() {
 	m.wg = sync.WaitGroup{}
 	m.wg.Add(1)
 	go m.run()
+	log.Debug("task manager started")
 	return
 }
 
@@ -98,6 +99,8 @@ func (m *Manager) Stop() {
 		m.cleanupTask(t)
 	}
 	m.taskMap = make(map[int64]*taskItem)
+
+	log.Debug("task manager stopped")
 
 	return
 }

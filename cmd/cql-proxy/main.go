@@ -84,8 +84,11 @@ func main() {
 	}
 
 	// init server
-	var server *http.Server
-	if server, err = initServer(cfg); err != nil {
+	var (
+		server        *http.Server
+		afterShutdown func()
+	)
+	if server, afterShutdown, err = initServer(cfg); err != nil {
 		log.WithError(err).Error("init server failed")
 		os.Exit(-1)
 		return
@@ -104,5 +107,6 @@ func main() {
 	defer cancel()
 
 	_ = server.Shutdown(ctx)
+	afterShutdown()
 	log.Info("stopped proxy")
 }

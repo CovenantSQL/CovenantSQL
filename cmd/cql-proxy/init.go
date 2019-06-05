@@ -32,7 +32,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/task"
 )
 
-func initServer(cfg *config.Config) (server *http.Server, err error) {
+func initServer(cfg *config.Config) (server *http.Server, afterShutdown func(), err error) {
 	e := gin.Default()
 	e.Use(gin.Recovery())
 
@@ -55,13 +55,17 @@ func initServer(cfg *config.Config) (server *http.Server, err error) {
 	initConfig(e, cfg)
 
 	// init task manager
-	initTaskManager(e, cfg, db)
+	tm := initTaskManager(e, cfg, db)
 
 	api.AddRoutes(e)
 
 	server = &http.Server{
 		Addr:    cfg.ListenAddr,
 		Handler: e,
+	}
+
+	afterShutdown = func() {
+		tm.Stop()
 	}
 
 	return

@@ -43,6 +43,7 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.DELETE("/keypair", deleteKeyPair)
 			v3AdminLogin.GET("/keypair/:account", downloadKeyPair)
 			v3AdminLogin.POST("/keypair/main", setMainAccount)
+			v3AdminLogin.PUT("/keypair/main", setMainAccount)
 
 			v3AdminLogin.POST("/account/apply", applyToken)
 			v3AdminLogin.GET("/account/main", getBalance)

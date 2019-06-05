@@ -24,9 +24,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
+	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -55,13 +57,18 @@ const (
 )
 
 var (
-	dbCount = expvar.NewInt(mwMinerDBCount)
+	dbCount = mw.NewGauge("5m1m")
 )
+
+func init() {
+	expvar.Publish(mwMinerDBCount, dbCount)
+}
 
 // DBMS defines a database management instance.
 type DBMS struct {
 	cfg        *DBMSConfig
 	dbMap      sync.Map
+	dbCount    int64
 	kayakMux   *DBKayakMuxService
 	chainMux   *sqlchain.MuxService
 	rpc        *DBMSRPCService
@@ -471,7 +478,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 	err = dbms.addMeta(instance.DatabaseID, db)
 
 	// update metrics
-	dbCount.Add(1)
+	dbCount.Add(float64(atomic.AddInt64(&dbms.dbCount, 1)))
 
 	return
 }
@@ -490,7 +497,8 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 		return
 	}
 
-	dbCount.Add(-1)
+	// update metrics
+	dbCount.Add(float64(atomic.AddInt64(&dbms.dbCount, -1)))
 
 	// remove meta
 	return dbms.removeMeta(dbID)

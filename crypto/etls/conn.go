@@ -27,6 +27,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -57,7 +58,7 @@ func NewConn(c net.Conn, cipher *Cipher) *CryptoConn {
 // Dial connects to a address with a Cipher
 // address should be in the form of host:port.
 func Dial(network, address string, cipher *Cipher) (c *CryptoConn, err error) {
-	conn, err := net.Dial(network, address)
+	conn, err := net.DialTimeout(network, address, conf.TCPDialTimeout)
 	if err != nil {
 		log.WithField("addr", address).WithError(err).Error("connect failed")
 		return

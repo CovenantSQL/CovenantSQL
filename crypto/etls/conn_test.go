@@ -306,3 +306,13 @@ func TestCryptoConn_RW(t *testing.T) {
 		wg.Wait()
 	})
 }
+
+func TestDialTimeout(t *testing.T) {
+	Convey("Test dial timeout", t, func(c C) {
+		_, err := Dial("tcp", "240.0.0.1:8080", NewCipher([]byte("")))
+		nerr, ok := err.(net.Error)
+		So(ok, ShouldBeTrue)
+		So(nerr.Timeout(), ShouldBeTrue)
+	})
+
+}

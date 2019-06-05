@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -70,6 +71,26 @@ func (r *simpleResolver) ResolveEx(id *proto.RawNodeID) (*proto.Node, error) {
 }
 
 func TestNAConn(t *testing.T) {
+	Convey("Test dial timeout", t, func(c C) {
+		// Register node with invalid IP address
+		resolver := &simpleResolver{}
+		nodeinfo := thisNode()
+		So(nodeinfo, ShouldNotBeNil)
+		resolver.registerNode(&proto.Node{
+			Addr:      "240.0.0.1:8080",
+			ID:        nodeinfo.ID,
+			PublicKey: nodeinfo.PublicKey,
+			Nonce:     nodeinfo.Nonce,
+		})
+		// Register resolver
+		RegisterResolver(resolver)
+		// Test dial timeout
+		_, err := Dial(nodeinfo.ID)
+		nerr, ok := errors.Cause(err).(net.Error)
+		t.Logf("err: %v\n", err)
+		So(ok, ShouldBeTrue)
+		So(nerr.Timeout(), ShouldBeTrue)
+	})
 	Convey("Test simple NAConn", t, func(c C) {
 		l, err := net.Listen("tcp", "localhost:0")
 		So(err, ShouldBeNil)

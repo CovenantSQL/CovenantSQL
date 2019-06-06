@@ -36,7 +36,7 @@ const (
 )
 
 const (
-	TaskReady TaskState = iota
+	TaskWaiting TaskState = iota
 	TaskRunning
 	TaskFailed
 	TaskSuccess
@@ -59,8 +59,8 @@ func (t TaskType) String() string {
 
 func (s TaskState) String() string {
 	switch s {
-	case TaskReady:
-		return "Ready"
+	case TaskWaiting:
+		return "Waiting"
 	case TaskRunning:
 		return "Running"
 	case TaskFailed:
@@ -131,7 +131,7 @@ func NewTask(db *gorp.DbMap, tt TaskType, developer int64, args gin.H) (t *Task,
 	t = &Task{
 		Type:      tt,
 		Developer: developer,
-		State:     TaskReady,
+		State:     TaskWaiting,
 		Args:      args,
 		Result:    nil,
 		Created:   now,

@@ -107,6 +107,9 @@ func getNodePCaller(nodeID proto.NodeID) rpc.PCaller {
 	return rpc.NewPersistentCaller(nodeID)
 }
 
-func formatUnixTime(t int64) string {
+func formatUnixTime(t int64) interface{} {
+	if t == 0 {
+		return nil
+	}
 	return time.Unix(t, 0).UTC().String()
 }

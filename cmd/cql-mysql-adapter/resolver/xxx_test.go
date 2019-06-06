@@ -17,13 +17,15 @@
 package resolver
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 type wrapFakeDB struct {
@@ -31,6 +33,10 @@ type wrapFakeDB struct {
 }
 
 func (d *wrapFakeDB) Query(query string, args ...interface{}) (rows *sql.Rows, err error) {
+	return d.QueryContext(context.Background(), query, args)
+}
+
+func (d *wrapFakeDB) QueryContext(ctx context.Context, query string, args ...interface{}) (rows *sql.Rows, err error) {
 	var (
 		stmt     sqlparser.Statement
 		showStmt *sqlparser.Show

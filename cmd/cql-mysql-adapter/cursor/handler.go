@@ -20,6 +20,8 @@ import (
 	"database/sql"
 
 	"github.com/CovenantSQL/sqlparser"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 // Query defines resolved query utilized by cursor object.
@@ -48,8 +50,8 @@ type Rows interface {
 type Handler interface {
 	EnsureDatabase(dbID string) error
 	Resolve(user string, dbID string, query string) (Query, error)
-	Query(q Query, args ...interface{}) (Rows, error)
-	Exec(q Query, args ...interface{}) (sql.Result, error)
-	QueryString(dbID string, query string, args ...interface{}) (Rows, error)
-	ExecString(dbID string, query string, args ...interface{}) (sql.Result, error)
+	Query(q Query, args ...interface{}) (hash.Hash, Rows, error)
+	Exec(q Query, args ...interface{}) (hash.Hash, sql.Result, error)
+	QueryString(dbID string, query string, args ...interface{}) (hash.Hash, Rows, error)
+	ExecString(dbID string, query string, args ...interface{}) (hash.Hash, sql.Result, error)
 }

@@ -17,13 +17,16 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/cursor"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/resolver"
-	"github.com/pingcap/errors"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 // Handler defines the mysql adapter query handler.
@@ -64,7 +67,7 @@ func (h *Handler) Resolve(user string, dbID string, query string) (q cursor.Quer
 }
 
 // Query executes a resolved read query.
-func (h *Handler) Query(q cursor.Query, args ...interface{}) (rows cursor.Rows, err error) {
+func (h *Handler) Query(q cursor.Query, args ...interface{}) (rh hash.Hash, rows cursor.Rows, err error) {
 	if !q.IsRead() {
 		err = errors.Wrapf(resolver.ErrQueryLogicError, "not a read query")
 		return
@@ -73,7 +76,7 @@ func (h *Handler) Query(q cursor.Query, args ...interface{}) (rows cursor.Rows, 
 }
 
 // Exec executes a resolved write query.
-func (h *Handler) Exec(q cursor.Query, args ...interface{}) (res sql.Result, err error) {
+func (h *Handler) Exec(q cursor.Query, args ...interface{}) (rh hash.Hash, res sql.Result, err error) {
 	if q.IsRead() {
 		err = errors.Wrapf(resolver.ErrQueryLogicError, "not a write query")
 		return
@@ -85,21 +88,31 @@ func (h *Handler) Exec(q cursor.Query, args ...interface{}) (res sql.Result, err
 }
 
 // QueryString executes a string query without resolving.
-func (h *Handler) QueryString(dbID string, query string, args ...interface{}) (rows cursor.Rows, err error) {
+func (h *Handler) QueryString(dbID string, query string, args ...interface{}) (rh hash.Hash, rows cursor.Rows, err error) {
 	var db resolver.DBHandler
 	if db, err = h.ensureDatabase(dbID); err != nil {
 		return
 	}
-	return db.Query(query, args...)
+	ctx := client.WithReceipt(context.Background())
+	rows, err = db.QueryContext(ctx, query, args...)
+	if r, ok := client.GetReceipt(ctx); ok {
+		rh = r.RequestHash
+	}
+	return
 }
 
 // ExecString executes a string query without resolving.
-func (h *Handler) ExecString(dbID string, query string, args ...interface{}) (result sql.Result, err error) {
+func (h *Handler) ExecString(dbID string, query string, args ...interface{}) (rh hash.Hash, result sql.Result, err error) {
 	var db resolver.DBHandler
 	if db, err = h.ensureDatabase(dbID); err != nil {
 		return
 	}
-	return db.Exec(query, args...)
+	ctx := client.WithReceipt(context.Background())
+	result, err = db.ExecContext(ctx, query, args...)
+	if r, ok := client.GetReceipt(ctx); ok {
+		rh = r.RequestHash
+	}
+	return
 }
 
 func (h *Handler) ensureDatabase(dbID string) (db resolver.DBHandler, err error) {

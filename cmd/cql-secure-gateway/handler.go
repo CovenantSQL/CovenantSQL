@@ -24,12 +24,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CovenantSQL/sqlparser"
+	"github.com/pkg/errors"
+
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/cursor"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/handler"
 	cw "github.com/CovenantSQL/CovenantSQL/cmd/cql-secure-gateway/casbin"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/sqlparser"
-	"github.com/pkg/errors"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
 type autoDecryptWrapper struct {
@@ -256,14 +258,14 @@ func (h *Handler) Resolve(user string, dbID string, query string) (q cursor.Quer
 }
 
 // Query executes the resolved read query with auto fields decryption.
-func (h *Handler) Query(q cursor.Query, args ...interface{}) (rows cursor.Rows, err error) {
+func (h *Handler) Query(q cursor.Query, args ...interface{}) (rh hash.Hash, rows cursor.Rows, err error) {
 	if !q.IsRead() {
 		err = errors.Wrap(ErrQueryLogicError, "not a read query")
 		return
 	}
 	// execute with auto fields decryption on result rows
 	var origRows cursor.Rows
-	if origRows, err = h.QueryString(q.GetDatabase(), q.GetQuery(), args...); err != nil {
+	if rh, origRows, err = h.QueryString(q.GetDatabase(), q.GetQuery(), args...); err != nil {
 		return
 	}
 
@@ -277,7 +279,7 @@ func (h *Handler) Query(q cursor.Query, args ...interface{}) (rows cursor.Rows, 
 }
 
 // Exec executes the resolved write query with auto fields encryption.
-func (h *Handler) Exec(q cursor.Query, args ...interface{}) (res sql.Result, err error) {
+func (h *Handler) Exec(q cursor.Query, args ...interface{}) (rh hash.Hash, res sql.Result, err error) {
 	if q.IsRead() {
 		err = errors.Wrap(ErrQueryLogicError, "not a write query")
 		return

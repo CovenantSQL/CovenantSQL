@@ -23,14 +23,17 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	my "github.com/siddontang/go-mysql/mysql"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 var (
 	dbIDRegex                     = regexp.MustCompile("^[a-zA-Z0-9_]+$")
-	specialSelectQuery            = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER)\\(\\)\\s*;?\\s*$")
+	specialSelectQuery            = regexp.MustCompile("^(?i)SELECT\\s+(DATABASE|USER|LAST_REQUEST_HASH)\\(\\)\\s*;?\\s*$")
 	emptyResultQuery              = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:SET|ROLLBACK).*$")
 	emptyResultWithResultSetQuery = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*(?:(?:SELECT\\s+)?@@(?:\\w+\\.)?|SHOW\\s+WARNINGS).*$")
 	showVariablesQuery            = regexp.MustCompile("^(?i)\\s*(?:/\\*.*?\\*/)?\\s*SHOW\\s+VARIABLES.*$")
@@ -51,15 +54,21 @@ var (
 
 // Cursor is a mysql connection handler, like a cursor of normal database.
 type Cursor struct {
-	curUser   string
-	curDBLock sync.RWMutex
-	curDB     string
-	h         Handler
+	lastRequestHash atomic.Value
+	curUser         string
+	curDBLock       sync.RWMutex
+	curDB           string
+	h               Handler
 }
 
 // NewCursor returns a new cursor.
 func NewCursor(h Handler) (c *Cursor) {
-	return &Cursor{h: h}
+	c = &Cursor{
+		h: h,
+	}
+	c.lastRequestHash.Store(hash.Hash{})
+
+	return
 }
 
 func (c *Cursor) buildResultSet(rows Rows) (r *my.Result, err error) {
@@ -235,6 +244,10 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 				[]string{"USER()"},
 				[][]interface{}{{c.curUser}},
 			)
+		case "LAST_REQUEST_HASH":
+			resultSet, _ = my.BuildSimpleTextResultset(
+				[]string{"LAST_REQUEST_HASH()"},
+				[][]interface{}{{c.lastRequestHash.Load().(hash.Hash).String()}})
 		}
 
 		r = &my.Result{
@@ -280,6 +293,12 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 
 	log.WithField("query", query).Info("received query")
 
+	defer func() {
+		if err != nil {
+			c.lastRequestHash.Store(hash.Hash{})
+		}
+	}()
+
 	if r, processed, err = c.handleSpecialQuery(query); processed {
 		return
 	}
@@ -293,21 +312,33 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 
 	// normal query
 	if q.IsRead() {
-		var rows Rows
-		if rows, err = c.h.Query(q); err != nil {
+		var (
+			rows Rows
+			rh   hash.Hash
+		)
+		if rh, rows, err = c.h.Query(q); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
+
+		c.lastRequestHash.Store(rh)
 
 		// build result set
 		return c.buildResultSet(rows)
 	}
 
-	var result sql.Result
-	if result, err = c.h.Exec(q); err != nil {
+	var (
+		result sql.Result
+		rh     hash.Hash
+	)
+	if rh, result, err = c.h.Exec(q); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}
+
+	log.Infof("last request hash is: %v", rh.String())
+
+	c.lastRequestHash.Store(rh)
 
 	lastInsertID, _ := result.LastInsertId()
 	affectedRows, _ := result.RowsAffected()
@@ -326,7 +357,7 @@ func (c *Cursor) HandleQuery(query string) (r *my.Result, err error) {
 func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*my.Field, err error) {
 	// send show tables command
 	var columns Rows
-	if columns, err = c.h.QueryString(c.getCurDB(), fmt.Sprintf("DESC `%s`", table)); err != nil {
+	if _, columns, err = c.h.QueryString(c.getCurDB(), fmt.Sprintf("DESC `%s`", table)); err != nil {
 		// wrap error
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
@@ -424,6 +455,12 @@ func (c *Cursor) HandleStmtPrepare(query string) (params int, columns int, conte
 func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []interface{}) (r *my.Result, err error) {
 	var q Query
 
+	defer func() {
+		if err != nil {
+			c.lastRequestHash.Store(hash.Hash{})
+		}
+	}()
+
 	switch v := context.(type) {
 	case *my.Result:
 		// special query
@@ -438,21 +475,33 @@ func (c *Cursor) HandleStmtExecute(context interface{}, query string, args []int
 
 	// normal query
 	if q.IsRead() {
-		var rows Rows
-		if rows, err = c.h.Query(q, args...); err != nil {
+		var (
+			rows Rows
+			rh   hash.Hash
+		)
+		if rh, rows, err = c.h.Query(q, args...); err != nil {
 			err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 			return
 		}
+
+		c.lastRequestHash.Store(rh)
 
 		// build result set
 		return c.buildResultSet(rows)
 	}
 
-	var result sql.Result
-	if result, err = c.h.Exec(q, args...); err != nil {
+	var (
+		result sql.Result
+		rh     hash.Hash
+	)
+	if rh, result, err = c.h.Exec(q, args...); err != nil {
 		err = my.NewError(my.ER_UNKNOWN_ERROR, err.Error())
 		return
 	}
+
+	log.Infof("last request hash is: %v", rh.String())
+
+	c.lastRequestHash.Store(rh)
 
 	lastInsertID, _ := result.LastInsertId()
 	affectedRows, _ := result.RowsAffected()

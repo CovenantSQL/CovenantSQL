@@ -17,14 +17,16 @@
 package resolver
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 const (
@@ -43,6 +45,8 @@ var (
 type DBHandler interface {
 	Query(query string, args ...interface{}) (rows *sql.Rows, err error)
 	Exec(query string, args ...interface{}) (result sql.Result, err error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (rows *sql.Rows, err error)
+	ExecContext(ctx context.Context, query string, args ...interface{}) (result sql.Result, err error)
 	Close() error
 }
 

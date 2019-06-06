@@ -39,28 +39,28 @@ type autoDecryptWrapper struct {
 
 func (w *autoDecryptWrapper) Close() error {
 	if w.rows != nil {
-		return w.Close()
+		return w.rows.Close()
 	}
 	return nil
 }
 
 func (w *autoDecryptWrapper) Columns() ([]string, error) {
 	if w.rows != nil {
-		return w.Columns()
+		return w.rows.Columns()
 	}
 	return nil, nil
 }
 
 func (w *autoDecryptWrapper) Err() error {
 	if w.rows != nil {
-		return w.Err()
+		return w.rows.Err()
 	}
 	return nil
 }
 
 func (w *autoDecryptWrapper) Next() bool {
 	if w.rows != nil {
-		return w.Next()
+		return w.rows.Next()
 	}
 
 	return false
@@ -441,115 +441,118 @@ func (h *Handler) ensurePrivilege(user string, rawQuery cursor.Query) (err error
 	}
 
 	// check encryption
-	if query.IsRead() {
-		// check fields to decrypt, analyzed result columns
-		for i, c := range query.PhysicalColumnTransformations {
-			// get physical columns to decrypt
-			var (
-				pc        *Column
-				encConfig *encryptionConfig
-			)
-			if encConfig, pc, err = h.resolveResultColumnDecryptKey(c, query, encryptedFields); err != nil {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(err, "could not resolve column to decrypt: %s", tb.WriteNode(&c.ColName).String())
-				return
-			}
+	/*
+		if query.IsRead() {
+			// check fields to decrypt, analyzed result columns
+			for i, c := range query.PhysicalColumnTransformations {
+				// get physical columns to decrypt
+				var (
+					pc        *Column
+					encConfig *encryptionConfig
+				)
+				if encConfig, pc, err = h.resolveResultColumnDecryptKey(c, query, encryptedFields); err != nil {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(err, "could not resolve column to decrypt: %s", tb.WriteNode(&c.ColName).String())
+					return
+				}
 
-			if pc != nil {
-				query.DecryptConfig[i] = encConfig
+				if pc != nil {
+					query.DecryptConfig[i] = encConfig
+				}
 			}
-		}
-	} else {
-		// check field binding parameters
-		err = h.walkColumns(func(col *Column) (kontinue bool, err error) {
-			if col == nil || col.Computation == nil {
+		} else {
+			// check field binding parameters
+			err = h.walkColumns(func(col *Column) (kontinue bool, err error) {
+				if col == nil || col.Computation == nil {
+					return false, nil
+				} else if col.Computation.Op != AssignmentOp {
+					return true, nil
+				}
+
+				// process assignment
+				if len(col.Computation.Operands) != 2 {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrQueryLogicError,
+						"should provide bind parameters for encrypted field: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+
+				// first operand should be a physical column
+				if !col.Computation.Operands[0].IsPhysical {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrQueryLogicError,
+						"query not supported for encryption, field is not a real database column: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+
+				// second operand should be a bind parameter value
+				if col.Computation.Operands[1].Computation == nil || col.Computation.Operands[1].Computation.Op != ParameterOp {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrQueryLogicError,
+						"query not supported for encryption, value not parameter: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+
+				var (
+					paramVal *sqlparser.SQLVal
+					ok       bool
+				)
+
+				if paramVal, ok = col.Computation.Operands[1].Computation.Data.(*sqlparser.SQLVal); !ok ||
+					paramVal.Type != sqlparser.PosArg && paramVal.Type != sqlparser.ValArg {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrQueryLogicError,
+						"column assigned value not supported for encryption: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+				if paramVal.Type == sqlparser.ValArg {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrQueryLogicError,
+						"column assigned named argument temporary not supported for encryption: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+
+				// find column encryption config
+				var (
+					f        *cw.Field
+					paramKey = string(paramVal.Val)
+					paramPos int
+				)
+
+				// convert parameter key to parameter position
+				if len(paramKey) < 2 {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(ErrQueryLogicError,
+						"invalid column value assignment: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+				if paramPos, err = strconv.Atoi(paramKey[2:]); err != nil {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(err, "resolve parameter offset for column %s failed", tb.WriteNode(&col.ColName).String())
+					return
+				}
+				if f, err = cw.NewField(query.GetDatabase(), col.ColName.Qualifier.Name.String(), col.ColName.Name.String()); err != nil {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(err, "could not resolve column to encrypt: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+
+				var exists bool
+				if query.EncryptConfig[paramPos], exists = encryptedFields[f.String()]; !exists {
+					tb := sqlparser.NewTrackedBuffer(nil)
+					err = errors.Wrapf(err, "could not resolve column encryption config: %s", tb.WriteNode(&col.ColName).String())
+					return
+				}
+
 				return false, nil
-			} else if col.Computation.Op != AssignmentOp {
-				return true, nil
-			}
-
-			// process assignment
-			if len(col.Computation.Operands) != 2 {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrQueryLogicError,
-					"should provide bind parameters for encrypted field: %s", tb.WriteNode(&col.ColName).String())
+			}, query.PhysicalColumnTransformations)
+			if err != nil {
+				err = errors.Wrap(err, "could not resolve column for encryption")
 				return
 			}
-
-			// first operand should be a physical column
-			if !col.Computation.Operands[0].IsPhysical {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrQueryLogicError,
-					"query not supported for encryption", tb.WriteNode(&col.ColName).String())
-				return
-			}
-
-			// second operand should be a bind parameter value
-			if col.Computation.Operands[1].Computation == nil || col.Computation.Operands[1].Computation.Op != ParameterOp {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrQueryLogicError,
-					"query not supported for encryption", tb.WriteNode(&col.ColName).String())
-				return
-			}
-
-			var (
-				paramVal *sqlparser.SQLVal
-				ok       bool
-			)
-
-			if paramVal, ok = col.Computation.Operands[1].Computation.Data.(*sqlparser.SQLVal); !ok ||
-				paramVal.Type != sqlparser.PosArg && paramVal.Type != sqlparser.ValArg {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrQueryLogicError,
-					"column assigned value not supported for encryption", tb.WriteNode(&col.ColName).String())
-				return
-			}
-			if paramVal.Type == sqlparser.ValArg {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrQueryLogicError,
-					"column assigned name argument temporary not supported for encryption", tb.WriteNode(&col.ColName).String())
-				return
-			}
-
-			// find column encryption config
-			var (
-				f        *cw.Field
-				paramKey = string(paramVal.Val)
-				paramPos int
-			)
-
-			// convert parameter key to parameter position
-			if len(paramKey) < 2 {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrQueryLogicError,
-					"invalid column value assignment", tb.WriteNode(&col.ColName).String())
-				return
-			}
-			if paramPos, err = strconv.Atoi(paramKey[2:]); err != nil {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(err, "resolve parameter offset for column %s failed", tb.WriteNode(&col.ColName).String())
-				return
-			}
-			if f, err = cw.NewField(query.GetDatabase(), col.ColName.Qualifier.Name.String(), col.ColName.Name.String()); err != nil {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(err, "could not resolve column to encrypt: %s", tb.WriteNode(&col.ColName).String())
-				return
-			}
-
-			var exists bool
-			if query.EncryptConfig[paramPos], exists = encryptedFields[f.String()]; !exists {
-				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(err, "could not resolve column encryption config: %s", tb.WriteNode(&col.ColName).String())
-				return
-			}
-
-			return false, nil
-		}, query.PhysicalColumnTransformations)
-		if err != nil {
-			err = errors.Wrap(err, "could not resolve column for encryption")
-			return
 		}
-	}
+
+	*/
 
 	return
 }

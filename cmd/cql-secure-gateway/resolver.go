@@ -19,9 +19,10 @@ package main
 import (
 	"strings"
 
-	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/resolver"
 	"github.com/CovenantSQL/sqlparser"
 	"github.com/pkg/errors"
+
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter/resolver"
 )
 
 var (
@@ -97,6 +98,14 @@ type Query struct {
 	PhysicalColumnRely            []*ColumnResult
 	DecryptConfig                 map[int]*encryptionConfig
 	EncryptConfig                 map[int]*encryptionConfig
+}
+
+func NewQuery(q *resolver.Query) *Query {
+	return &Query{
+		Query:         q,
+		DecryptConfig: make(map[int]*encryptionConfig),
+		EncryptConfig: make(map[int]*encryptionConfig),
+	}
 }
 
 // Columns defines the column array for resolving.
@@ -276,7 +285,7 @@ func (r *Resolver) buildExpression(dbID string, expr sqlparser.Expr, originColum
 					Data: e,
 				},
 			})
-		case sqlparser.ValArg:
+		case sqlparser.ValArg, sqlparser.PosArg:
 			cols = NewColumns(&Column{
 				IsPhysical: false,
 				Computation: &Computation{
@@ -1189,7 +1198,7 @@ func (r *Resolver) ResolveQuery(dbID string, query string) (q []*Query, err erro
 	}
 
 	for _, query := range queries {
-		newQuery := &Query{Query: query}
+		newQuery := NewQuery(query)
 		if err = r.buildResolveResult(dbID, newQuery); err != nil {
 			return
 		}
@@ -1201,7 +1210,7 @@ func (r *Resolver) ResolveQuery(dbID string, query string) (q []*Query, err erro
 
 // ResolveSingleQuery parse string query and make sure there is only one query in the query string.
 func (r *Resolver) ResolveSingleQuery(dbID string, queryStr string) (q *Query, err error) {
-	q = &Query{}
+	q = NewQuery(nil)
 	if q.Query, err = r.Resolver.ResolveSingleQuery(dbID, queryStr); err != nil {
 		return
 	}
@@ -1211,7 +1220,7 @@ func (r *Resolver) ResolveSingleQuery(dbID string, queryStr string) (q *Query, e
 
 // Resolve process sqlparser statement and returns resolved result.
 func (r *Resolver) Resolve(dbID string, stmt sqlparser.Statement) (q *Query, err error) {
-	q = &Query{}
+	q = NewQuery(nil)
 
 	if q.Query, err = r.Resolver.Resolve(dbID, stmt); err != nil {
 		return

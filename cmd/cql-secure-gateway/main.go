@@ -47,6 +47,7 @@ func init() {
 }
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	flag.Parse()
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

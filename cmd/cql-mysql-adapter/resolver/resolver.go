@@ -291,7 +291,7 @@ func (r *Resolver) BuildParamCount(stmt sqlparser.Statement) (params int, err er
 	params = 0
 	argDedup := make(map[string]bool)
 	err = sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
-		if v, ok := node.(*sqlparser.SQLVal); ok && v.Type == sqlparser.ValArg {
+		if v, ok := node.(*sqlparser.SQLVal); ok && (v.Type == sqlparser.ValArg || v.Type == sqlparser.PosArg) {
 			argVal := string(v.Val)
 			if !argDedup[argVal] {
 				argDedup[argVal] = true

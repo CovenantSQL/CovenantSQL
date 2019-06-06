@@ -266,6 +266,9 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 	}
 
 	err = c.h.EnsureDatabase(dbName)
+	if err == nil {
+		c.curDB = dbName
+	}
 
 	return
 }

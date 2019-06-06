@@ -207,7 +207,7 @@ func (m *Manager) run() {
 
 			for _, t := range tasks {
 				switch t.State {
-				case model.TaskReady:
+				case model.TaskWaiting:
 					// start job
 					if _, ok := m.taskMap[t.ID]; !ok {
 						m.runTask(t)

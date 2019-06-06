@@ -374,14 +374,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:38fcc1686d3aa3d0d2d911e0a6c6301d98557b863bc18fc9cf6177899f2698b7"
-  name = "github.com/pingcap/errors"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "fc6e4ce558343e6eab2450e7653502fee61d9ad6"
-  version = "v0.11.4"
-
-[[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -706,7 +698,6 @@
     "github.com/lufia/iostat",
     "github.com/minio/blake2b-simd",
     "github.com/mohae/deepcopy",
-    "github.com/pingcap/errors",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_model/go",

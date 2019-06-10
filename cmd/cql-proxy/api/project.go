@@ -19,7 +19,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +32,31 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 )
+
+func getProjects(c *gin.Context) {
+	projectList, err := model.GetProjects(model.GetDB(c), getDeveloperID(c))
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	var resp []gin.H
+
+	for _, p := range projectList {
+		resp = append(resp, gin.H{
+			"id":      p.ID,
+			"project": p.DB,
+			"alias":   p.Alias,
+		})
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"projects": resp,
+	})
+}
 
 func createProject(c *gin.Context) {
 	r := struct {
@@ -41,10 +68,8 @@ func createProject(c *gin.Context) {
 		return
 	}
 
-	developer := getDeveloperID(c)
-
 	// run task
-	taskID, err := getTaskManager(c).New(model.TaskCreateProject, developer, gin.H{
+	taskID, err := getTaskManager(c).New(model.TaskCreateProject, getDeveloperID(c), gin.H{
 		"node_count": r.NodeCount,
 	})
 	if err != nil {
@@ -79,68 +104,726 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 	lastState, err := waitForTxState(timeoutCtx, tx)
 	if err != nil {
 		r = gin.H{
-			"db":    dbID,
-			"tx":    tx.String(),
-			"state": lastState.String(),
+			"project": dbID,
+			"db":      dbID,
+			"tx":      tx.String(),
+			"state":   lastState.String(),
 		}
 
 		return
 	}
 
-	// wait for database to ready
+	// wait for projectDB to ready deployed
+	time.Sleep(30 * time.Second)
+
+	_, err = initProjectDB(dbID, key)
+	if err != nil {
+		return
+	}
+
+	// bind database to current developer
+	_, err = model.AddProject(db, dbID, t.Developer)
+
+	r = gin.H{
+		"tx":      tx.String(),
+		"state":   lastState.String(),
+		"project": dbID,
+		"db":      dbID,
+	}
+
+	return
+}
+
+func projectUserList(c *gin.Context) {
+	r := struct {
+		DB              proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Term            string           `json:"term" form:"term" binding:"max=32"`
+		ShowOnlyEnabled bool             `json:"enabled" form:"enabled"`
+		Offset          int64            `json:"offset" form:"offset" binding:"gte=0"`
+		Limit           int64            `json:"limit" form:"limit" binding:"gte=0"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	if r.Limit == 0 {
+		r.Limit = 20
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	users, err := model.GetProjectUsers(projectDB, r.Term, r.ShowOnlyEnabled, r.Offset, r.Limit)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	var resp []gin.H
+
+	for _, u := range users {
+		resp = append(resp, gin.H{
+			"id":           u.ID,
+			"name":         u.Name,
+			"email":        u.Email,
+			"state":        u.State.String(),
+			"provider":     u.Provider,
+			"provider_uid": u.ProviderUID,
+			"extra":        u.Extra,
+			"created":      formatUnixTime(u.Created),
+			"last_login":   formatUnixTime(u.LastLogin),
+		})
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"users": resp,
+	})
+}
+
+func preRegisterProjectUser(c *gin.Context) {
+	r := struct {
+		DB       proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Name     string           `json:"name" form:"name"`
+		Email    string           `json:"email" form:"email" binding:"required,email"`
+		Provider string           `json:"provider" form:"provider" binding:"required"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	var u *model.ProjectUser
+	u, err = model.PreRegisterUser(projectDB, r.Provider, r.Name, r.Email)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"name":     u.Name,
+		"email":    u.Email,
+		"provider": u.Provider,
+		"project":  r.DB,
+	})
+}
+
+func queryProjectUser(c *gin.Context) {
+	r := struct {
+		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		ID int64            `json:"id" form:"id" uri:"id" binding:"required,gt=0"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	u, err := model.GetProjectUser(projectDB, r.ID)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"id":           u.ID,
+		"name":         u.Name,
+		"email":        u.Email,
+		"state":        u.State.String(),
+		"provider":     u.Provider,
+		"provider_uid": u.ProviderUID,
+		"extra":        u.Extra,
+		"created":      formatUnixTime(u.Created),
+		"last_login":   formatUnixTime(u.LastLogin),
+	})
+}
+
+func updateProjectUser(c *gin.Context) {
+	r := struct {
+		DB       proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		ID       int64            `json:"id" form:"id" uri:"id" binding:"required,gt=0"`
+		Name     string           `json:"name" form:"name"`
+		Email    string           `json:"email" form:"email" binding:"omitempty,email"`
+		Provider string           `json:"provider" form:"provider"`
+		State    string           `json:"state" form:"state"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	u, err := model.GetProjectUser(projectDB, r.ID)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if r.Name != "" {
+		u.Name = r.Name
+	}
+	if r.Email != "" {
+		u.Email = r.Email
+	}
+	if r.Provider != "" {
+		u.Provider = r.Provider
+	}
+	if r.State != "" {
+		u.State, err = model.ParseProjectUserState(r.State)
+		if err != nil {
+			abortWithError(c, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	err = model.UpdateProjectUser(projectDB, u)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"id":           u.ID,
+		"name":         u.Name,
+		"email":        u.Email,
+		"state":        u.State.String(),
+		"provider":     u.Provider,
+		"provider_uid": u.ProviderUID,
+		"extra":        u.Extra,
+		"created":      formatUnixTime(u.Created),
+		"last_login":   formatUnixTime(u.LastLogin),
+	})
+}
+
+func updateProjectConfigItem(c *gin.Context) {
+	// for misc config and oauth config purpose
+	r := struct {
+		DB   proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Kind string           `json:"kind" form:"kind" uri:"kind" binding:"required,max=32"`
+		Item string           `json:"item" form:"item" uri:"item" binding:"max=256"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	var (
+		p    *model.ProjectConfig
+		resp = gin.H{}
+	)
+
+	switch strings.ToLower(r.Kind) {
+	case "oauth":
+		if r.Item == "" {
+			abortWithError(c, http.StatusBadRequest, errors.New("oauth provider must be provided"))
+			return
+		}
+
+		var cfg *model.ProjectOAuthConfig
+		err = c.ShouldBind(&cfg)
+		if err != nil {
+			abortWithError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if cfg.ClientID == "" && cfg.ClientSecret == "" {
+			// update nothing
+			abortWithError(c, http.StatusBadRequest, errors.New("no config provided"))
+			return
+		}
+
+		var poc *model.ProjectOAuthConfig
+		p, poc, err = model.GetProjectOAuthConfig(projectDB, r.Item)
+		if err != nil {
+			// not exists, create
+			if cfg.ClientID == "" || cfg.ClientSecret == "" {
+				abortWithError(c, http.StatusBadRequest, errors.New("required client_id and client_secret"))
+				return
+			}
+			p, err = model.AddProjectConfig(projectDB, model.ProjectConfigOAuth, r.Item, cfg)
+			if err != nil {
+				abortWithError(c, http.StatusInternalServerError, err)
+				return
+			}
+			poc = cfg
+		} else {
+			// update config
+			if cfg.ClientID != "" {
+				poc.ClientID = cfg.ClientID
+			}
+			if cfg.ClientSecret != "" {
+				poc.ClientSecret = cfg.ClientSecret
+			}
+			if cfg.Enabled != nil {
+				poc.Enabled = cfg.Enabled
+			}
+			err = model.UpdateProjectConfig(projectDB, p)
+			if err != nil {
+				abortWithError(c, http.StatusInternalServerError, err)
+				return
+			}
+		}
+
+		resp = gin.H{
+			"oauth": gin.H{
+				"provider": r.Item,
+				"config":   poc,
+			},
+		}
+	case "misc":
+		var cfg *model.ProjectMiscConfig
+		err = c.ShouldBind(&cfg)
+		if err != nil {
+			abortWithError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		// alias goes to project config, also set backup to project database
+		if cfg.Alias != "" {
+			// set alias to project database
+			err = model.SetProjectAlias(model.GetDB(c), r.DB, getDeveloperID(c), cfg.Alias)
+			if err != nil {
+				abortWithError(c, http.StatusInternalServerError, err)
+				return
+			}
+		}
+
+		// other goes to config in project database
+		var pmc *model.ProjectMiscConfig
+		p, pmc, err = model.GetProjectMiscConfig(projectDB)
+		if err != nil {
+			// not exists, create
+			p, err = model.AddProjectConfig(projectDB, model.ProjectConfigMisc, "", cfg)
+			if err != nil {
+				abortWithError(c, http.StatusInternalServerError, err)
+				return
+			}
+			pmc = cfg
+		} else {
+			if cfg.Alias != "" {
+				pmc.Alias = cfg.Alias
+			}
+			if cfg.Enabled != nil {
+				pmc.Enabled = cfg.Enabled
+			}
+			if cfg.EnableSignUp != nil {
+				pmc.EnableSignUp = cfg.EnableSignUp
+			}
+			if cfg.EnableSignUpVerification != nil {
+				pmc.EnableSignUpVerification = cfg.EnableSignUpVerification
+			}
+			err = model.UpdateProjectConfig(projectDB, p)
+			if err != nil {
+				abortWithError(c, http.StatusInternalServerError, err)
+				return
+			}
+		}
+
+		resp = gin.H{
+			"misc": pmc,
+		}
+	default:
+		abortWithError(c, http.StatusBadRequest, errors.New("config type not valid"))
+		return
+	}
+
+	responseWithData(c, http.StatusOK, resp)
+}
+
+func getProjectConfig(c *gin.Context) {
+	// get all configs including tables/oauth config
+	r := struct {
+		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	projectConfigList, err := model.GetAllProjectConfig(projectDB)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	var (
+		miscConfig   interface{}
+		oauthConfig  []gin.H
+		tablesConfig []gin.H
+	)
+	for _, p := range projectConfigList {
+		switch p.Type {
+		case model.ProjectConfigMisc:
+			miscConfig = p.Value
+		case model.ProjectConfigOAuth:
+			oauthConfig = append(oauthConfig, gin.H{
+				"provider": p.Key,
+				"config":   p.Value,
+			})
+		case model.ProjectConfigTable:
+			tablesConfig = append(tablesConfig, gin.H{
+				"table":  p.Key,
+				"config": p.Value,
+			})
+		}
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"misc":   miscConfig,
+		"oauth":  oauthConfig,
+		"tables": tablesConfig,
+	})
+}
+
+func getProjectTables(c *gin.Context) {
+	r := struct {
+		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	tables, err := model.GetProjectTablesConfig(projectDB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"tables": tables,
+	})
+}
+
+func createProjectTable(c *gin.Context) {
+	r := struct {
+		DB          proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Table       string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
+		ColumnNames []string         `json:"names" form:"names" binding:"required,min=1,dive,required,max=32"`
+		ColumnTypes []string         `json:"types" form:"types" binding:"required,min=1,dive,required,max=16"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	if len(r.ColumnNames) != len(r.ColumnTypes) {
+		abortWithError(c, http.StatusBadRequest, errors.New("column names and types not matched"))
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	// create table in project db
+	// build create table sql
+	sql := `CREATE TABLE "` + r.Table + `" (` + "\n"
+
+	for idx, colName := range r.ColumnNames {
+		if idx != 0 {
+			sql += ",\n"
+		}
+		sql += fmt.Sprintf(`"%s" %s`, colName, r.ColumnTypes[idx])
+	}
+
+	sql += `);`
+
+	_, err = projectDB.Exec(sql)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	// save project table meta config
+	ptc := &model.ProjectTableConfig{
+		Columns: r.ColumnNames,
+		Types:   r.ColumnTypes,
+	}
+	p, err := model.AddProjectConfig(projectDB, model.ProjectConfigTable, r.Table, ptc)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"project":      r.DB,
+		"db":           r.DB,
+		"table":        r.Table,
+		"columns":      r.ColumnNames,
+		"types":        r.ColumnTypes,
+		"created":      formatUnixTime(p.Created),
+		"last_updated": formatUnixTime(p.LastUpdated),
+		"keys":         ptc.Keys,
+		"rules":        ptc.Rules,
+		"is_deleted":   ptc.IsDeleted,
+	})
+}
+
+func getProjectTableDetail(c *gin.Context) {
+	r := struct {
+		DB    proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Table string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	ddl, err := projectDB.SelectStr(`SHOW CREATE TABLE "` + r.Table + `"`)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"project":      r.DB,
+		"db":           r.DB,
+		"table":        r.Table,
+		"created":      formatUnixTime(pc.Created),
+		"last_updated": formatUnixTime(pc.LastUpdated),
+		"columns":      ptc.Columns,
+		"types":        ptc.Types,
+		"keys":         ptc.Keys,
+		"rules":        ptc.Rules,
+		"is_deleted":   ptc.IsDeleted,
+		"ddl":          ddl,
+	})
+}
+
+func addFieldsToProjectTable(c *gin.Context) {
+	r := struct {
+		DB         proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Table      string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
+		ColumnName string           `json:"name" form:"name" binding:"required,max=32"`
+		ColumnType string           `json:"type" form:"type" binding:"required,max=16"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	// find column in current column list
+	for _, col := range ptc.Columns {
+		if strings.EqualFold(col, r.ColumnName) {
+			abortWithError(c, http.StatusBadRequest, errors.New("column already exists"))
+			return
+		}
+	}
+
+	ptc.Columns = append(ptc.Columns, r.ColumnName)
+	ptc.Types = append(ptc.Types, r.ColumnType)
+
+	// execute alter table add column to database
+	_, err = projectDB.Exec(fmt.Sprintf(
+		`ALTER TABLE "%s" ADD COLUMN "%s" %s;`, r.Table, r.ColumnName, r.ColumnType))
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = model.UpdateProjectConfig(projectDB, pc)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"project":      r.DB,
+		"db":           r.DB,
+		"table":        r.Table,
+		"created":      formatUnixTime(pc.Created),
+		"last_updated": formatUnixTime(pc.LastUpdated),
+		"columns":      ptc.Columns,
+		"types":        ptc.Types,
+		"keys":         ptc.Keys,
+		"rules":        ptc.Rules,
+		"is_deleted":   ptc.IsDeleted,
+	})
+}
+
+func dropProjectTable(c *gin.Context) {
+	r := struct {
+		DB    proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Table string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	ptc.IsDeleted = true
+
+	err = model.UpdateProjectConfig(projectDB, pc)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"project":      r.DB,
+		"db":           r.DB,
+		"table":        r.Table,
+		"created":      formatUnixTime(pc.Created),
+		"last_updated": formatUnixTime(pc.LastUpdated),
+		"columns":      ptc.Columns,
+		"types":        ptc.Types,
+		"keys":         ptc.Keys,
+		"rules":        ptc.Rules,
+		"is_deleted":   ptc.IsDeleted,
+	})
+}
+
+func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.DbMap, err error) {
 	nodeID, err := getDatabaseLeaderNodeID(dbID)
 	if err != nil {
 		return
 	}
 
-	projectDB := storage.NewImpersonatedDB(
+	db = storage.NewImpersonatedDB(
 		conf.GConf.ThisNodeID,
 		getNodePCaller(nodeID),
 		dbID,
 		key,
 	)
 
-	_ = projectDB
+	db.AddTableWithName(model.ProjectUser{}, "____user").SetKeys(true, "ID")
+	db.AddTableWithName(model.ProjectConfig{}, "____config").SetKeys(true, "ID")
+
+	err = db.CreateTablesIfNotExists()
 
 	return
 }
 
-func preRegisterUser(c *gin.Context) {
+func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (db *gorp.DbMap, err error) {
+	developer := getDeveloperID(c)
 
-}
+	if !model.HasPrivilege(model.GetDB(c), dbID, developer) {
+		return
+	}
 
-func queryProjectUser(c *gin.Context) {
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	if err != nil {
+		return
+	}
 
-}
+	if err = p.LoadPrivateKey(); err != nil {
+		return
+	}
 
-func updateProjectUser(c *gin.Context) {
+	db, err = initProjectDB(dbID, p.Key)
 
-}
-
-func updateProjectConfig(c *gin.Context) {
-
-}
-
-func updateProjectConfigItem(c *gin.Context) {
-
-}
-
-func getProjectConfig(c *gin.Context) {
-
+	return
 }
 
 func getProjectAudits(c *gin.Context) {
-
-}
-
-func createProjectTable(c *gin.Context) {
-
-}
-
-func addFieldsToProjectTable(c *gin.Context) {
-
-}
-
-func dropProjectTable(c *gin.Context) {
 
 }

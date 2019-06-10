@@ -48,7 +48,7 @@ func (d *Developer) LoadExtra() (err error) {
 	return
 }
 
-func UpdateDeveloper(db *gorp.DbMap, githubID int64, name string, email string, extra gin.H) (d *Developer, err error) {
+func EnsureDeveloper(db *gorp.DbMap, githubID int64, name string, email string, extra gin.H) (d *Developer, err error) {
 	err = db.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`, githubID)
 	exists := true
 	now := time.Now().Unix()

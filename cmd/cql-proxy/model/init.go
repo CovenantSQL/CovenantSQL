@@ -30,6 +30,10 @@ func AddTables(dbMap *gorp.DbMap) {
 		SetKeys(true, "ID")
 	dbMap.AddTableWithName(Task{}, "task").
 		SetKeys(true, "ID")
+	tblProject := dbMap.AddTableWithName(Project{}, "project").
+		SetKeys(true, "ID")
+	tblProject.ColMap("Alias").SetUnique(true)
+	tblProject.ColMap("DB").SetUnique(true)
 
 	return
 }

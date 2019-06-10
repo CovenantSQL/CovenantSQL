@@ -104,7 +104,7 @@ func getDatabaseLeaderNodeID(dbID proto.DatabaseID) (nodeID proto.NodeID, err er
 }
 
 func getNodePCaller(nodeID proto.NodeID) rpc.PCaller {
-	return rpc.NewPersistentCaller(nodeID)
+	return mux.NewPersistentCaller(nodeID)
 }
 
 func formatUnixTime(t int64) interface{} {

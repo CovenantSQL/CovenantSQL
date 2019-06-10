@@ -66,7 +66,7 @@ func adminOAuthCallback(c *gin.Context) {
 		return
 	}
 
-	d, err := model.UpdateDeveloper(model.GetDB(c), userInfo.ID, userInfo.Name, userInfo.Email, userInfo.Extra)
+	d, err := model.EnsureDeveloper(model.GetDB(c), userInfo.ID, userInfo.Name, userInfo.Email, userInfo.Extra)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return

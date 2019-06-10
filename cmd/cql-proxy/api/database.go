@@ -66,7 +66,7 @@ func createDB(c *gin.Context) {
 
 func topUp(c *gin.Context) {
 	r := struct {
-		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required"`
+		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required,len=64"`
 		Amount   uint64           `json:"amount" form:"amount" binding:"gt=0"`
 	}{}
 
@@ -97,7 +97,7 @@ func topUp(c *gin.Context) {
 
 func databaseBalance(c *gin.Context) {
 	r := struct {
-		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required"`
+		Database proto.DatabaseID `json:"db" form:"db" uri:"db" binding:"required,len=64"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)

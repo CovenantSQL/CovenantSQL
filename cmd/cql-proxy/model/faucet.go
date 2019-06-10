@@ -21,13 +21,13 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	gorp "gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
 
 type TokenApply struct {
-	ID        string               `db:"id,"`
+	ID        string               `db:"id"`
 	Account   utils.AccountAddress `db:"account"`
 	Developer int64                `db:"developer_id"`
 	Amount    uint64               `db:"amount"`

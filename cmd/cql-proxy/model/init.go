@@ -16,7 +16,7 @@
 
 package model
 
-import gorp "gopkg.in/gorp.v1"
+import gorp "gopkg.in/gorp.v2"
 
 func AddTables(dbMap *gorp.DbMap) {
 	dbMap.AddTableWithName(Developer{}, "developer").

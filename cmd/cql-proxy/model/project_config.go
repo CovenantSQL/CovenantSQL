@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"time"
 
-	gorp "gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v2"
 )
 
 type ProjectConfigType int16

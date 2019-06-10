@@ -22,7 +22,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	gorp "gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/api"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"

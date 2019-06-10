@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	gorp "gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -795,10 +795,17 @@ func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.
 		key,
 	)
 
-	db.AddTableWithName(model.ProjectUser{}, "____user").SetKeys(true, "ID")
-	db.AddTableWithName(model.ProjectConfig{}, "____config").SetKeys(true, "ID")
+	tblUser := db.AddTableWithName(model.ProjectUser{}, "____user").
+		SetKeys(true, "ID")
+	tblUser.AddIndex("____idx_user_1", "", []string{"provider", "email"}).SetUnique(true)
+	tblConfig := db.AddTableWithName(model.ProjectConfig{}, "____config").
+		SetKeys(true, "ID")
+	tblConfig.AddIndex("____idx_config_1", "", []string{"type", "key"}).SetUnique(true)
 
 	err = db.CreateTablesIfNotExists()
+
+	// ignore index error
+	_ = db.CreateIndex()
 
 	return
 }

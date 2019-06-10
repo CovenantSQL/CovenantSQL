@@ -19,7 +19,7 @@ package model
 import (
 	"time"
 
-	gorp "gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 	"github.com/CovenantSQL/CovenantSQL/crypto"

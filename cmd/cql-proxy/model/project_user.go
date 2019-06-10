@@ -23,7 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	gorp "gopkg.in/gorp.v1"
+	gorp "gopkg.in/gorp.v2"
 )
 
 type ProjectUserState int16

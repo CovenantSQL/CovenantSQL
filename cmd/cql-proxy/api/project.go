@@ -326,12 +326,12 @@ func updateProjectUser(c *gin.Context) {
 	})
 }
 
-func updateProjectConfigItem(c *gin.Context) {
-	// for misc config and oauth config purpose
+func updateProjectOAuthConfig(c *gin.Context) {
 	r := struct {
-		DB   proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
-		Kind string           `json:"kind" form:"kind" uri:"kind" binding:"required,max=32"`
-		Item string           `json:"item" form:"item" uri:"item" binding:"max=256"`
+		DB       proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Provider string           `json:"provider" form:"provider" uri:"provider" binding:"required,max=256"`
+
+		// additional parameters, see ProjectOAuthConfig structure
 	}{}
 
 	_ = c.ShouldBindUri(&r)
@@ -347,127 +347,137 @@ func updateProjectConfigItem(c *gin.Context) {
 		return
 	}
 
-	var (
-		p    *model.ProjectConfig
-		resp = gin.H{}
-	)
-
-	switch strings.ToLower(r.Kind) {
-	case "oauth":
-		if r.Item == "" {
-			abortWithError(c, http.StatusBadRequest, errors.New("oauth provider must be provided"))
-			return
-		}
-
-		var cfg *model.ProjectOAuthConfig
-		err = c.ShouldBind(&cfg)
-		if err != nil {
-			abortWithError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		if cfg.ClientID == "" && cfg.ClientSecret == "" {
-			// update nothing
-			abortWithError(c, http.StatusBadRequest, errors.New("no config provided"))
-			return
-		}
-
-		var poc *model.ProjectOAuthConfig
-		p, poc, err = model.GetProjectOAuthConfig(projectDB, r.Item)
-		if err != nil {
-			// not exists, create
-			if cfg.ClientID == "" || cfg.ClientSecret == "" {
-				abortWithError(c, http.StatusBadRequest, errors.New("required client_id and client_secret"))
-				return
-			}
-			p, err = model.AddProjectConfig(projectDB, model.ProjectConfigOAuth, r.Item, cfg)
-			if err != nil {
-				abortWithError(c, http.StatusInternalServerError, err)
-				return
-			}
-			poc = cfg
-		} else {
-			// update config
-			if cfg.ClientID != "" {
-				poc.ClientID = cfg.ClientID
-			}
-			if cfg.ClientSecret != "" {
-				poc.ClientSecret = cfg.ClientSecret
-			}
-			if cfg.Enabled != nil {
-				poc.Enabled = cfg.Enabled
-			}
-			err = model.UpdateProjectConfig(projectDB, p)
-			if err != nil {
-				abortWithError(c, http.StatusInternalServerError, err)
-				return
-			}
-		}
-
-		resp = gin.H{
-			"oauth": gin.H{
-				"provider": r.Item,
-				"config":   poc,
-			},
-		}
-	case "misc":
-		var cfg *model.ProjectMiscConfig
-		err = c.ShouldBind(&cfg)
-		if err != nil {
-			abortWithError(c, http.StatusBadRequest, err)
-			return
-		}
-
-		// alias goes to project config, also set backup to project database
-		if cfg.Alias != "" {
-			// set alias to project database
-			err = model.SetProjectAlias(model.GetDB(c), r.DB, getDeveloperID(c), cfg.Alias)
-			if err != nil {
-				abortWithError(c, http.StatusInternalServerError, err)
-				return
-			}
-		}
-
-		// other goes to config in project database
-		var pmc *model.ProjectMiscConfig
-		p, pmc, err = model.GetProjectMiscConfig(projectDB)
-		if err != nil {
-			// not exists, create
-			p, err = model.AddProjectConfig(projectDB, model.ProjectConfigMisc, "", cfg)
-			if err != nil {
-				abortWithError(c, http.StatusInternalServerError, err)
-				return
-			}
-			pmc = cfg
-		} else {
-			if cfg.Alias != "" {
-				pmc.Alias = cfg.Alias
-			}
-			if cfg.Enabled != nil {
-				pmc.Enabled = cfg.Enabled
-			}
-			if cfg.EnableSignUp != nil {
-				pmc.EnableSignUp = cfg.EnableSignUp
-			}
-			if cfg.EnableSignUpVerification != nil {
-				pmc.EnableSignUpVerification = cfg.EnableSignUpVerification
-			}
-			err = model.UpdateProjectConfig(projectDB, p)
-			if err != nil {
-				abortWithError(c, http.StatusInternalServerError, err)
-				return
-			}
-		}
-
-		resp = gin.H{
-			"misc": pmc,
-		}
-	default:
-		abortWithError(c, http.StatusBadRequest, errors.New("config type not valid"))
+	var cfg *model.ProjectOAuthConfig
+	err = c.ShouldBind(&cfg)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	responseWithData(c, http.StatusOK, resp)
+	if cfg.ClientID == "" && cfg.ClientSecret == "" {
+		// update nothing
+		abortWithError(c, http.StatusBadRequest, errors.New("no config provided"))
+		return
+	}
+
+	var (
+		p   *model.ProjectConfig
+		poc *model.ProjectOAuthConfig
+	)
+
+	p, poc, err = model.GetProjectOAuthConfig(projectDB, r.Provider)
+	if err != nil {
+		// not exists, create
+		if cfg.ClientID == "" || cfg.ClientSecret == "" {
+			abortWithError(c, http.StatusBadRequest, errors.New("required client_id and client_secret"))
+			return
+		}
+		p, err = model.AddProjectConfig(projectDB, model.ProjectConfigOAuth, r.Provider, cfg)
+		if err != nil {
+			abortWithError(c, http.StatusInternalServerError, err)
+			return
+		}
+		poc = cfg
+	} else {
+		// update config
+		if cfg.ClientID != "" {
+			poc.ClientID = cfg.ClientID
+		}
+		if cfg.ClientSecret != "" {
+			poc.ClientSecret = cfg.ClientSecret
+		}
+		if cfg.Enabled != nil {
+			poc.Enabled = cfg.Enabled
+		}
+		err = model.UpdateProjectConfig(projectDB, p)
+		if err != nil {
+			abortWithError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"oauth": gin.H{
+			"provider": r.Provider,
+			"config":   poc,
+		},
+	})
+}
+
+func updateProjectMiscConfig(c *gin.Context) {
+	r := struct {
+		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+
+		// additional parameters, see ProjectMiscConfig structure
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	var cfg *model.ProjectMiscConfig
+	err = c.ShouldBind(&cfg)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	// alias goes to project config, also set backup to project database
+	if cfg.Alias != "" {
+		// set alias to project database
+		err = model.SetProjectAlias(model.GetDB(c), r.DB, getDeveloperID(c), cfg.Alias)
+		if err != nil {
+			abortWithError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	// other goes to config in project database
+	var (
+		p   *model.ProjectConfig
+		pmc *model.ProjectMiscConfig
+	)
+	p, pmc, err = model.GetProjectMiscConfig(projectDB)
+	if err != nil {
+		// not exists, create
+		p, err = model.AddProjectConfig(projectDB, model.ProjectConfigMisc, "", cfg)
+		if err != nil {
+			abortWithError(c, http.StatusInternalServerError, err)
+			return
+		}
+		pmc = cfg
+	} else {
+		if cfg.Alias != "" {
+			pmc.Alias = cfg.Alias
+		}
+		if cfg.Enabled != nil {
+			pmc.Enabled = cfg.Enabled
+		}
+		if cfg.EnableSignUp != nil {
+			pmc.EnableSignUp = cfg.EnableSignUp
+		}
+		if cfg.EnableSignUpVerification != nil {
+			pmc.EnableSignUpVerification = cfg.EnableSignUpVerification
+		}
+		err = model.UpdateProjectConfig(projectDB, p)
+		if err != nil {
+			abortWithError(c, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"misc": pmc,
+	})
 }
 
 func getProjectConfig(c *gin.Context) {
@@ -814,6 +824,7 @@ func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (db *gorp.DbMap, err er
 	developer := getDeveloperID(c)
 
 	if !model.HasPrivilege(model.GetDB(c), dbID, developer) {
+		err = errors.New("permission denied")
 		return
 	}
 

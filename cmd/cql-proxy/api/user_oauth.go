@@ -20,6 +20,7 @@ import "github.com/gin-gonic/gin"
 
 func userOAuthAuthorize(c *gin.Context) {
 	// load providers from project config
+
 }
 
 func userOAuthCallback(c *gin.Context) {
@@ -28,6 +29,11 @@ func userOAuthCallback(c *gin.Context) {
 
 func userCheck(c *gin.Context) {
 
+}
+
+func projectIDInject(c *gin.Context) {
+
+	c.Next()
 }
 
 func getUserInfo(c *gin.Context) {

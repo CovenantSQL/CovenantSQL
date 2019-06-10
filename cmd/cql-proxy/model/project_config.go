@@ -119,7 +119,23 @@ func GetProjectTableConfig(db *gorp.DbMap, tableName string) (p *ProjectConfig, 
 }
 
 func GetProjectTablesConfig(db *gorp.DbMap) (tables []string, err error) {
-	_, err = db.Select(&tables, `SELECT "key" FROM "____config" WHERE "type" = ?`, ProjectConfigTable)
+	var projects []*ProjectConfig
+
+	_, err = db.Select(&projects, `SELECT * FROM "____config" WHERE "type" = ?`, ProjectConfigTable)
+	if err != nil {
+		return
+	}
+
+	for _, p := range projects {
+		var ptc *ProjectTableConfig
+
+		_ = json.Unmarshal(p.RawValue, &ptc)
+
+		if ptc != nil && !ptc.IsDeleted {
+			tables = append(tables, p.Key)
+		}
+	}
+
 	return
 }
 

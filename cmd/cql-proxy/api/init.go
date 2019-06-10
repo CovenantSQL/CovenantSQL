@@ -70,8 +70,8 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.POST("/project/:db/user", preRegisterProjectUser)
 			v3AdminLogin.GET("/project/:db/user/:id", queryProjectUser)
 			v3AdminLogin.PUT("/project/:db/user/:id", updateProjectUser)
-			v3AdminLogin.PUT("/project/:db/config/:kind", updateProjectConfigItem)
-			v3AdminLogin.PUT("/project/:db/config/:kind/:item", updateProjectConfigItem)
+			v3AdminLogin.PUT("/project/:db/config/misc", updateProjectMiscConfig)
+			v3AdminLogin.PUT("/project/:db/config/oauth/:provider", updateProjectOAuthConfig)
 			v3AdminLogin.GET("/project/:db/config", getProjectConfig)
 			v3AdminLogin.GET("/project/:db/audits", getProjectAudits)
 			v3AdminLogin.GET("/project/:db/table", getProjectTables)
@@ -79,15 +79,18 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.PATCH("/project/:db/table/:table", addFieldsToProjectTable)
 			v3AdminLogin.GET("/project/:db/table/:table", getProjectTableDetail)
 			v3AdminLogin.DELETE("/project/:db/table/:table", dropProjectTable)
+			// add user oauth callback url api
 		}
 	}
 
 	// user auth
+	v3User := v3.Group("/")
+	v3User.Use(projectIDInject)
 	{
-		v3.GET("/auth/authorize", userOAuthAuthorize)
-		v3.POST("/auth/callback", userOAuthCallback)
+		v3User.GET("/auth/authorize", userOAuthAuthorize)
+		v3User.POST("/auth/callback", userOAuthCallback)
 	}
-	v3UserLogin := v3.Group("/")
+	v3UserLogin := v3User.Group("/")
 	v3UserLogin.Use(userCheck)
 	{
 		v3UserLogin.GET("/userinfo", getUserInfo)

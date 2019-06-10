@@ -79,7 +79,7 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.PATCH("/project/:db/table/:table", addFieldsToProjectTable)
 			v3AdminLogin.GET("/project/:db/table/:table", getProjectTableDetail)
 			v3AdminLogin.DELETE("/project/:db/table/:table", dropProjectTable)
-			// add user oauth callback url api
+			v3AdminLogin.GET("/project/:db/oauth/:provider/callback", getProjectOAuthCallback)
 		}
 	}
 

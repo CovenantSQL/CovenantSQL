@@ -326,6 +326,45 @@ func updateProjectUser(c *gin.Context) {
 	})
 }
 
+func getProjectOAuthCallback(c *gin.Context) {
+	r := struct {
+		DB       proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Provider string           `json:"provider" form:"provider" uri:"provider" binding:"required,max=256"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	developer := getDeveloperID(c)
+
+	p, err := model.GetProjectByID(model.GetDB(c), r.DB, developer)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	cfg := getConfig(c)
+	if cfg == nil || len(cfg.Hosts) == 0 {
+		abortWithError(c, http.StatusInternalServerError, errors.New("no public service hosts available"))
+		return
+	}
+
+	var resp []string
+
+	for _, h := range cfg.Hosts {
+		// project alias happy and host api.covenantsql.io will produce happy.api.covenantsql.io as service host
+		resp = append(resp, p.Alias+h)
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"callbacks": resp,
+	})
+}
+
 func updateProjectOAuthConfig(c *gin.Context) {
 	r := struct {
 		DB       proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`

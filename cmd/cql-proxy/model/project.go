@@ -56,6 +56,13 @@ func GetProject(db *gorp.DbMap, name string) (p *Project, err error) {
 	return
 }
 
+func GetProjectByID(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *Project, err error) {
+	err = db.SelectOne(&p,
+		`SELECT * FROM "project" WHERE "database_id" = ? AND "developer_id" = ? LIMIT 1`,
+		dbID, developer)
+	return
+}
+
 func GetProjects(db *gorp.DbMap, developer int64) (p []*Project, err error) {
 	_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ?`, developer)
 	return

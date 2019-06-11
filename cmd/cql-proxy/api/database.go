@@ -169,7 +169,7 @@ func waitTx(c *gin.Context) {
 		return
 	}
 
-	txState, err := client.WaitTxConfirmation(c, h)
+	txState, err := client.WaitTxConfirmation(c.Request.Context(), h)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return

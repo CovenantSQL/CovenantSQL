@@ -357,7 +357,8 @@ func getProjectOAuthCallback(c *gin.Context) {
 
 	for _, h := range cfg.Hosts {
 		// project alias happy and host api.covenantsql.io will produce happy.api.covenantsql.io as service host
-		resp = append(resp, p.Alias+h)
+		resp = append(resp,
+			fmt.Sprintf("http://%s.%s/auth/callback", p.Alias, strings.TrimLeft(h, ".")))
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{

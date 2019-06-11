@@ -34,6 +34,9 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/route"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 func getProjects(c *gin.Context) {
@@ -43,18 +46,56 @@ func getProjects(c *gin.Context) {
 		return
 	}
 
-	var resp []gin.H
+	developer := getDeveloperID(c)
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	accountAddr, err := p.Account.Get()
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	var apiResp []gin.H
 
 	for _, p := range projectList {
-		resp = append(resp, gin.H{
+		var (
+			req     = new(types.QuerySQLChainProfileReq)
+			resp    = new(types.QuerySQLChainProfileResp)
+			balance gin.H
+		)
+
+		req.DBID = p.DB
+
+		if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
+			abortWithError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		for _, user := range resp.Profile.Users {
+			if user.Address == accountAddr {
+				balance = gin.H{
+					"deposit":         user.Deposit,
+					"arrears":         user.Arrears,
+					"advance_payment": user.AdvancePayment,
+				}
+				break
+			}
+		}
+
+		apiResp = append(apiResp, gin.H{
 			"id":      p.ID,
 			"project": p.DB,
 			"alias":   p.Alias,
+			"balance": balance,
 		})
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		"projects": resp,
+		"projects": apiResp,
 	})
 }
 

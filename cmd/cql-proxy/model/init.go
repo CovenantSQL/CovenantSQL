@@ -22,7 +22,7 @@ func AddTables(dbMap *gorp.DbMap) {
 	dbMap.AddTableWithName(Developer{}, "developer").
 		SetKeys(true, "ID").
 		ColMap("GithubID").SetUnique(true)
-	dbMap.AddTableWithName(Session{}, "admin_session").
+	dbMap.AddTableWithName(Session{}, "session").
 		SetKeys(false, "ID")
 	dbMap.AddTableWithName(TokenApply{}, "token_apply").
 		SetKeys(false, "ID")

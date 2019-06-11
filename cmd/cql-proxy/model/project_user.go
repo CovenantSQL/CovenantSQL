@@ -158,16 +158,22 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 	now := time.Now().Unix()
 
 	if err != nil {
-		// find by email and pre-register state again
+		// find by provider and email or provider and name
+		switch provider {
+		case "weibo":
+			err = db.SelectOne(&u,
+				`SELECT * FROM "____user" WHERE "provider" = ? AND "name" = ? AND "state" = ? LIMIT 1`,
+				provider, name, ProjectUserStatePreRegistered)
+		default:
+			// google, facebook, twitter, etc.
+			err = db.SelectOne(&u,
+				`SELECT * FROM "____user" WHERE "provider" = ? AND "email" = ? AND "state" = ? LIMIT 1`,
+				provider, email, ProjectUserStatePreRegistered)
+		}
 	}
 
 	if err != nil && !enableSignUp {
-		return
-	}
-
-	if u.State == ProjectUserStateDisabled {
-		// disabled
-		err = errors.New("account is disabled")
+		// new user, not even pre-registered
 		return
 	}
 
@@ -184,6 +190,12 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 		exists = false
 		err = nil
 	} else {
+		if u.State == ProjectUserStateDisabled {
+			// disabled
+			err = errors.New("account is disabled")
+			return
+		}
+
 		u.LastLogin = now
 		u.Name = name
 		u.Email = email
@@ -193,12 +205,7 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 	if u.State == ProjectUserStatePreRegistered {
 		// for pre-registered user, set to newly signed up state
 		u.State = signUpState
-	}
-
-	if u.State == ProjectUserStateSignedUp {
-		// need admin validation
-		err = errors.New("account need admin verification")
-		return
+		u.ProviderUID = uid
 	}
 
 	// encode extra
@@ -212,6 +219,16 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 		_, err = db.Update(u)
 	} else {
 		err = db.Insert(u)
+	}
+
+	if err != nil {
+		// return database operation error
+		return
+	}
+
+	if u.State == ProjectUserStateSignedUp {
+		// need admin validation
+		err = errors.New("account need admin verification")
 	}
 
 	return

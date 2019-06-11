@@ -41,7 +41,7 @@ type AdminAuth struct {
 	oauthCfg *oauth2.Config
 }
 
-type UserInfo struct {
+type AdminUserInfo struct {
 	ID    int64  `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
@@ -85,7 +85,7 @@ func (a *AdminAuth) AuthURL(state string, callback string) string {
 }
 
 // HandleCallback returns the tokens for github oauth authentication.
-func (a *AdminAuth) HandleLogin(ctx context.Context, auth string) (userInfo *UserInfo, err error) {
+func (a *AdminAuth) HandleLogin(ctx context.Context, auth string) (userInfo *AdminUserInfo, err error) {
 	if a.OAuthEnabled() {
 		// use auth as oauth code
 		var token *oauth2.Token

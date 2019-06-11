@@ -227,7 +227,7 @@ func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
 
 func GetSession(c *gin.Context, id string) (s *Session, err error) {
 	err = GetDB(c).SelectOne(&s,
-		`SELECT * FROM "admin_session" WHERE "id" = ? LIMIT 1`, id)
+		`SELECT * FROM "session" WHERE "id" = ? LIMIT 1`, id)
 	if err != nil {
 		return
 	}

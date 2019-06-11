@@ -16,6 +16,7 @@
 
 package model
 
+import "C"
 import (
 	"encoding/json"
 	"time"
@@ -55,16 +56,29 @@ type ProjectConfig struct {
 }
 
 type ProjectMiscConfig struct {
-	Alias                    string `json:"alias,omitempty" form:"alias" binding:"omitempty,alphanum,min=1,max=16"`
-	Enabled                  *bool  `json:"enabled,omitempty" form:"enabled"`
-	EnableSignUp             *bool  `json:"enable_sign_up,omitempty" form:"enable_sign_up"`
-	EnableSignUpVerification *bool  `json:"sign_up_verify,omitempty" form:"sign_up_verify"`
+	Alias                    string        `json:"alias,omitempty" form:"alias" binding:"omitempty,alphanum,min=1,max=16"`
+	Enabled                  *bool         `json:"enabled,omitempty" form:"enabled"`
+	EnableSignUp             *bool         `json:"enable_sign_up,omitempty" form:"enable_sign_up"`
+	EnableSignUpVerification *bool         `json:"sign_up_verify,omitempty" form:"sign_up_verify"`
+	SessionAge               time.Duration `json:"session_age" form:"session_age"`
+}
+
+func (c *ProjectMiscConfig) SupportSignUp() bool {
+	return c != nil && c.EnableSignUp != nil && *c.EnableSignUp
+}
+
+func (c *ProjectMiscConfig) ShouldVerifyAfterSignUp() bool {
+	return c != nil && c.EnableSignUpVerification != nil && *c.EnableSignUpVerification
 }
 
 type ProjectOAuthConfig struct {
 	ClientID     string `json:"client_id" form:"client_id"`
 	ClientSecret string `json:"client_secret" form:"client_secret"`
 	Enabled      *bool  `json:"enabled,omitempty" form:"enabled"`
+}
+
+func (c *ProjectOAuthConfig) IsEnabled() bool {
+	return c != nil && c.Enabled != nil && *c.Enabled
 }
 
 type ProjectTableConfig struct {

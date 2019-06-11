@@ -18,7 +18,6 @@ package api
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -73,7 +72,7 @@ func adminOAuthCallback(c *gin.Context) {
 	}
 
 	// save session
-	sessionExpireSeconds := int64(getConfig(c).AdminAuth.OAuthExpires / time.Second)
+	sessionExpireSeconds := int64(getConfig(c).AdminAuth.OAuthExpires.Seconds())
 	s, err := model.NewSession(c, sessionExpireSeconds)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)

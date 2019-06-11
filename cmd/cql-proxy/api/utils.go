@@ -59,6 +59,10 @@ func getDeveloperID(c *gin.Context) int64 {
 	return getSession(c).MustGetInt("developer_id")
 }
 
+func getUserID(c *gin.Context) int64 {
+	return getSession(c).MustGetInt("user_id")
+}
+
 func getAdminAuth(c *gin.Context) *auth.AdminAuth {
 	return c.MustGet("auth").(*auth.AdminAuth)
 }
@@ -69,6 +73,10 @@ func getTaskManager(c *gin.Context) *task.Manager {
 
 func getConfig(c *gin.Context) *config.Config {
 	return c.MustGet("config").(*config.Config)
+}
+
+func getCurrentProject(c *gin.Context) *model.Project {
+	return c.MustGet("project").(*model.Project)
 }
 
 func getDatabaseProfile(dbID proto.DatabaseID) (profile *types.SQLChainProfile, err error) {

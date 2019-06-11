@@ -87,12 +87,20 @@ func AddRoutes(e *gin.Engine) {
 	v3User := v3.Group("/")
 	v3User.Use(projectIDInject)
 	{
-		v3User.GET("/auth/authorize", userOAuthAuthorize)
-		v3User.POST("/auth/callback", userOAuthCallback)
+		v3User.GET("/auth/authorize/:provider", userOAuthAuthorize)
+		v3User.POST("/auth/callback/:provider", userOAuthCallback)
 	}
 	v3UserLogin := v3User.Group("/")
-	v3UserLogin.Use(userCheck)
+	v3UserLogin.Use(userCheckRequireLogin)
 	{
 		v3UserLogin.GET("/userinfo", getUserInfo)
+	}
+	v3UserPermissive := v3User.Group("/")
+	{
+		v3UserPermissive.GET("/data/:table")
+		v3UserPermissive.POST("/data/:table")
+		v3UserPermissive.PUT("/data/:table")
+		v3UserPermissive.DELETE("/data/:table")
+		v3UserPermissive.GET("/data/:table/count")
 	}
 }

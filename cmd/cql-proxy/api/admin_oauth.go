@@ -29,6 +29,7 @@ import (
 func adminOAuthAuthorize(c *gin.Context) {
 	r := struct {
 		Callback string `json:"callback" form:"callback"`
+		ClientID string `json:"client_id" form:"client_id"`
 	}{}
 
 	if err := c.ShouldBind(&r); err != nil {
@@ -38,7 +39,7 @@ func adminOAuthAuthorize(c *gin.Context) {
 
 	authz := getAdminAuth(c)
 	state := uuid.Must(uuid.NewV4()).String()
-	url := authz.AuthURL(state, r.Callback)
+	state, url := authz.AuthURL(state, r.ClientID, r.Callback)
 
 	responseWithData(c, http.StatusOK, gin.H{
 		"state":         state,
@@ -59,7 +60,7 @@ func adminOAuthCallback(c *gin.Context) {
 	}
 
 	authz := getAdminAuth(c)
-	userInfo, err := authz.HandleLogin(c, r.Code)
+	userInfo, err := authz.HandleLogin(c, r.State, r.Code)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return

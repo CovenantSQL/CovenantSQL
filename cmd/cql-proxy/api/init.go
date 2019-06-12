@@ -88,7 +88,8 @@ func AddRoutes(e *gin.Engine) {
 	v3User.Use(projectIDInject)
 	{
 		v3User.GET("/auth/authorize/:provider", userOAuthAuthorize)
-		v3User.POST("/auth/callback/:provider", userOAuthCallback)
+		v3User.GET("/auth/callback/:provider", userOAuthCallback)
+		v3User.POST("/auth/callback/:provider", userOAuthAPICallback)
 	}
 	v3UserLogin := v3User.Group("/")
 	v3UserLogin.Use(userCheckRequireLogin)

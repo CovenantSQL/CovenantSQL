@@ -52,7 +52,8 @@ type UserInfo struct {
 	Extra  gin.H
 }
 
-type UserCallback func(user *UserInfo)
+type UserSuccessCallback func(user *UserInfo)
+type UserFailCallback func(err error)
 
 func HandleUserAuth(c *gin.Context, provider string, clientID string, clientSecret string, callback string) {
 	switch provider {
@@ -97,34 +98,35 @@ func HandleUserAuth(c *gin.Context, provider string, clientID string, clientSecr
 	}
 }
 
-func HandleUserCallback(c *gin.Context, provider string, clientID string, clientSecret string, next UserCallback) {
+func HandleUserCallback(c *gin.Context, provider string, clientID string, clientSecret string,
+	success UserSuccessCallback, fail UserFailCallback) {
 	switch provider {
 	case "google":
 		google.StateHandler(
 			gologin.DebugOnlyCookieConfig,
 			google.CallbackHandler(
 				getGoogleConfig(clientID, clientSecret, ""),
-				googleAuthCallback(c, next), nil),
+				googleAuthCallback(c, success), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	case "facebook":
 		cfg := getFacebookConfig(clientID, clientSecret, "")
 		facebook.StateHandler(
 			gologin.DebugOnlyCookieConfig,
-			oauth2Login.CallbackHandler(cfg, facebookAuthCallback(c, next, cfg), nil),
+			oauth2Login.CallbackHandler(cfg, facebookAuthCallback(c, success, cfg), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	case "twitter":
 		twitter.CallbackHandler(
 			getTwitterConfig(clientID, clientSecret, ""),
-			twitterAuthCallback(c, next), nil,
+			twitterAuthCallback(c, success), wrapFailCallback(fail),
 		).ServeHTTP(c.Writer, c.Request)
 	case "weibo":
 		cfg := getSinaWeiboConfig(clientID, clientSecret, "")
 		oauth2Login.StateHandler(
 			gologin.DebugOnlyCookieConfig,
-			oauth2Login.CallbackHandler(cfg, sinaWeiboAuthCallback(c, next, cfg), nil),
+			oauth2Login.CallbackHandler(cfg, sinaWeiboAuthCallback(c, success, cfg), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	default:
-		_ = c.AbortWithError(http.StatusBadRequest, errors.New("unsupported auth provider"))
+		fail(errors.New("unsupported auth provider"))
 	}
 }
 
@@ -167,7 +169,7 @@ func getSinaWeiboConfig(clientID string, clientSecret string, callback string) *
 	}
 }
 
-func googleAuthCallback(c *gin.Context, next UserCallback) http.Handler {
+func googleAuthCallback(c *gin.Context, next UserSuccessCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := google.UserFromContext(r.Context())
 		if err != nil {
@@ -202,7 +204,7 @@ func googleAuthCallback(c *gin.Context, next UserCallback) http.Handler {
 	})
 }
 
-func facebookAuthCallback(c *gin.Context, next UserCallback, cfg *oauth2.Config) http.Handler {
+func facebookAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2.Config) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
@@ -247,7 +249,7 @@ func facebookAuthCallback(c *gin.Context, next UserCallback, cfg *oauth2.Config)
 	})
 }
 
-func twitterAuthCallback(c *gin.Context, next UserCallback) http.Handler {
+func twitterAuthCallback(c *gin.Context, next UserSuccessCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := twitter.UserFromContext(r.Context())
 		if err != nil {
@@ -281,7 +283,7 @@ func twitterAuthCallback(c *gin.Context, next UserCallback) http.Handler {
 	})
 }
 
-func sinaWeiboAuthCallback(c *gin.Context, next UserCallback, cfg *oauth2.Config) http.Handler {
+func sinaWeiboAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2.Config) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
@@ -332,6 +334,20 @@ func sinaWeiboAuthCallback(c *gin.Context, next UserCallback, cfg *oauth2.Config
 				Avatar: avatar,
 				Extra:  userInfo,
 			})
+		}
+	})
+}
+
+func wrapFailCallback(c UserFailCallback) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if c != nil {
+			if err := gologin.ErrorFromContext(r.Context()); err != nil {
+				c(err)
+			} else {
+				err = errors.New("unknown error")
+			}
+		} else {
+			gologin.DefaultFailureHandler.ServeHTTP(rw, r)
 		}
 	})
 }

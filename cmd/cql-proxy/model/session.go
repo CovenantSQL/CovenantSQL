@@ -47,24 +47,40 @@ func (s *Session) GetInt(key string) (value int64, exists bool) {
 		return
 	}
 
-	rrv := reflect.ValueOf(rv)
-
-	switch rrv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		value = rrv.Int()
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		value = int64(rrv.Uint())
-	case reflect.Float32, reflect.Float64:
-		value = int64(rrv.Float())
-	case reflect.Bool:
-		if rrv.Bool() {
+	switch v := rv.(type) {
+	case int:
+		value = int64(v)
+	case int8:
+		value = int64(v)
+	case int16:
+		value = int64(v)
+	case int32:
+		value = int64(v)
+	case int64:
+		value = v
+	case uint:
+		value = int64(v)
+	case uint8:
+		value = int64(v)
+	case uint16:
+		value = int64(v)
+	case uint32:
+		value = int64(v)
+	case uint64:
+		value = int64(v)
+	case float32:
+		value = int64(v)
+	case float64:
+		value = int64(v)
+	case bool:
+		if v {
 			value = 1
 		} else {
 			value = 0
 		}
-	case reflect.String:
+	case string:
 		var err error
-		value, err = strconv.ParseInt(rrv.String(), 10, 64)
+		value, err = strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			exists = false
 		}
@@ -82,24 +98,40 @@ func (s *Session) GetUint(key string) (value uint64, exists bool) {
 		return
 	}
 
-	rrv := reflect.ValueOf(rv)
-
-	switch rrv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		value = uint64(rrv.Int())
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		value = rrv.Uint()
-	case reflect.Float32, reflect.Float64:
-		value = uint64(rrv.Float())
-	case reflect.Bool:
-		if rrv.Bool() {
+	switch v := rv.(type) {
+	case int:
+		value = uint64(v)
+	case int8:
+		value = uint64(v)
+	case int16:
+		value = uint64(v)
+	case int32:
+		value = uint64(v)
+	case int64:
+		value = uint64(v)
+	case uint:
+		value = uint64(v)
+	case uint8:
+		value = uint64(v)
+	case uint16:
+		value = uint64(v)
+	case uint32:
+		value = uint64(v)
+	case uint64:
+		value = uint64(v)
+	case float32:
+		value = uint64(v)
+	case float64:
+		value = uint64(v)
+	case bool:
+		if v {
 			value = 1
 		} else {
 			value = 0
 		}
-	case reflect.String:
+	case string:
 		var err error
-		value, err = strconv.ParseUint(rrv.String(), 10, 64)
+		value, err = strconv.ParseUint(v, 10, 64)
 		if err != nil {
 			exists = false
 		}
@@ -126,21 +158,44 @@ func (s *Session) GetBool(key string) (value bool, exists bool) {
 		return
 	}
 
-	rrv := reflect.ValueOf(rv)
-
-	switch rrv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		value = rrv.Int() != 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		value = rrv.Uint() != 0
-	case reflect.Float32, reflect.Float64:
-		value = math.Abs(rrv.Float()) > 0
-	case reflect.Bool:
-		value = rrv.Bool()
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan, reflect.String:
-		value = rrv.Len() > 0
+	switch v := rv.(type) {
+	case int:
+		value = v != 0
+	case int8:
+		value = v != 0
+	case int16:
+		value = v != 0
+	case int32:
+		value = v != 0
+	case int64:
+		value = v != 0
+	case uint:
+		value = v != 0
+	case uint8:
+		value = v != 0
+	case uint16:
+		value = v != 0
+	case uint32:
+		value = v != 0
+	case uint64:
+		value = v != 0
+	case float32:
+		value = math.Abs(float64(v)) > 0
+	case float64:
+		value = math.Abs(v) > 0
+	case bool:
+		value = v
+	case string:
+		value = len(v) > 0
 	default:
-		exists = false
+		rrv := reflect.ValueOf(rv)
+
+		switch rrv.Kind() {
+		case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
+			value = rrv.Len() > 0
+		default:
+			exists = false
+		}
 	}
 
 	return

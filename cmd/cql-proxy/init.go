@@ -17,20 +17,24 @@
 package main
 
 import (
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/contrib/cors"
+	"github.com/gin-gonic/gin"
+	gorp "gopkg.in/gorp.v1"
+
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/api"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/gorp.v1"
-	"net/http"
-	"time"
 )
 
 func initServer(cfg *config.Config) (server *http.Server, err error) {
 	e := gin.Default()
 	e.Use(gin.Recovery())
+	e.Use(cors.Default())
 
 	// init admin auth
 	_ = initAuth(e, cfg)

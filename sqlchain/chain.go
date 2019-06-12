@@ -1198,8 +1198,10 @@ func (c *Chain) updateMetrics() {
 		// load manually
 		var err error
 		b, err = c.FetchBlock(head.Height)
-		if err == nil {
-			c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(b.Timestamp().String())
+		if err != nil {
+			return
 		}
 	}
+
+	c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(b.Timestamp().String())
 }

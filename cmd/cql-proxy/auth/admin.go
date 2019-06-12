@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -38,7 +39,7 @@ const (
 // AdminAuth handles admin user authentication.
 type AdminAuth struct {
 	cfg      *config.AdminAuthConfig
-	oauthCfg *oauth2.Config
+	oauthCfg map[string]*oauth2.Config
 }
 
 type AdminUserInfo struct {
@@ -50,14 +51,24 @@ type AdminUserInfo struct {
 
 func NewAdminAuth(cfg *config.AdminAuthConfig) (a *AdminAuth) {
 	a = &AdminAuth{
-		cfg: cfg,
+		cfg:      cfg,
+		oauthCfg: make(map[string]*oauth2.Config),
 	}
 
 	if a.cfg != nil && a.cfg.OAuthEnabled {
-		a.oauthCfg = &oauth2.Config{
-			ClientID:     a.cfg.GithubAppID,
-			ClientSecret: a.cfg.GithubAppSecret,
-			Endpoint:     github.Endpoint,
+		// set default as the first one
+		for idx, clientID := range a.cfg.GithubAppID {
+			singleCfg := &oauth2.Config{
+				ClientID:     clientID,
+				ClientSecret: a.cfg.GithubAppSecret[idx],
+				Endpoint:     github.Endpoint,
+			}
+
+			if idx == 0 {
+				a.oauthCfg["default"] = singleCfg
+			}
+
+			a.oauthCfg[clientID] = singleCfg
 		}
 	}
 
@@ -70,7 +81,7 @@ func (a *AdminAuth) OAuthEnabled() bool {
 }
 
 // AuthURL returns the oauth auth url for github oauth authentication.
-func (a *AdminAuth) AuthURL(state string, callback string) string {
+func (a *AdminAuth) AuthURL(state string, clientID string, callback string) (realState string, authURL string) {
 	if a.OAuthEnabled() {
 		var opts []oauth2.AuthCodeOption
 
@@ -78,23 +89,45 @@ func (a *AdminAuth) AuthURL(state string, callback string) string {
 			opts = append(opts, oauth2.SetAuthURLParam("redirect_uri", callback))
 		}
 
-		return a.oauthCfg.AuthCodeURL(state, opts...)
+		var (
+			oauthCfg *oauth2.Config
+			ok       bool
+		)
+
+		if oauthCfg, ok = a.oauthCfg[clientID]; !ok || clientID == "" {
+			oauthCfg = a.oauthCfg["default"]
+		} else {
+			// append client_id to state
+			state = state + ":" + clientID
+		}
+
+		return state, oauthCfg.AuthCodeURL(state, opts...)
 	}
 
-	return ""
+	return "", ""
 }
 
 // HandleCallback returns the tokens for github oauth authentication.
-func (a *AdminAuth) HandleLogin(ctx context.Context, auth string) (userInfo *AdminUserInfo, err error) {
+func (a *AdminAuth) HandleLogin(ctx context.Context, state string, auth string) (userInfo *AdminUserInfo, err error) {
 	if a.OAuthEnabled() {
-		// use auth as oauth code
+		var oauthCfg *oauth2.Config
+
+		// get client id from state
+		if idx := strings.IndexRune(state, ':'); idx != -1 {
+			oauthCfg, _ = a.oauthCfg[state[idx+1:]]
+		}
+
+		if oauthCfg == nil {
+			oauthCfg = a.oauthCfg["default"]
+		}
+
 		var token *oauth2.Token
-		token, err = a.oauthCfg.Exchange(ctx, auth)
+		token, err = oauthCfg.Exchange(ctx, auth)
 		if err != nil {
 			return
 		}
 
-		h := a.oauthCfg.Client(ctx, token)
+		h := oauthCfg.Client(ctx, token)
 		var resp *http.Response
 
 		if resp, err = h.Get(GithubGetUserURL); err != nil {

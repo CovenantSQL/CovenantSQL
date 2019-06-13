@@ -18,7 +18,6 @@ package api
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +36,8 @@ type userOAuthCallbackPayload struct {
 
 func userOAuthAuthorize(c *gin.Context) {
 	r := struct {
-		Provider string `json:"provider" form:"provider" binding:"required"`
+		Provider string `json:"provider" form:"provider" uri:"provider" binding:"required"`
+		Callback string `json:"callback" form:"callback" binding:"omitempty,url"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)
@@ -69,7 +69,7 @@ func userOAuthAuthorize(c *gin.Context) {
 		r.Provider,
 		oauthConfig.ClientID,
 		oauthConfig.ClientSecret,
-		buildCallbackURL(c.Request.URL),
+		r.Callback,
 	)
 }
 
@@ -113,7 +113,7 @@ func userOAuthAPICallback(c *gin.Context) {
 
 func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) {
 	r := struct {
-		Provider string `json:"provider" form:"provider" binding:"required"`
+		Provider string `json:"provider" form:"provider" uri:"provider" binding:"required"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)
@@ -281,7 +281,7 @@ func projectIDInject(c *gin.Context) {
 		return
 	}
 
-	host := c.GetHeader("Host")
+	host := c.Request.Host
 	var (
 		p   *model.Project
 		err error
@@ -362,10 +362,4 @@ func getCurrentProjectDB(c *gin.Context) (db *gorp.DbMap, err error) {
 	db, err = initProjectDB(project.DB, p.Key)
 
 	return
-}
-
-func buildCallbackURL(u *url.URL) string {
-	callbackURL := *u
-	callbackURL.Path = strings.Replace(callbackURL.Path, "authorize", "callback", -1)
-	return callbackURL.String()
 }

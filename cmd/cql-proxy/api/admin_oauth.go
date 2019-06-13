@@ -28,7 +28,7 @@ import (
 
 func adminOAuthAuthorize(c *gin.Context) {
 	r := struct {
-		Callback string `json:"callback" form:"callback"`
+		Callback string `json:"callback" form:"callback" binding:"omitempty,url"`
 		ClientID string `json:"client_id" form:"client_id"`
 	}{}
 

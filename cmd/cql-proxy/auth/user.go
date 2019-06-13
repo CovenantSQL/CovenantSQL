@@ -23,6 +23,7 @@ import (
 
 	"github.com/dghubble/gologin"
 	"github.com/dghubble/gologin/facebook"
+	"github.com/dghubble/gologin/github"
 	"github.com/dghubble/gologin/google"
 	oauth2Login "github.com/dghubble/gologin/oauth2"
 	"github.com/dghubble/gologin/twitter"
@@ -34,6 +35,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	facebookOAuth2 "golang.org/x/oauth2/facebook"
+	githubOAuth2 "golang.org/x/oauth2/github"
 	googleOAuth2 "golang.org/x/oauth2/google"
 )
 
@@ -83,6 +85,16 @@ func HandleUserAuth(c *gin.Context, provider string, clientID string, clientSecr
 			clientSecret,
 			callback,
 		), nil).ServeHTTP(c.Writer, c.Request)
+	case "github":
+		github.StateHandler(
+			gologin.DebugOnlyCookieConfig,
+			github.LoginHandler(
+				getGithubConfig(
+					clientID,
+					clientSecret,
+					callback,
+				), nil),
+		).ServeHTTP(c.Writer, c.Request)
 	case "weibo":
 		oauth2Login.StateHandler(
 			gologin.DebugOnlyCookieConfig,
@@ -106,24 +118,33 @@ func HandleUserCallback(c *gin.Context, provider string, clientID string, client
 			gologin.DebugOnlyCookieConfig,
 			google.CallbackHandler(
 				getGoogleConfig(clientID, clientSecret, ""),
-				googleAuthCallback(c, success), wrapFailCallback(fail)),
+				googleAuthCallback(c, success, fail), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	case "facebook":
 		cfg := getFacebookConfig(clientID, clientSecret, "")
 		facebook.StateHandler(
 			gologin.DebugOnlyCookieConfig,
-			oauth2Login.CallbackHandler(cfg, facebookAuthCallback(c, success, cfg), wrapFailCallback(fail)),
+			oauth2Login.CallbackHandler(cfg,
+				facebookAuthCallback(c, success, fail, cfg), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	case "twitter":
 		twitter.CallbackHandler(
 			getTwitterConfig(clientID, clientSecret, ""),
-			twitterAuthCallback(c, success), wrapFailCallback(fail),
+			twitterAuthCallback(c, success, fail), wrapFailCallback(fail),
+		).ServeHTTP(c.Writer, c.Request)
+	case "github":
+		github.StateHandler(
+			gologin.DebugOnlyCookieConfig,
+			github.CallbackHandler(
+				getGithubConfig(clientID, clientSecret, ""),
+				githubAuthCallback(c, success, fail), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	case "weibo":
 		cfg := getSinaWeiboConfig(clientID, clientSecret, "")
 		oauth2Login.StateHandler(
 			gologin.DebugOnlyCookieConfig,
-			oauth2Login.CallbackHandler(cfg, sinaWeiboAuthCallback(c, success, cfg), wrapFailCallback(fail)),
+			oauth2Login.CallbackHandler(cfg,
+				sinaWeiboAuthCallback(c, success, fail, cfg), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	default:
 		fail(errors.New("unsupported auth provider"))
@@ -157,6 +178,15 @@ func getTwitterConfig(clientID string, clientSecret string, callback string) *oa
 	}
 }
 
+func getGithubConfig(clientID string, clientSecret string, callback string) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  callback,
+		Endpoint:     githubOAuth2.Endpoint,
+	}
+}
+
 func getSinaWeiboConfig(clientID string, clientSecret string, callback string) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     clientID,
@@ -169,31 +199,31 @@ func getSinaWeiboConfig(clientID string, clientSecret string, callback string) *
 	}
 }
 
-func googleAuthCallback(c *gin.Context, next UserSuccessCallback) http.Handler {
+func googleAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := google.UserFromContext(r.Context())
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			fail(err)
 			return
 		}
 
 		// build userInfo and set into callback
-		if next != nil {
+		if success != nil {
 			var extraInfo gin.H
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
-			next(&UserInfo{
+			success(&UserInfo{
 				UID:    userInfo.Id,
 				Name:   userInfo.Name,
 				Email:  userInfo.Email,
@@ -204,15 +234,15 @@ func googleAuthCallback(c *gin.Context, next UserSuccessCallback) http.Handler {
 	})
 }
 
-func facebookAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2.Config) http.Handler {
+func facebookAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback, cfg *oauth2.Config) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			fail(err)
 			return
 		}
 
-		if next != nil {
+		if success != nil {
 			resp := struct {
 				ID      string `json:"id"`
 				Name    string `json:"name"`
@@ -228,11 +258,11 @@ func facebookAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2.
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get("me?fields=id,name,email,picture").ReceiveSuccess(&resp)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
-			next(&UserInfo{
+			success(&UserInfo{
 				UID:    resp.ID,
 				Name:   resp.Name,
 				Email:  resp.Email,
@@ -249,30 +279,30 @@ func facebookAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2.
 	})
 }
 
-func twitterAuthCallback(c *gin.Context, next UserSuccessCallback) http.Handler {
+func twitterAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := twitter.UserFromContext(r.Context())
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			fail(err)
 			return
 		}
 
-		if next != nil {
+		if success != nil {
 			var extraInfo gin.H
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
-			next(&UserInfo{
+			success(&UserInfo{
 				UID:    userInfo.IDStr,
 				Name:   userInfo.Name,
 				Email:  userInfo.Email,
@@ -283,15 +313,55 @@ func twitterAuthCallback(c *gin.Context, next UserSuccessCallback) http.Handler 
 	})
 }
 
-func sinaWeiboAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2.Config) http.Handler {
+func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		token, err := oauth2Login.TokenFromContext(r.Context())
+		userInfo, err := github.UserFromContext(r.Context())
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			fail(err)
 			return
 		}
 
-		if next != nil {
+		if success != nil {
+			var extraInfo gin.H
+
+			userInfoJSON, err := json.Marshal(userInfo)
+			if err != nil {
+				fail(err)
+				return
+			}
+
+			err = json.Unmarshal(userInfoJSON, &extraInfo)
+			if err != nil {
+				fail(err)
+				return
+			}
+
+			if userInfo.GetID() == 0 || userInfo.GetEmail() == "" {
+				err = errors.New("could not get user id and email")
+				fail(err)
+				return
+			}
+
+			success(&UserInfo{
+				UID:    fmt.Sprint(userInfo.GetID()),
+				Name:   userInfo.GetName(),
+				Email:  userInfo.GetEmail(),
+				Avatar: userInfo.GetAvatarURL(),
+				Extra:  extraInfo,
+			})
+		}
+	})
+}
+
+func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback, cfg *oauth2.Config) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		token, err := oauth2Login.TokenFromContext(r.Context())
+		if err != nil {
+			fail(err)
+			return
+		}
+
+		if success != nil {
 			// weibo returns data with unspecific type
 			var (
 				userInfo gin.H
@@ -303,14 +373,14 @@ func sinaWeiboAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get("account/get_uid.json").ReceiveSuccess(&uidData)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get(fmt.Sprintf("users/show.json?uid=%v", uidData["uid"])).ReceiveSuccess(&userInfo)
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 
@@ -321,13 +391,13 @@ func sinaWeiboAuthCallback(c *gin.Context, next UserSuccessCallback, cfg *oauth2
 			res := jsonq.NewQuery(userInfo)
 			idStr, err := res.String("idstr")
 			if err != nil {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				fail(err)
 				return
 			}
 			screenName, _ := res.String("screen_name")
 			avatar, _ := res.String("avatar_large")
 
-			next(&UserInfo{
+			success(&UserInfo{
 				UID:    idStr,
 				Name:   screenName,
 				Email:  "",

@@ -428,7 +428,7 @@ func updateProjectOAuthConfig(c *gin.Context) {
 		return
 	}
 
-	cfg := r.ProjectOAuthConfig
+	cfg := &r.ProjectOAuthConfig
 
 	if cfg.ClientID == "" && cfg.ClientSecret == "" {
 		// update nothing
@@ -500,7 +500,7 @@ func updateProjectMiscConfig(c *gin.Context) {
 		return
 	}
 
-	cfg := r.ProjectMiscConfig
+	cfg := &r.ProjectMiscConfig
 
 	// alias goes to project config, also set backup to project database
 	if cfg.Alias != "" {

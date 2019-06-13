@@ -31,7 +31,7 @@ import (
 
 const (
 	// MetaRefreshInterval defines the default database meta re-scan interval.
-	MetaRefreshInterval = time.Minute
+	MetaRefreshInterval = 8 * time.Hour
 )
 
 var (

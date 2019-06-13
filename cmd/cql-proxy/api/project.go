@@ -411,7 +411,7 @@ func updateProjectOAuthConfig(c *gin.Context) {
 	r := struct {
 		DB       proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
 		Provider string           `json:"provider" form:"provider" uri:"provider" binding:"required,max=256"`
-
+		model.ProjectOAuthConfig
 		// additional parameters, see ProjectOAuthConfig structure
 	}{}
 
@@ -428,12 +428,7 @@ func updateProjectOAuthConfig(c *gin.Context) {
 		return
 	}
 
-	var cfg *model.ProjectOAuthConfig
-	err = c.ShouldBind(&cfg)
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
+	cfg := r.ProjectOAuthConfig
 
 	if cfg.ClientID == "" && cfg.ClientSecret == "" {
 		// update nothing
@@ -488,7 +483,7 @@ func updateProjectOAuthConfig(c *gin.Context) {
 func updateProjectMiscConfig(c *gin.Context) {
 	r := struct {
 		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
-
+		model.ProjectMiscConfig
 		// additional parameters, see ProjectMiscConfig structure
 	}{}
 
@@ -505,12 +500,7 @@ func updateProjectMiscConfig(c *gin.Context) {
 		return
 	}
 
-	var cfg *model.ProjectMiscConfig
-	err = c.ShouldBind(&cfg)
-	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
-		return
-	}
+	cfg := r.ProjectMiscConfig
 
 	// alias goes to project config, also set backup to project database
 	if cfg.Alias != "" {

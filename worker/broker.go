@@ -17,19 +17,17 @@
 package worker
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
-
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 
-	"sync"
-
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/gogf/gf/g/container/gqueue"
 )
 
 const (
@@ -74,10 +72,9 @@ func (f fakeDB) all(dsn string) []BrokerPayload {
 var fakedb fakeDB
 
 var (
-	minerName          = "miner_test"
-	publishPrefix      = "/cql/miner/"
-	listenPrefix       = "/cql/client/"
-	subscribeEventChan chan SubscribeEvent
+	minerName     = "miner_test"
+	publishPrefix = "/cql/miner/"
+	listenPrefix  = "/cql/client/"
 )
 
 type SubscribeEvent struct {
@@ -110,12 +107,11 @@ type PayloadEvent struct {
 }
 
 type MQTTClient struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
 	mqtt.Client
 	ListenTopic        string
 	PublishTopicPrefix string
+
+	subscribeEventQueue *gqueue.Queue
 }
 
 func NewMQTTClient() (c *MQTTClient) {
@@ -128,20 +124,20 @@ func NewMQTTClient() (c *MQTTClient) {
 	opts.SetOrderMatters(true)
 
 	c = &MQTTClient{
-		Client:             mqtt.NewClient(opts),
-		ListenTopic:        listenPrefix + "#",
-		PublishTopicPrefix: publishPrefix + minerName + "/",
+		Client:              mqtt.NewClient(opts),
+		ListenTopic:         listenPrefix + "#",
+		PublishTopicPrefix:  publishPrefix + minerName + "/",
+		subscribeEventQueue: gqueue.New(),
 	}
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		//TODO add log log.Error
+		fmt.Printf("Connect broker failed: %v", token.Error())
 		return
 	}
 
-	subscribeEventChan = make(chan SubscribeEvent)
-	c.ctx, c.cancel = context.WithCancel(context.Background())
 	go c.subscribeEventLoop()
 
-	c.Subscribe(c.ListenTopic, 1, SubscribeCallback)
+	c.Subscribe(c.ListenTopic, 1, SubscribeCallback(c.subscribeEventQueue))
 
 	return
 }
@@ -176,55 +172,52 @@ func decodeTopicAPI(topic string) (clientID, dsn, apiName string) {
 	return
 }
 
-func SubscribeCallback(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("TOPIC: %s\n", msg.Topic())
-	clientID, dsn, apiName := decodeTopicAPI(msg.Topic())
-	if apiName == "" {
-		//TODO log topic, payload and error
+func SubscribeCallback(eventQueue *gqueue.Queue) func(client mqtt.Client, msg mqtt.Message) {
+	return func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("TOPIC: %s\n", msg.Topic())
-		fmt.Printf("Invalid Topic: %s\n", msg.Payload())
-		return
-	}
+		clientID, dsn, apiName := decodeTopicAPI(msg.Topic())
+		if apiName == "" {
+			//TODO log topic, payload and error
+			fmt.Printf("TOPIC: %s\n", msg.Topic())
+			fmt.Printf("Invalid Topic: %s\n", msg.Payload())
+			return
+		}
 
-	var payload BrokerPayload
-	err := json.Unmarshal(msg.Payload(), &payload)
-	if err != nil {
-		//TODO log error
-		fmt.Printf("Invalid MSG: %s, err: %v\n", msg.Payload(), err)
-		return
-	}
-	fmt.Printf("Payload: %v\n", payload)
-	subscribeEventChan <- SubscribeEvent{
-		ApiName:  apiName,
-		ClientID: clientID,
-		DSN:      dsn,
-		Payload:  payload,
+		var payload BrokerPayload
+		err := json.Unmarshal(msg.Payload(), &payload)
+		if err != nil {
+			//TODO log error
+			fmt.Printf("Invalid MSG: %s, err: %v\n", msg.Payload(), err)
+			return
+		}
+		fmt.Printf("Payload: %v\n", payload)
+		eventQueue.Push(&SubscribeEvent{
+			ApiName:  apiName,
+			ClientID: clientID,
+			DSN:      dsn,
+			Payload:  payload,
+		})
 	}
 }
 
 func (c *MQTTClient) subscribeEventLoop() {
-	for {
-		select {
-		// TODO remove block processing
-		case subscribeEvent := <-subscribeEventChan:
-			switch subscribeEvent.ApiName {
-			case Write:
-				c.processWriteEvent(subscribeEvent)
-			case Replay:
-				c.processReplayEvent(subscribeEvent)
-			case Create:
-				c.processCreateEvent(subscribeEvent)
-			default:
-				//TODO log error
-				fmt.Printf("Unknow API name %s\n", subscribeEvent.ApiName)
-			}
-		case <-c.ctx.Done():
-			return
+	for raw := range c.subscribeEventQueue.C {
+		subscribeEvent := raw.(*SubscribeEvent)
+		switch subscribeEvent.ApiName {
+		case Write:
+			c.processWriteEvent(subscribeEvent)
+		case Replay:
+			c.processReplayEvent(subscribeEvent)
+		case Create:
+			c.processCreateEvent(subscribeEvent)
+		default:
+			//TODO log error
+			fmt.Printf("Unknow API name %s\n", subscribeEvent.ApiName)
 		}
 	}
 }
 
-func (c *MQTTClient) processWriteEvent(event SubscribeEvent) {
+func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 	fmt.Printf("Processed write event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
 	last := fakedb.last(event.DSN)
 	event.Payload.BlockID = last.BlockID + 1
@@ -232,7 +225,7 @@ func (c *MQTTClient) processWriteEvent(event SubscribeEvent) {
 	c.PublishDSN(Newest, event.DSN, event.Payload, event.ClientID)
 }
 
-func (c *MQTTClient) processReplayEvent(event SubscribeEvent) {
+func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 	fmt.Printf("Processed replay event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
 	allPayload := fakedb.all(event.DSN)
 	for _, payload := range allPayload {
@@ -240,7 +233,7 @@ func (c *MQTTClient) processReplayEvent(event SubscribeEvent) {
 	}
 }
 
-func (c *MQTTClient) processCreateEvent(event SubscribeEvent) {
+func (c *MQTTClient) processCreateEvent(event *SubscribeEvent) {
 	fmt.Printf("Create API does not support yet.\n")
 }
 
@@ -270,14 +263,17 @@ func (c *MQTTClient) PublishDSN(apiName, dsn string, payload BrokerPayload, requ
 
 func (c *MQTTClient) Close() {
 	c.Unsubscribe(c.ListenTopic).Wait()
-	close(subscribeEventChan)
-	c.cancel()
+	c.subscribeEventQueue.Close()
 	c.Disconnect(250)
 }
 
 func main() {
 	client := NewMQTTClient()
+	if client == nil {
+		os.Exit(1)
+	}
 	defer client.Close()
+
 	fakedb = make(fakeDB)
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(

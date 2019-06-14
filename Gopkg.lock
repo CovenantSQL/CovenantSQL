@@ -179,6 +179,18 @@
   version = "2.1"
 
 [[projects]]
+  digest = "1:015732c64b7cb1721d775da733b35660c8e42cf01bb8c034760cc8b3c60cab5b"
+  name = "github.com/gogf/gf"
+  packages = [
+    "g/container/glist",
+    "g/container/gqueue",
+    "g/internal/rwmutex",
+  ]
+  pruneopts = "UT"
+  revision = "7aaf9e9228655eb712c2675fe7bf06c3edded226"
+  version = "v1.7.0"
+
+[[projects]]
   branch = "master"
   digest = "1:48c0fa64e80c089a88d30ab5b826c106af79eb3c65d48e2280f22aa4d61d7a84"
   name = "github.com/gohxs/readline"
@@ -672,6 +684,7 @@
     "github.com/eclipse/paho.mqtt.golang",
     "github.com/fortytw2/leaktest",
     "github.com/go-gorp/gorp",
+    "github.com/gogf/gf/g/container/gqueue",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",

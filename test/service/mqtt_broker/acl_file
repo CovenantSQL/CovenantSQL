@@ -1,0 +1,23 @@
+# This affects access control for clients with no username.
+#topic read $SYS/#
+
+# This only affects clients with username "roger".
+#user roger
+#topic foo/bar
+user miner_test
+topic readwrite /cql/miner/miner_test/#
+topic read /cql/client/#
+
+user client_test
+topic readwrite /cql/client/client_test/#
+topic readwrite /cql/client/client_test2/#
+topic read /cql/miner/#
+
+user client_test2
+topic readwrite /cql/client/client_test2/#
+topic read /cql/miner/#
+
+
+# This affects all clients.
+# pattern write $SYS/broker/connection/%c/state
+

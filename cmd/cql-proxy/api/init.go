@@ -104,4 +104,13 @@ func AddRoutes(e *gin.Engine) {
 		v3UserPermissive.DELETE("/data/:table")
 		v3UserPermissive.GET("/data/:table/count")
 	}
+
+	// alias
+	authAlias := e.Group("/")
+	authAlias.Use(projectIDInject)
+	{
+		authAlias.GET("/auth/authorize/:provider", userOAuthAuthorize)
+		authAlias.GET("/auth/callback/:provider", userOAuthCallback)
+		authAlias.POST("/auth/callback/:provider", userOAuthAPICallback)
+	}
 }

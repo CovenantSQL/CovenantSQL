@@ -184,6 +184,10 @@ func getGithubConfig(clientID string, clientSecret string, callback string) *oau
 		ClientSecret: clientSecret,
 		RedirectURL:  callback,
 		Endpoint:     githubOAuth2.Endpoint,
+		Scopes: []string{
+			"user:email",
+			"read:user",
+		},
 	}
 }
 

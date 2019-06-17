@@ -250,9 +250,16 @@ func main() {
 		defer direct.Stop()
 	}
 
+	// start broker client
+	var mqttClient *worker.MQTTClient
+	if conf.GConf.MQTTBroker != nil {
+		mqttClient = worker.NewMQTTClient(conf.GConf.MQTTBroker)
+		defer mqttClient.Close()
+	}
+
 	// start dbms
 	var dbms *worker.DBMS
-	if dbms, err = startDBMS(server, direct, func() {
+	if dbms, err = startDBMS(server, direct, mqttClient, func() {
 		sendProvideService(reg)
 	}); err != nil {
 		// FIXME(auxten): if restart all miners with the same db,

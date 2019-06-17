@@ -20,12 +20,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"os/signal"
 	"strings"
-	"sync"
-	"syscall"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gogf/gf/g/container/gqueue"
 )
@@ -40,36 +37,6 @@ const (
 	Replay = "replay"
 	Create = "create"
 )
-
-type fakeDB map[string][]BrokerPayload
-
-var globalLock sync.RWMutex
-
-func (f fakeDB) add(dsn string, payload BrokerPayload) {
-	globalLock.Lock()
-	defer globalLock.Unlock()
-	f[dsn] = append(f[dsn], payload)
-}
-func (f fakeDB) last(dsn string) BrokerPayload {
-	globalLock.RLock()
-	defer globalLock.RUnlock()
-	if len(f[dsn]) == 0 {
-		return BrokerPayload{}
-	}
-	payload := f[dsn][len(f[dsn])-1]
-	return payload
-}
-func (f fakeDB) all(dsn string) []BrokerPayload {
-	globalLock.RLock()
-	defer globalLock.RUnlock()
-	var allPayload []BrokerPayload
-	for _, payload := range f[dsn] {
-		allPayload = append(allPayload, payload)
-	}
-	return allPayload
-}
-
-var fakedb fakeDB
 
 var (
 	minerName     = "miner_test"
@@ -114,13 +81,16 @@ type MQTTClient struct {
 	subscribeEventQueue *gqueue.Queue
 }
 
-func NewMQTTClient() (c *MQTTClient) {
+func NewMQTTClient(config *conf.MQTTBrokerInfo) (c *MQTTClient) {
+	if config == nil {
+		return
+	}
 
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("192.168.2.100:18888")
-	opts.SetUsername(minerName)
-	opts.SetPassword("laodouya")
-	opts.SetClientID(minerName)
+	opts.AddBroker(config.Addr)
+	opts.SetUsername(config.User)
+	opts.SetPassword(config.Password)
+	opts.SetClientID(config.User)
 	opts.SetOrderMatters(true)
 
 	c = &MQTTClient{
@@ -137,7 +107,7 @@ func NewMQTTClient() (c *MQTTClient) {
 
 	go c.subscribeEventLoop()
 
-	c.Subscribe(c.ListenTopic, 1, SubscribeCallback(c.subscribeEventQueue))
+	c.Subscribe(c.ListenTopic, 1, subscribeCallback(c.subscribeEventQueue))
 
 	return
 }
@@ -172,7 +142,7 @@ func decodeTopicAPI(topic string) (clientID, dsn, apiName string) {
 	return
 }
 
-func SubscribeCallback(eventQueue *gqueue.Queue) func(client mqtt.Client, msg mqtt.Message) {
+func subscribeCallback(eventQueue *gqueue.Queue) func(client mqtt.Client, msg mqtt.Message) {
 	return func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("TOPIC: %s\n", msg.Topic())
 		clientID, dsn, apiName := decodeTopicAPI(msg.Topic())
@@ -217,20 +187,32 @@ func (c *MQTTClient) subscribeEventLoop() {
 	}
 }
 
+// TODO
+// 1. conf set for trigger mqtt logic
+// 2. log
+// 3. reconsider context
 func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 	fmt.Printf("Processed write event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
-	last := fakedb.last(event.DSN)
-	event.Payload.BlockID = last.BlockID + 1
-	fakedb.add(event.DSN, event.Payload)
-	c.PublishDSN(Newest, event.DSN, event.Payload, event.ClientID)
+	// TODO
+	// 1. add to sqlchain
+	// 2. publish to broker(in sqlchain query func, for other non-mqtt client data)
+	// 3. make it unblock
+
+	//c.PublishDSN(Newest, event.DSN, event.Payload, event.ClientID)
 }
 
 func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 	fmt.Printf("Processed replay event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
-	allPayload := fakedb.all(event.DSN)
-	for _, payload := range allPayload {
-		c.PublishDSN(Replay, event.DSN, payload, event.ClientID)
-	}
+	// TODO
+	// 1. find local db bin log
+	// 2. publish to broker (in this func)
+	// 3. make it unblock
+	// 4. add a buffer for bin log to large
+
+	//allPayload := fakedb.all(event.DSN)
+	//for _, payload := range allPayload {
+	//	c.PublishDSN(Replay, event.DSN, payload, event.ClientID)
+	//}
 }
 
 func (c *MQTTClient) processCreateEvent(event *SubscribeEvent) {
@@ -265,22 +247,4 @@ func (c *MQTTClient) Close() {
 	c.Unsubscribe(c.ListenTopic).Wait()
 	c.subscribeEventQueue.Close()
 	c.Disconnect(250)
-}
-
-func main() {
-	client := NewMQTTClient()
-	if client == nil {
-		os.Exit(1)
-	}
-	defer client.Close()
-
-	fakedb = make(fakeDB)
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-	<-signalCh
 }

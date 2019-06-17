@@ -33,6 +33,7 @@ type DBMSConfig struct {
 	RootDir          string
 	Server           *mux.Server
 	DirectServer     *rpc.Server // optional server to provide DBMS service
+	MQTTClient       *MQTTClient // optional client to send and receive IoT requests
 	MaxReqTimeGap    time.Duration
 	OnCreateDatabase func()
 }

@@ -28,7 +28,7 @@ import (
 
 var rootHash = hash.Hash{}
 
-func startDBMS(server *mux.Server, direct *rpc.Server, onCreateDB func()) (dbms *worker.DBMS, err error) {
+func startDBMS(server *mux.Server, direct *rpc.Server, mqttClient *worker.MQTTClient, onCreateDB func()) (dbms *worker.DBMS, err error) {
 	if conf.GConf.Miner == nil {
 		err = errors.New("invalid database config")
 		return
@@ -38,6 +38,7 @@ func startDBMS(server *mux.Server, direct *rpc.Server, onCreateDB func()) (dbms 
 		RootDir:          conf.GConf.Miner.RootDir,
 		Server:           server,
 		DirectServer:     direct,
+		MQTTClient:       mqttClient,
 		MaxReqTimeGap:    conf.GConf.Miner.MaxReqTimeGap,
 		OnCreateDatabase: onCreateDB,
 	}

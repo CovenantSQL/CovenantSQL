@@ -106,6 +106,13 @@ type DNSSeed struct {
 	BPCount        int      `yaml:"BPCount"`
 }
 
+type MQTTBrokerInfo struct {
+	Addr string `yaml:"Addr"`
+	//if no user, use ThisNodeID
+	User     string `yaml:"User,omitempty"`
+	Password string `yaml:"Password"`
+}
+
 // Config holds all the config read from yaml config file.
 type Config struct {
 	UseTestMasterKey bool `yaml:"UseTestMasterKey,omitempty"` // when UseTestMasterKey use default empty masterKey
@@ -129,8 +136,9 @@ type Config struct {
 
 	DNSSeed DNSSeed `yaml:"DNSSeed"`
 
-	BP    *BPInfo    `yaml:"BlockProducer"`
-	Miner *MinerInfo `yaml:"Miner,omitempty"`
+	BP         *BPInfo         `yaml:"BlockProducer"`
+	Miner      *MinerInfo      `yaml:"Miner,omitempty"`
+	MQTTBroker *MQTTBrokerInfo `yaml:"MQTTBroker,omitempty"`
 
 	KnownNodes  []proto.Node `yaml:"KnownNodes"`
 	SeedBPNodes []proto.Node `yaml:"-"`
@@ -180,6 +188,12 @@ func LoadConfig(configPath string) (config *Config, err error) {
 	}
 	if config.DHTFileName == "" {
 		config.DHTFileName = "dht.db"
+	}
+
+	if config.MQTTBroker != nil {
+		if config.MQTTBroker.User == "" {
+			config.MQTTBroker.User = string(config.ThisNodeID)
+		}
 	}
 
 	configDir := path.Dir(configPath)

@@ -4,8 +4,16 @@
 # This only affects clients with username "roger".
 #user roger
 #topic foo/bar
-user miner_test
-topic readwrite /cql/miner/miner_test/#
+user 000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade
+topic readwrite /cql/miner/000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade/#
+topic read /cql/client/#
+
+user 000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5
+topic readwrite /cql/miner/000005f4f22c06f76c43c4f48d5a7ec1309cc94030cbf9ebae814172884ac8b5/#
+topic read /cql/client/#
+
+user 000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8
+topic readwrite /cql/miner/000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8/#
 topic read /cql/client/#
 
 user client_test

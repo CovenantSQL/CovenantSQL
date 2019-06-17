@@ -31,6 +31,7 @@ import (
 	twitterOAuth1 "github.com/dghubble/oauth1/twitter"
 	"github.com/dghubble/sling"
 	"github.com/gin-gonic/gin"
+	githubRPC "github.com/google/go-github/github"
 	"github.com/jmoiron/jsonq"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -133,11 +134,11 @@ func HandleUserCallback(c *gin.Context, provider string, clientID string, client
 			twitterAuthCallback(c, success, fail), wrapFailCallback(fail),
 		).ServeHTTP(c.Writer, c.Request)
 	case "github":
+		cfg := getGithubConfig(clientID, clientSecret, "")
 		github.StateHandler(
 			gologin.DebugOnlyCookieConfig,
-			github.CallbackHandler(
-				getGithubConfig(clientID, clientSecret, ""),
-				githubAuthCallback(c, success, fail), wrapFailCallback(fail)),
+			oauth2Login.CallbackHandler(cfg,
+				githubAuthCallback(c, success, fail, cfg), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	case "weibo":
 		cfg := getSinaWeiboConfig(clientID, clientSecret, "")
@@ -317,9 +318,17 @@ func twitterAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserF
 	})
 }
 
-func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback) http.Handler {
+func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFailCallback, cfg *oauth2.Config) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		userInfo, err := github.UserFromContext(r.Context())
+		tokenInfo, err := oauth2Login.TokenFromContext(r.Context())
+		if err != nil {
+			fail(err)
+			return
+		}
+
+		rpc := githubRPC.NewClient(cfg.Client(r.Context(), tokenInfo))
+
+		userInfo, _, err := rpc.Users.Get(r.Context(), "")
 		if err != nil {
 			fail(err)
 			return
@@ -340,16 +349,37 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 				return
 			}
 
-			if userInfo.GetID() == 0 || userInfo.GetEmail() == "" {
-				err = errors.New("could not get user id and email")
+			if userInfo.GetID() == 0 {
+				err = errors.New("could not get user id")
 				fail(err)
+				return
+			}
+
+			// get primary email instead of public email
+			// userInfo.GetEmail returns the public email, may not be primary email
+			emails, _, err := rpc.Users.ListEmails(r.Context(), nil)
+			if err != nil {
+				fail(err)
+				return
+			}
+
+			var primaryEmail string
+
+			for _, email := range emails {
+				if email.GetPrimary() && email.GetVerified() {
+					primaryEmail = email.GetEmail()
+				}
+			}
+
+			if primaryEmail == "" {
+				err = errors.New("could not get user email")
 				return
 			}
 
 			success(&UserInfo{
 				UID:    fmt.Sprint(userInfo.GetID()),
 				Name:   userInfo.GetName(),
-				Email:  userInfo.GetEmail(),
+				Email:  primaryEmail,
 				Avatar: userInfo.GetAvatarURL(),
 				Extra:  extraInfo,
 			})

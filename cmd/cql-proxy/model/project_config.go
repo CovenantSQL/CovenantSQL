@@ -30,6 +30,7 @@ const (
 	ProjectConfigMisc ProjectConfigType = iota
 	ProjectConfigOAuth
 	ProjectConfigTable
+	ProjectConfigGroup
 )
 
 func (c ProjectConfigType) String() string {
@@ -40,6 +41,8 @@ func (c ProjectConfigType) String() string {
 		return "OAuth"
 	case ProjectConfigTable:
 		return "Table"
+	case ProjectConfigGroup:
+		return "Group"
 	default:
 		return "Unknown"
 	}
@@ -85,8 +88,12 @@ type ProjectTableConfig struct {
 	Columns   []string          `json:"columns"`
 	Types     []string          `json:"types"`
 	Keys      map[string]string `json:"keys"`
-	Rules     string            `json:"rules"`
+	Rules     json.RawMessage   `json:"rules"`
 	IsDeleted bool              `json:"is_deleted"`
+}
+
+type ProjectGroupConfig struct {
+	Groups map[string][]int64 `json:"groups" binding:"omitempty,dive,keys,required,endkeys,dive,gt=0"`
 }
 
 func GetAllProjectConfig(db *gorp.DbMap) (p []*ProjectConfig, err error) {
@@ -96,6 +103,17 @@ func GetAllProjectConfig(db *gorp.DbMap) (p []*ProjectConfig, err error) {
 	}
 
 	for _, pc := range p {
+		switch pc.Type {
+		case ProjectConfigMisc:
+			pc.Value = &ProjectMiscConfig{}
+		case ProjectConfigOAuth:
+			pc.Value = &ProjectOAuthConfig{}
+		case ProjectConfigTable:
+			pc.Value = &ProjectTableConfig{}
+		case ProjectConfigGroup:
+			pc.Value = &ProjectGroupConfig{}
+		}
+
 		_ = json.Unmarshal(pc.RawValue, &pc.Value)
 	}
 
@@ -132,7 +150,7 @@ func GetProjectTableConfig(db *gorp.DbMap, tableName string) (p *ProjectConfig, 
 	return
 }
 
-func GetProjectTablesConfig(db *gorp.DbMap) (tables []string, err error) {
+func GetProjectTablesName(db *gorp.DbMap) (tables []string, err error) {
 	var projects []*ProjectConfig
 
 	_, err = db.Select(&projects, `SELECT * FROM "____config" WHERE "type" = ?`, ProjectConfigTable)
@@ -168,6 +186,21 @@ func GetProjectMiscConfig(db *gorp.DbMap) (p *ProjectConfig, pc *ProjectMiscConf
 	return
 }
 
+func GetProjectGroupConfig(db *gorp.DbMap) (p *ProjectConfig, gc *ProjectGroupConfig, err error) {
+	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? LIMIT 1`,
+		ProjectConfigGroup)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(p.RawValue, &gc)
+	if err != nil {
+		p.Value = gc
+	}
+
+	return
+}
+
 func AddProjectConfig(db *gorp.DbMap, configType ProjectConfigType, configKey string, value interface{}) (p *ProjectConfig, err error) {
 	p = &ProjectConfig{
 		Type:    configType,
@@ -180,6 +213,19 @@ func AddProjectConfig(db *gorp.DbMap, configType ProjectConfigType, configKey st
 	if err != nil {
 		return
 	}
+
+	err = db.Insert(p)
+
+	return
+}
+
+func AddRawProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
+	p.RawValue, err = json.Marshal(p.Value)
+	if err != nil {
+		return
+	}
+
+	p.Created = time.Now().Unix()
 
 	err = db.Insert(p)
 

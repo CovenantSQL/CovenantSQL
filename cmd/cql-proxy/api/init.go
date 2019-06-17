@@ -70,16 +70,23 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.POST("/project/:db/user", preRegisterProjectUser)
 			v3AdminLogin.GET("/project/:db/user/:id", queryProjectUser)
 			v3AdminLogin.PUT("/project/:db/user/:id", updateProjectUser)
+			v3AdminLogin.GET("/project/:db/user/_/batch", batchQueryProjectUser)
+
 			v3AdminLogin.PUT("/project/:db/config/misc", updateProjectMiscConfig)
+			v3AdminLogin.PUT("/project/:db/config/group", updateProjectGroupConfig)
+
 			v3AdminLogin.PUT("/project/:db/oauth/:provider", updateProjectOAuthConfig)
-			v3AdminLogin.GET("/project/:db/config", getProjectConfig)
-			v3AdminLogin.GET("/project/:db/audits", getProjectAudits)
-			v3AdminLogin.GET("/project/:db/table", getProjectTables)
+			v3AdminLogin.GET("/project/:db/oauth/:provider/callback", getProjectOAuthCallback)
+
 			v3AdminLogin.POST("/project/:db/table", createProjectTable)
 			v3AdminLogin.PATCH("/project/:db/table/:table", addFieldsToProjectTable)
 			v3AdminLogin.GET("/project/:db/table/:table", getProjectTableDetail)
 			v3AdminLogin.DELETE("/project/:db/table/:table", dropProjectTable)
-			v3AdminLogin.GET("/project/:db/oauth/:provider/callback", getProjectOAuthCallback)
+			v3AdminLogin.PUT("/project/:db/table/:table/rules", updateProjectTableRules)
+
+			v3AdminLogin.GET("/project/:db/config", getProjectConfig)
+			v3AdminLogin.GET("/project/:db/audits", getProjectAudits)
+			v3AdminLogin.GET("/project/:db/table", getProjectTables)
 		}
 	}
 
@@ -98,11 +105,11 @@ func AddRoutes(e *gin.Engine) {
 	}
 	v3UserPermissive := v3User.Group("/")
 	{
-		v3UserPermissive.GET("/data/:table")
-		v3UserPermissive.POST("/data/:table")
-		v3UserPermissive.PUT("/data/:table")
-		v3UserPermissive.DELETE("/data/:table")
-		v3UserPermissive.GET("/data/:table/count")
+		v3UserPermissive.GET("/data/:table", userDataFind)
+		v3UserPermissive.POST("/data/:table", userDataInsert)
+		v3UserPermissive.PUT("/data/:table", userDataUpdate)
+		v3UserPermissive.DELETE("/data/:table", userDataRemove)
+		v3UserPermissive.GET("/data/:table/count", userDataCount)
 	}
 
 	// alias

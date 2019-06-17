@@ -15,3 +15,36 @@
  */
 
 package resolver
+
+import (
+	"database/sql"
+	"testing"
+
+	"github.com/davecgh/go-spew/spew"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestFind(t *testing.T) {
+	Convey("test find", t, func(c C) {
+		// create table
+		db, err := sql.Open("sqlite", "file::memory:?mode=memory")
+		So(err, ShouldBeNil)
+		_ = db
+	})
+	Convey("test find", t, func() {
+		spew.Dump(Find("test", FieldMap{
+			"a": true,
+			"b": true,
+		}, map[string]interface{}{
+			"a": map[string]interface{}{
+				"$nin": []interface{}{
+					1,
+					2,
+					3,
+				},
+			},
+		}, map[string]interface{}{
+			"b": 1,
+		}, nil, nil, nil))
+	})
+}

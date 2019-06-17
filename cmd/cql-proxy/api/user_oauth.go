@@ -212,7 +212,7 @@ func handleUserOAuthCallbackSuccess(
 
 		newUserState := model.ProjectUserStateEnabled
 		if miscConfig.ShouldVerifyAfterSignUp() {
-			newUserState = model.ProjectUserStateSignedUp
+			newUserState = model.ProjectUserStateWaitSignedConfirm
 		}
 
 		var u *model.ProjectUser

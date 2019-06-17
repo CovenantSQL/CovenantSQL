@@ -28,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/resolver"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/task"
 )
@@ -56,6 +57,9 @@ func initServer(cfg *config.Config) (server *http.Server, afterShutdown func(), 
 
 	// init task manager
 	tm := initTaskManager(e, cfg, db)
+
+	// init rules manager
+	initRulesManager(e)
 
 	api.AddRoutes(e)
 
@@ -123,6 +127,17 @@ func initTaskManager(e *gin.Engine, cfg *config.Config, db *gorp.DbMap) (tm *tas
 
 	e.Use(func(c *gin.Context) {
 		c.Set("task", tm)
+		c.Next()
+	})
+
+	return
+}
+
+func initRulesManager(e *gin.Engine) (rm *resolver.RulesManager) {
+	rm = &resolver.RulesManager{}
+
+	e.Use(func(c *gin.Context) {
+		c.Set("rules", rm)
 		c.Next()
 	})
 

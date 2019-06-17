@@ -30,7 +30,7 @@ type ProjectUserState int16
 
 const (
 	ProjectUserStatePreRegistered ProjectUserState = iota
-	ProjectUserStateSignedUp
+	ProjectUserStateWaitSignedConfirm
 	ProjectUserStateEnabled
 	ProjectUserStateDisabled
 )
@@ -114,7 +114,31 @@ func GetProjectUser(db *gorp.DbMap, id int64) (u *ProjectUser, err error) {
 	return
 }
 
-func GetProjectUsers(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool, offset int64, limit int64) (
+func GetProjectUsers(db *gorp.DbMap, id []int64) (users []*ProjectUser, err error) {
+	if len(id) == 0 {
+		return
+	}
+
+	var args []interface{}
+
+	for _, v := range id {
+		args = append(args, v)
+	}
+
+	_, err = db.Select(&users, `SELECT * FROM "____user" WHERE "id" IN (`+
+		strings.Repeat("?,", len(id)-1)+`?)`, args...)
+	if err != nil {
+		return
+	}
+
+	for _, u := range users {
+		_ = u.LoadExtra()
+	}
+
+	return
+}
+
+func GetProjectUserList(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool, offset int64, limit int64) (
 	users []*ProjectUser, total int64, err error) {
 	var (
 		sql       = `SELECT * FROM "____user" WHERE 1=1 `
@@ -238,7 +262,7 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 		return
 	}
 
-	if u.State == ProjectUserStateSignedUp {
+	if u.State == ProjectUserStateWaitSignedConfirm {
 		// need admin validation
 		err = errors.New("account need admin verification")
 	}

@@ -30,6 +30,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/resolver"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -38,6 +39,16 @@ import (
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
+
+type projectRulesContext struct {
+	dbID   proto.DatabaseID
+	db     *gorp.DbMap
+	group  *model.ProjectConfig
+	tables map[string]*model.ProjectConfig
+
+	toUpdate *model.ProjectConfig
+	toInsert *model.ProjectConfig
+}
 
 func getProjects(c *gin.Context) {
 	projectList, err := model.GetProjects(model.GetDB(c), getDeveloperID(c))
@@ -201,7 +212,7 @@ func projectUserList(c *gin.Context) {
 		return
 	}
 
-	users, total, err := model.GetProjectUsers(projectDB, r.Term, r.ShowOnlyEnabled, r.Offset, r.Limit)
+	users, total, err := model.GetProjectUserList(projectDB, r.Term, r.ShowOnlyEnabled, r.Offset, r.Limit)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -481,6 +492,55 @@ func updateProjectOAuthConfig(c *gin.Context) {
 	})
 }
 
+func updateProjectGroupConfig(c *gin.Context) {
+	r := struct {
+		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		model.ProjectGroupConfig
+		// additional parameters, see ProjectGroupConfig structure
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	rulesCtx, err := getRulesContext(r.DB, projectDB)
+	if err != nil {
+		// get rules context failed
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if rulesCtx.group == nil {
+		rulesCtx.group = &model.ProjectConfig{
+			Type:  model.ProjectConfigGroup,
+			Key:   "",
+			Value: &r.ProjectGroupConfig,
+		}
+		rulesCtx.toInsert = rulesCtx.group
+	} else {
+		rulesCtx.group.Value = &r.ProjectGroupConfig
+		rulesCtx.toUpdate = rulesCtx.group
+	}
+
+	if _, err = populateRulesContext(c, rulesCtx); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"group": rulesCtx.group.Value,
+	})
+}
+
 func updateProjectMiscConfig(c *gin.Context) {
 	r := struct {
 		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
@@ -579,6 +639,7 @@ func getProjectConfig(c *gin.Context) {
 
 	var (
 		miscConfig   interface{}
+		groupConfig  interface{}
 		oauthConfig  []gin.H
 		tablesConfig []gin.H
 	)
@@ -596,6 +657,8 @@ func getProjectConfig(c *gin.Context) {
 				"table":  p.Key,
 				"config": p.Value,
 			})
+		case model.ProjectConfigGroup:
+			groupConfig = p.Value
 		}
 	}
 
@@ -603,6 +666,7 @@ func getProjectConfig(c *gin.Context) {
 		"misc":   miscConfig,
 		"oauth":  oauthConfig,
 		"tables": tablesConfig,
+		"group":  groupConfig,
 	})
 }
 
@@ -624,7 +688,7 @@ func getProjectTables(c *gin.Context) {
 		return
 	}
 
-	tables, err := model.GetProjectTablesConfig(projectDB)
+	tables, err := model.GetProjectTablesName(projectDB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -864,6 +928,116 @@ func dropProjectTable(c *gin.Context) {
 	})
 }
 
+func batchQueryProjectUser(c *gin.Context) {
+	r := struct {
+		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		ID []int64          `json:"id" form:"id" uri:"id" binding:"required,dive,required,gt=0"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	users, err := model.GetProjectUsers(projectDB, r.ID)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	var resp = gin.H{}
+
+	for _, u := range users {
+		resp[fmt.Sprint(u.ID)] = gin.H{
+			"id":           u.ID,
+			"name":         u.Name,
+			"email":        u.Email,
+			"state":        u.State.String(),
+			"provider":     u.Provider,
+			"provider_uid": u.ProviderUID,
+			"extra":        u.Extra,
+			"created":      formatUnixTime(u.Created),
+			"last_login":   formatUnixTime(u.LastLogin),
+		}
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"users": resp,
+	})
+}
+
+func updateProjectTableRules(c *gin.Context) {
+	r := struct {
+		DB    proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Table string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
+		Rules json.RawMessage  `json:"rules"`
+	}{}
+
+	_ = c.ShouldBindUri(&r)
+
+	if err := c.ShouldBind(&r); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	projectDB, err := getProjectDB(c, r.DB)
+	if err != nil {
+		abortWithError(c, http.StatusForbidden, err)
+		return
+	}
+
+	rulesCtx, err := getRulesContext(r.DB, projectDB)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	var (
+		pc  *model.ProjectConfig
+		ptc *model.ProjectTableConfig
+		ok  bool
+	)
+
+	if pc, ok = rulesCtx.tables[r.Table]; ok {
+		ptc = pc.Value.(*model.ProjectTableConfig)
+		ptc.Rules = r.Rules
+		rulesCtx.toUpdate = pc
+	} else {
+		abortWithError(c, http.StatusInternalServerError, errors.New("table does not exists"))
+		return
+	}
+
+	if _, err = populateRulesContext(c, rulesCtx); err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, gin.H{
+		"project":      r.DB,
+		"db":           r.DB,
+		"table":        r.Table,
+		"created":      formatUnixTime(pc.Created),
+		"last_updated": formatUnixTime(pc.LastUpdated),
+		"columns":      ptc.Columns,
+		"types":        ptc.Types,
+		"keys":         ptc.Keys,
+		"rules":        ptc.Rules,
+		"is_deleted":   ptc.IsDeleted,
+	})
+}
+
+func getProjectAudits(c *gin.Context) {
+
+}
+
 func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.DbMap, err error) {
 	nodeID, err := getDatabaseLeaderNodeID(dbID)
 	if err != nil {
@@ -914,6 +1088,100 @@ func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (db *gorp.DbMap, err er
 	return
 }
 
-func getProjectAudits(c *gin.Context) {
+func getRulesContext(dbID proto.DatabaseID, db *gorp.DbMap) (ctx *projectRulesContext, err error) {
+	ctx = &projectRulesContext{
+		dbID:   dbID,
+		db:     db,
+		tables: map[string]*model.ProjectConfig{},
+	}
 
+	var configs []*model.ProjectConfig
+	configs, err = model.GetAllProjectConfig(db)
+	if err != nil {
+		return
+	}
+
+	for _, cfg := range configs {
+		switch cfg.Type {
+		case model.ProjectConfigTable:
+			ctx.tables[cfg.Key] = cfg
+		case model.ProjectConfigGroup:
+			ctx.group = cfg
+		}
+	}
+
+	return
+}
+
+func populateRulesContext(c *gin.Context, ctx *projectRulesContext) (r *resolver.Rules, err error) {
+	var (
+		rm         = getRulesManager(c)
+		groupRules = map[string][]string{}
+		tableRules = map[string]json.RawMessage{}
+	)
+
+	if ctx.group != nil {
+		gc := ctx.group.Value.(*model.ProjectGroupConfig)
+		for groupName, userIDs := range gc.Groups {
+			for _, userID := range userIDs {
+				groupRules[groupName] = append(groupRules[groupName], fmt.Sprint(userID))
+			}
+		}
+	}
+
+	for tableName, ptc := range ctx.tables {
+		tableRules[tableName] = ptc.Value.(*model.ProjectTableConfig).Rules
+	}
+
+	r, err = resolver.CompileRules(map[string]interface{}{
+		"groups": groupRules,
+		"rules":  tableRules,
+	})
+	if err != nil {
+		return
+	}
+
+	if ctx.toUpdate != nil {
+		err = model.UpdateProjectConfig(ctx.db, ctx.toUpdate)
+		if err != nil {
+			return
+		}
+	}
+
+	if ctx.toInsert != nil {
+		err = model.AddRawProjectConfig(ctx.db, ctx.toInsert)
+		if err != nil {
+			return
+		}
+	}
+
+	rm.Set(ctx.dbID, r)
+
+	return
+}
+
+func loadRules(c *gin.Context, dbID proto.DatabaseID, db *gorp.DbMap) (r *resolver.Rules, err error) {
+	rm := getRulesManager(c)
+
+	r = rm.Get(dbID)
+	if r == nil {
+		var ctx *projectRulesContext
+		ctx, err = getRulesContext(dbID, db)
+		if err != nil {
+			return
+		}
+
+		r, err = populateRulesContext(c, ctx)
+		if err != nil {
+			return
+		}
+
+		rm.Set(dbID, r)
+	}
+
+	return
+}
+
+func getRulesManager(c *gin.Context) (r *resolver.RulesManager) {
+	return c.MustGet("rules").(*resolver.RulesManager)
 }

@@ -79,9 +79,11 @@ type MQTTClient struct {
 	PublishTopicPrefix string
 
 	subscribeEventQueue *gqueue.Queue
+
+	dbms *DBMS
 }
 
-func NewMQTTClient(config *conf.MQTTBrokerInfo) (c *MQTTClient) {
+func NewMQTTClient(config *conf.MQTTBrokerInfo, dbms *DBMS) (c *MQTTClient) {
 	if config == nil {
 		return
 	}
@@ -98,6 +100,7 @@ func NewMQTTClient(config *conf.MQTTBrokerInfo) (c *MQTTClient) {
 		ListenTopic:         listenPrefix + "#",
 		PublishTopicPrefix:  publishPrefix + minerName + "/",
 		subscribeEventQueue: gqueue.New(),
+		dbms:                dbms,
 	}
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		//TODO add log log.Error
@@ -195,6 +198,7 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 	fmt.Printf("Processed write event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
 	// TODO
 	// 1. add to sqlchain
+	// c.dbms.Query(req)
 	// 2. publish to broker(in sqlchain query func, for other non-mqtt client data)
 	// 3. make it unblock
 

@@ -72,6 +72,7 @@ type DBMS struct {
 	kayakMux   *DBKayakMuxService
 	chainMux   *sqlchain.MuxService
 	rpc        *DBMSRPCService
+	mqttClient *MQTTClient
 	busService *BusService
 	address    proto.AccountAddress
 	privKey    *asymmetric.PrivateKey
@@ -124,6 +125,11 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 	// init service
 	dbms.rpc = NewDBMSRPCService(route.DBRPCName, cfg.Server, cfg.DirectServer, dbms)
+
+	// start broker client
+	if conf.GConf.MQTTBroker != nil {
+		dbms.mqttClient = NewMQTTClient(conf.GConf.MQTTBroker, dbms)
+	}
 	return
 }
 
@@ -666,6 +672,8 @@ func (dbms *DBMS) Shutdown() (err error) {
 	err = dbms.writeMeta()
 
 	dbms.busService.Stop()
+
+	dbms.mqttClient.Close()
 
 	return
 }

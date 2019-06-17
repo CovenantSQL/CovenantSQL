@@ -166,7 +166,18 @@ func UpdateTask(db *gorp.DbMap, t *Task) (err error) {
 	return
 }
 
-func ListTask(db *gorp.DbMap, developer int64, showAll bool, offset int64, limit int64) (tasks []*Task, err error) {
+func ListTask(db *gorp.DbMap, developer int64, showAll bool, offset int64, limit int64) (
+	tasks []*Task, total int64, err error) {
+	if showAll {
+		total, err = db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ?`, developer)
+	} else {
+		total, err = db.SelectInt(
+			`SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ? AND "state" NOT IN (?, ?)`,
+			developer, TaskSuccess, TaskFailed)
+	}
+	if err != nil {
+		return
+	}
 	if showAll {
 		_, err = db.Select(&tasks,
 			`SELECT * FROM "task" WHERE "developer_id" = ? ORDER BY "id" DESC LIMIT ?, ?`, developer, offset, limit)
@@ -178,6 +189,7 @@ ORDER BY "id" DESC LIMIT ?, ?`, developer, TaskSuccess, TaskFailed, offset, limi
 	if err != nil {
 		return
 	}
+
 	for _, t := range tasks {
 		_ = t.Deserialize()
 	}

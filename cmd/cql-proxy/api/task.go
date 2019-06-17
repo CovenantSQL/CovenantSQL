@@ -41,7 +41,7 @@ func listTasks(c *gin.Context) {
 	}
 
 	developer := getDeveloperID(c)
-	tasks, err := model.ListTask(model.GetDB(c), developer, r.All, r.Offset, r.Limit)
+	tasks, total, err := model.ListTask(model.GetDB(c), developer, r.All, r.Offset, r.Limit)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -62,6 +62,7 @@ func listTasks(c *gin.Context) {
 
 	responseWithData(c, http.StatusOK, gin.H{
 		"tasks": resp,
+		"total": total,
 	})
 }
 

@@ -114,24 +114,36 @@ func GetProjectUser(db *gorp.DbMap, id int64) (u *ProjectUser, err error) {
 	return
 }
 
-func GetProjectUsers(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool, offset int64, limit int64) (users []*ProjectUser, err error) {
+func GetProjectUsers(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool, offset int64, limit int64) (
+	users []*ProjectUser, total int64, err error) {
 	var (
-		sql  = `SELECT * FROM "____user" WHERE 1=1 `
-		args []interface{}
+		sql       = `SELECT * FROM "____user" WHERE 1=1 `
+		args      []interface{}
+		totalSQL  = `SELECT COUNT(1) AS "cnt" FROM "____user" WHERE 1=1 `
+		totalArgs []interface{}
 	)
 
 	if showOnlyEnabled {
 		sql += ` AND "state" = ? `
+		totalSQL += ` AND "state" = ? `
 		args = append(args, ProjectUserStateEnabled)
+		totalArgs = append(totalArgs, ProjectUserStateEnabled)
 	}
 
 	if searchTerm != "" {
 		sql += ` AND ("name" LIKE ("%" || ? || "%") OR "email" LIKE ("%" || ? || "%"))`
 		args = append(args, searchTerm, searchTerm)
+		totalSQL += ` AND ("name" LIKE ("%" || ? || "%") OR "email" LIKE ("%" || ? || "%"))`
+		totalArgs = append(totalArgs, searchTerm, searchTerm)
 	}
 
 	sql += ` ORDER BY "id" LIMIT ?, ?`
 	args = append(args, offset, limit)
+
+	total, err = db.SelectInt(totalSQL, totalArgs...)
+	if err != nil {
+		return
+	}
 
 	_, err = db.Select(&users, sql, args...)
 	if err != nil {

@@ -201,7 +201,7 @@ func projectUserList(c *gin.Context) {
 		return
 	}
 
-	users, err := model.GetProjectUsers(projectDB, r.Term, r.ShowOnlyEnabled, r.Offset, r.Limit)
+	users, total, err := model.GetProjectUsers(projectDB, r.Term, r.ShowOnlyEnabled, r.Offset, r.Limit)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
@@ -225,6 +225,7 @@ func projectUserList(c *gin.Context) {
 
 	responseWithData(c, http.StatusOK, gin.H{
 		"users": resp,
+		"total": total,
 	})
 }
 

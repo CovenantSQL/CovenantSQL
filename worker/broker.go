@@ -107,7 +107,7 @@ func NewMQTTClient(config *conf.MQTTBrokerInfo, dbms *DBMS) (c *MQTTClient) {
 	}
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		log.Errorf("Connect broker failed: %v", token.Error())
-		return
+		return nil
 	}
 
 	c.updateCtx, c.updateCancel = context.WithCancel(context.Background())
@@ -236,30 +236,28 @@ func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 	// make it unblock
 
 	dbID := event.DatabaseID
+	rawDB, ok := c.dbms.dbMap.Load(dbID)
+	if !ok {
+		log.Errorf("MQTT fetch block failed, databaseID not exist: %v", dbID)
+		return
+	}
+	db := rawDB.(*Database)
+
 	bStart := event.Payload.BlockStart
 	bEnd := event.Payload.BlockEnd
 	iStart := event.Payload.IndexStart
 	iEnd := event.Payload.IndexEnd
 
 	for blockIndex := bStart; blockIndex <= bEnd; blockIndex++ {
-		req := &ObserverFetchBlockReq{
-			Envelope: proto.Envelope{
-				NodeID: conf.GConf.ThisNodeID.ToRawNodeID(),
-			},
-			DatabaseID: dbID,
-			Count:      blockIndex,
-		}
-		var resp *ObserverFetchBlockResp
-		err := c.dbms.rpc.ObserverFetchBlock(req, resp)
+		block, realCount, _, err := db.chain.FetchBlockByCount(-1)
 		if err != nil {
-			log.Errorf("MQTT fetch block failed: databaseID: %v, err: %v", req.DatabaseID, err)
+			log.Errorf("MQTT fetch block failed, databaseID: %v, err: %v", dbID, err)
 			return
 		}
 
-		err = nil
-		for index, qat := range resp.Block.QueryTxs {
+		for index, qat := range block.QueryTxs {
 			payload := BrokerPayload{
-				BlockID:        resp.Count,
+				BlockID:        realCount,
 				BlockIndex:     index,
 				ClientID:       qat.Request.Header.NodeID,
 				ClientSequence: qat.Request.Header.SeqNo,
@@ -299,24 +297,16 @@ func (c *MQTTClient) updateBlockLoop() {
 			// make it unblock
 			c.dbms.dbMap.Range(func(_, rawDB interface{}) bool {
 				db := rawDB.(*Database)
-				req := &ObserverFetchBlockReq{
-					Envelope: proto.Envelope{
-						NodeID: conf.GConf.ThisNodeID.ToRawNodeID(),
-					},
-					DatabaseID: db.dbID,
-					Count:      -1,
-				}
-				var resp *ObserverFetchBlockResp
-				err := c.dbms.rpc.ObserverFetchBlock(req, resp)
+				block, realCount, _, err := db.chain.FetchBlockByCount(-1)
 				if err != nil {
-					log.Errorf("MQTT fetch block failed: databaseID: %v, err: %v", req.DatabaseID, err)
+					log.Errorf("MQTT fetch block failed: databaseID: %v, err: %v", db.dbID, err)
 					return false
 				}
 
 				err = nil
-				for index, qat := range resp.Block.QueryTxs {
+				for index, qat := range block.QueryTxs {
 					payload := BrokerPayload{
-						BlockID:        resp.Count,
+						BlockID:        realCount,
 						BlockIndex:     index,
 						ClientID:       qat.Request.Header.NodeID,
 						ClientSequence: qat.Request.Header.SeqNo,

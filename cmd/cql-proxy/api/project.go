@@ -38,6 +38,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/route"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type projectRulesContext struct {
@@ -1062,6 +1063,10 @@ func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.
 
 	// ignore index error
 	_ = db.CreateIndex()
+
+	if log.GetLevel() == log.DebugLevel {
+		db.TraceOn(string(dbID), log.StandardLogger())
+	}
 
 	return
 }

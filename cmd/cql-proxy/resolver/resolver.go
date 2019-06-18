@@ -18,6 +18,7 @@ package resolver
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -61,22 +62,22 @@ func ResolveProjection(p map[string]interface{}, availFields FieldMap) (fm Field
 	fm = FieldMap{}
 	var subStatements []string
 
-	if p == nil || len(p) == 0 {
-		for k := range availFields {
+	for k, v := range p {
+		if !availFields[k] {
+			err = errors.Errorf("unknown field: %s", k)
+			return
+		}
+
+		if asBool(v) {
 			fm[k] = true
 			subStatements = append(subStatements, fmt.Sprintf(`"%s"`, k))
 		}
-	} else {
-		for k, v := range p {
-			if !availFields[k] {
-				err = errors.Errorf("unknown field: %s", k)
-				return
-			}
+	}
 
-			if asBool(v) {
-				fm[k] = true
-				subStatements = append(subStatements, fmt.Sprintf(`"%s"`, k))
-			}
+	if len(subStatements) == 0 {
+		for k := range availFields {
+			fm[k] = true
+			subStatements = append(subStatements, fmt.Sprintf(`"%s"`, k))
 		}
 	}
 
@@ -106,9 +107,17 @@ func andORRelation(childQueries []map[string]interface{}, availFields FieldMap, 
 			return
 		}
 
+		if childStatement == "" {
+			continue
+		}
+
 		fields.Merge(childField)
 		subStatements = append(subStatements, childStatement)
 		args = append(args, childArgs...)
+	}
+
+	if len(subStatements) == 0 {
+		return
 	}
 
 	statement = "(" + strings.Join(subStatements, ") "+op+" (") + ")"
@@ -221,8 +230,16 @@ func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 			if err != nil {
 				return
 			}
-			if k == "$not" {
+			if k == "$nor" {
+				// $nor empty result should be false
+				if childStatement == "" {
+					childStatement = "TRUE"
+				}
 				childStatement = "NOT (" + childStatement + ")"
+			} else {
+				if childStatement == "" {
+					continue
+				}
 			}
 			fields.Merge(childFields)
 			subStatements = append(subStatements, childStatement)
@@ -252,6 +269,10 @@ func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 			subStatements = append(subStatements, childStatement)
 			args = append(args, childArgs...)
 		}
+	}
+
+	if len(subStatements) == 0 {
+		return
 	}
 
 	statement = "(" + strings.Join(subStatements, ") AND (") + ")"
@@ -503,6 +524,10 @@ func asBool(v interface{}) bool {
 		return d != 0
 	case uint64:
 		return d != 0
+	case float32:
+		return math.Abs(float64(d)) > 0
+	case float64:
+		return math.Abs(d) > 0
 	case string:
 		return len(d) > 0
 	}

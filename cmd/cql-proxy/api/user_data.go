@@ -17,6 +17,7 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -63,16 +64,21 @@ func userDataFind(c *gin.Context) {
 		return
 	}
 
-	var result []gin.H
-	_, err = db.Select(&result, stmt, args...)
+	var rows *sql.Rows
+	rows, err = db.Query(stmt, args...)
 	if err != nil {
 		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
 
-	responseWithData(c, http.StatusOK, gin.H{
-		"data": result,
-	})
+	var result []gin.H
+	result, err = scanRows(rows)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, result)
 }
 
 func userDataInsert(c *gin.Context) {
@@ -139,7 +145,7 @@ func userDataUpdate(c *gin.Context) {
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryFind)
+	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryUpdate)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -188,7 +194,7 @@ func userDataRemove(c *gin.Context) {
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryFind)
+	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryRemove)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -230,7 +236,7 @@ func userDataCount(c *gin.Context) {
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryFind)
+	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryCount)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -253,10 +259,10 @@ func userDataCount(c *gin.Context) {
 	})
 }
 
-func buildExecuteContext(c *gin.Context, tableName string) (db *gorp.DbMap, uid string, userState string,
+func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMap, uid string, userState string,
 	vars map[string]interface{}, r *resolver.Rules, fields resolver.FieldMap, err error) {
 	project := getCurrentProject(c)
-	projectDB, err := getCurrentProjectDB(c)
+	projectDB, err = getCurrentProjectDB(c)
 	if err != nil {
 		return
 	}
@@ -331,5 +337,42 @@ func buildExecuteContext(c *gin.Context, tableName string) (db *gorp.DbMap, uid 
 }
 
 func mustGetInt64Var(i int64, err error) int64 {
+	_ = err
 	return i
+}
+
+func scanRows(rows *sql.Rows) (result []gin.H, err error) {
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var columns []string
+	columns, err = rows.Columns()
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var (
+			row  = make([]interface{}, len(columns))
+			dest = make([]interface{}, len(columns))
+		)
+
+		for i := range row {
+			dest[i] = &row[i]
+		}
+		if err = rows.Scan(dest...); err != nil {
+			return
+		}
+
+		target := gin.H{}
+
+		for i, col := range columns {
+			target[col] = row[i]
+		}
+
+		result = append(result, target)
+	}
+
+	return
 }

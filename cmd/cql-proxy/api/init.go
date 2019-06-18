@@ -105,11 +105,11 @@ func AddRoutes(e *gin.Engine) {
 	}
 	v3UserPermissive := v3User.Group("/")
 	{
-		v3UserPermissive.GET("/data/:table", userDataFind)
-		v3UserPermissive.POST("/data/:table", userDataInsert)
-		v3UserPermissive.PUT("/data/:table", userDataUpdate)
-		v3UserPermissive.DELETE("/data/:table", userDataRemove)
-		v3UserPermissive.GET("/data/:table/count", userDataCount)
+		v3UserPermissive.Any("/data/:table/find", userDataFind)
+		v3UserPermissive.Any("/data/:table/insert", userDataInsert)
+		v3UserPermissive.Any("/data/:table/update", userDataUpdate)
+		v3UserPermissive.Any("/data/:table/remove", userDataRemove)
+		v3UserPermissive.Any("/data/:table/count", userDataCount)
 	}
 
 	// alias

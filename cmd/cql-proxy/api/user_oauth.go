@@ -301,12 +301,13 @@ func projectIDInject(c *gin.Context) {
 	// try use uri/json/form arguments
 	if p == nil {
 		r := struct {
-			Project string `json:"project" form:"project" uri:"project" binding:"required,len=64"`
+			Project string `form:"project" uri:"project" binding:"required,len=64"`
 		}{}
 
 		_ = c.ShouldBindUri(&r)
 
-		if err = c.ShouldBind(&r); err != nil {
+		// should not use ShouldBind, json form bind is not repeatable
+		if err = c.ShouldBindQuery(&r); err != nil {
 			abortWithError(c, http.StatusBadRequest, err)
 			return
 		}

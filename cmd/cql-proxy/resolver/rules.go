@@ -119,6 +119,7 @@ func CompileRawRules(rules json.RawMessage) (r *Rules, err error) {
 	// compile rules config to rules
 	r = &Rules{
 		userGroups: make(map[string][]string),
+		rules:      make(map[string]*TableRules),
 	}
 
 	for groupName, userNames := range cfg.Groups {
@@ -180,9 +181,10 @@ func CompileRules(rules map[string]interface{}) (r *Rules, err error) {
 
 func compileQueryEnforces(cfg *RulesConfig, enforces queryEnforces) (queryRules *QueryRules, err error) {
 	queryRules = &QueryRules{
-		groupRules:   make(map[string]map[string]interface{}),
-		userRules:    make(map[string]map[string]interface{}),
-		defaultRules: make(map[string]interface{}),
+		groupRules:     make(map[string]map[string]interface{}),
+		userRules:      make(map[string]map[string]interface{}),
+		userStateRules: make(map[string]map[string]interface{}),
+		defaultRules:   make(map[string]interface{}),
 	}
 
 	for enforceSubject, enforceObject := range enforces {
@@ -251,7 +253,7 @@ func (r *Rules) EnforceRulesOnFilter(f map[string]interface{}, table string,
 		return
 	}
 
-	var resultAndSubExpr []map[string]interface{}
+	var resultAndSubExpr []interface{}
 
 	for _, r := range resultRules {
 		var singleRule map[string]interface{}
@@ -279,6 +281,7 @@ func (r *Rules) EnforceRulesOnUpdate(d map[string]interface{}, table string,
 		tableRules *TableRules
 		ok         bool
 	)
+
 	if tableRules, ok = r.rules[table]; !ok || tableRules == nil || tableRules.updateRules == nil {
 		update = d
 		return
@@ -510,6 +513,7 @@ func mergeUpdate(q ...map[string]interface{}) (o map[string]interface{}, err err
 		)
 		if opArgs, ok = o[item.op]; !ok {
 			opArgs = make(map[string]interface{})
+			o[item.op] = opArgs
 		}
 		ov := opArgs.(map[string]interface{})
 		ov[field] = item.argument

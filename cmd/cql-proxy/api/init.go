@@ -70,7 +70,8 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.POST("/project/:db/user", preRegisterProjectUser)
 			v3AdminLogin.GET("/project/:db/user/:id", queryProjectUser)
 			v3AdminLogin.PUT("/project/:db/user/:id", updateProjectUser)
-			v3AdminLogin.GET("/project/:db/user/:id/batch", batchQueryProjectUser) // use _ in :id
+			v3AdminLogin.GET("/project/:db/user/:id/batch", batchQueryProjectUser)  // use _ in :id
+			v3AdminLogin.POST("/project/:db/user/:id/batch", batchQueryProjectUser) // use _ in :id
 
 			v3AdminLogin.PUT("/project/:db/config/misc", updateProjectMiscConfig)
 			v3AdminLogin.PUT("/project/:db/config/group", updateProjectGroupConfig)
@@ -105,11 +106,13 @@ func AddRoutes(e *gin.Engine) {
 	}
 	v3UserPermissive := v3User.Group("/")
 	{
-		v3UserPermissive.Any("/data/:table/find", userDataFind)
-		v3UserPermissive.Any("/data/:table/insert", userDataInsert)
-		v3UserPermissive.Any("/data/:table/update", userDataUpdate)
-		v3UserPermissive.Any("/data/:table/remove", userDataRemove)
-		v3UserPermissive.Any("/data/:table/count", userDataCount)
+		v3UserPermissive.GET("/data/:table/find", userDataFind)
+		v3UserPermissive.POST("/data/:table/find", userDataFind)
+		v3UserPermissive.POST("/data/:table/insert", userDataInsert)
+		v3UserPermissive.POST("/data/:table/update", userDataUpdate)
+		v3UserPermissive.POST("/data/:table/remove", userDataRemove)
+		v3UserPermissive.GET("/data/:table/count", userDataCount)
+		v3UserPermissive.POST("/data/:table/count", userDataCount)
 	}
 
 	// alias

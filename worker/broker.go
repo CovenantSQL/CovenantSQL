@@ -17,17 +17,16 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
-
-	"context"
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gogf/gf/g/container/gqueue"
 )
@@ -107,8 +106,7 @@ func NewMQTTClient(config *conf.MQTTBrokerInfo, dbms *DBMS) (c *MQTTClient) {
 		dbms:                dbms,
 	}
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		//TODO add log log.Error
-		fmt.Printf("Connect broker failed: %v", token.Error())
+		log.Errorf("Connect broker failed: %v", token.Error())
 		return
 	}
 
@@ -153,23 +151,20 @@ func decodeTopicAPI(topic string) (clientID proto.NodeID, databaseID proto.Datab
 
 func subscribeCallback(eventQueue *gqueue.Queue) func(client mqtt.Client, msg mqtt.Message) {
 	return func(client mqtt.Client, msg mqtt.Message) {
-		fmt.Printf("TOPIC: %s\n", msg.Topic())
+		log.Debugf("TOPIC: %s\n", msg.Topic())
 		clientID, databaseID, apiName := decodeTopicAPI(msg.Topic())
 		if apiName == "" {
-			//TODO log topic, payload and error
-			fmt.Printf("TOPIC: %s\n", msg.Topic())
-			fmt.Printf("Invalid Topic: %s\n", msg.Payload())
+			log.Errorf("Invalid Topic: %s, Payload: %s\n", msg.Topic(), msg.Payload())
 			return
 		}
 
 		var payload BrokerPayload
 		err := json.Unmarshal(msg.Payload(), &payload)
 		if err != nil {
-			//TODO log error
-			fmt.Printf("Invalid MSG: %s, err: %v\n", msg.Payload(), err)
+			log.Errorf("Invalid MSG: %s, err: %v\n", msg.Payload(), err)
 			return
 		}
-		fmt.Printf("Payload: %v\n", payload)
+		log.Debugf("Payload: %v\n", payload)
 		eventQueue.Push(&SubscribeEvent{
 			ApiName:    apiName,
 			ClientID:   clientID,
@@ -190,25 +185,22 @@ func (c *MQTTClient) subscribeEventLoop() {
 		case MQTTCreate:
 			c.processCreateEvent(subscribeEvent)
 		default:
-			//TODO log error
-			fmt.Printf("Unknow API name %s\n", subscribeEvent.ApiName)
+			log.Errorf("Unknow API name %s\n", subscribeEvent.ApiName)
 		}
 	}
 }
 
 // TODO
-// 2. log
 // 3. reconsider context
 func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
-	fmt.Printf("Processed write event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
+	log.Debugf("Processed write event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
 
 	// 1. add to sqlchain
 	var db *Database
 	var exists bool
 	// find database
 	if db, exists = c.dbms.getMeta(proto.DatabaseID(event.DatabaseID)); !exists {
-		// TODO log not exist
-		//err = ErrNotExists
+		log.Errorf("MQTT write database not exist: %v", event)
 		return
 	}
 
@@ -231,7 +223,7 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 
 	_, err := db.Query(req)
 	if err != nil {
-		//TODO log err
+		log.Errorf("MQTT write database failed: %v, err:%v", event, err)
 		return
 	}
 	// TODO
@@ -239,7 +231,7 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 }
 
 func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
-	fmt.Printf("Processed replay event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
+	log.Debugf("Processed replay event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
 	// TODO
 	// 1. find local db bin log
 	// 2. publish to broker (in this func)
@@ -253,7 +245,7 @@ func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 }
 
 func (c *MQTTClient) processCreateEvent(event *SubscribeEvent) {
-	fmt.Printf("Create API does not support yet.\n")
+	log.Debugf("Create API does not support yet.\n")
 }
 
 func (c *MQTTClient) updateBlockLoop() {
@@ -262,6 +254,8 @@ func (c *MQTTClient) updateBlockLoop() {
 		case <-c.updateCtx.Done():
 			return
 		case <-time.After(conf.GConf.SQLChainPeriod):
+			// TODO
+			// make it unblock
 			c.dbms.dbMap.Range(func(_, rawDB interface{}) bool {
 				db := rawDB.(*Database)
 				req := &ObserverFetchBlockReq{
@@ -274,7 +268,7 @@ func (c *MQTTClient) updateBlockLoop() {
 				var resp *ObserverFetchBlockResp
 				err := c.dbms.rpc.ObserverFetchBlock(req, resp)
 				if err != nil {
-					// TODO log err
+					log.Errorf("MQTT fetch block failed: databaseID: %v, err: %v", req.DatabaseID, err)
 					return false
 				}
 
@@ -288,6 +282,9 @@ func (c *MQTTClient) updateBlockLoop() {
 						Events:         qat.Request.Payload.Queries,
 					}
 					err = c.PublishDSN(MQTTNewest, qat.Request.Header.DatabaseID, payload, payload.ClientID)
+					if err != nil {
+						log.Errorf("MQTT publish newest api failed, databaseID: %v, payload: %v, err: %v", qat.Request.Header.DatabaseID, payload, err)
+					}
 				}
 				if err != nil {
 					return false

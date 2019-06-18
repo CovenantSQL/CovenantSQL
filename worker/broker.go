@@ -22,20 +22,29 @@ import (
 	"fmt"
 	"strings"
 
+	"context"
+	"time"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gogf/gf/g/container/gqueue"
 )
 
+type MQTTAPI string
+
 const (
 	//Publish API
-	Newest  = "newest"
-	DSNList = "dsnlist"
+	MQTTNewest MQTTAPI = "newest"
+	DSNList    MQTTAPI = "dsnlist"
 
 	//Subscribe API
-	Write  = "write"
-	Replay = "replay"
-	Create = "create"
+	MQTTWrite  MQTTAPI = "write"
+	MQTTReplay MQTTAPI = "replay"
+	MQTTCreate MQTTAPI = "create"
+
+	MQTTInvalid MQTTAPI = ""
 )
 
 var (
@@ -45,18 +54,18 @@ var (
 )
 
 type SubscribeEvent struct {
-	ClientID string
-	DSN      string
-	ApiName  string
-	Payload  BrokerPayload
+	ClientID   proto.NodeID
+	DatabaseID proto.DatabaseID
+	ApiName    MQTTAPI
+	Payload    BrokerPayload
 }
 
 type BrokerPayload struct {
-	BlockID        uint           `json:"block_id"`
-	BlockIndex     uint           `json:"block_index"`
-	ClientID       string         `json:"client_id"`
-	ClientSequence uint           `json:"client_seq"`
-	Events         []PayloadEvent `json:"events"`
+	BlockID        int32         `json:"block_id"`
+	BlockIndex     int           `json:"block_index"`
+	ClientID       proto.NodeID  `json:"client_id"`
+	ClientSequence uint64        `json:"client_seq"`
+	Events         []types.Query `json:"events"`
 
 	//Replay API
 	BlockStart uint `json:"block_start"`
@@ -65,20 +74,15 @@ type BrokerPayload struct {
 	IndexEnd   uint `json:"index_end"`
 }
 
-type PayloadEvent struct {
-	Query string `json:"query_string"`
-	Args  []struct {
-		Name  string      `json:"name"`
-		Value interface{} `json:"value"`
-	} `json:"args"`
-}
-
 type MQTTClient struct {
 	mqtt.Client
 	ListenTopic        string
 	PublishTopicPrefix string
 
 	subscribeEventQueue *gqueue.Queue
+
+	updateCtx    context.Context
+	updateCancel context.CancelFunc
 
 	dbms *DBMS
 }
@@ -108,39 +112,41 @@ func NewMQTTClient(config *conf.MQTTBrokerInfo, dbms *DBMS) (c *MQTTClient) {
 		return
 	}
 
-	go c.subscribeEventLoop()
+	c.updateCtx, c.updateCancel = context.WithCancel(context.Background())
+	go c.updateBlockLoop()
 
+	go c.subscribeEventLoop()
 	c.Subscribe(c.ListenTopic, 1, subscribeCallback(c.subscribeEventQueue))
 
 	return
 }
 
-func decodeTopicAPI(topic string) (clientID, dsn, apiName string) {
+func decodeTopicAPI(topic string) (clientID proto.NodeID, databaseID proto.DatabaseID, apiName MQTTAPI) {
 	args := strings.Split(strings.TrimPrefix(topic, listenPrefix), "/")
 	if len(args) == 0 || len(args) > 3 {
 		return
 	}
 	switch len(args) {
 	case 1:
-		clientID = args[0]
+		clientID = proto.NodeID(args[0])
 	case 2:
-		clientID = args[0]
-		if args[1] == Create {
-			apiName = Create
+		clientID = proto.NodeID(args[0])
+		if args[1] == string(MQTTCreate) {
+			apiName = MQTTCreate
 		} else {
-			dsn = args[1]
+			databaseID = proto.DatabaseID(args[1])
 		}
 	case 3:
-		clientID = args[0]
-		dsn = args[1]
-		apiName = args[2]
+		clientID = proto.NodeID(args[0])
+		databaseID = proto.DatabaseID(args[1])
+		apiName = MQTTAPI(args[2])
 	default:
 		return
 	}
 
 	// valid check
-	if apiName != Write && apiName != Replay && apiName != Create {
-		apiName = ""
+	if apiName != MQTTWrite && apiName != MQTTReplay && apiName != MQTTCreate {
+		apiName = MQTTInvalid
 	}
 	return
 }
@@ -148,7 +154,7 @@ func decodeTopicAPI(topic string) (clientID, dsn, apiName string) {
 func subscribeCallback(eventQueue *gqueue.Queue) func(client mqtt.Client, msg mqtt.Message) {
 	return func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("TOPIC: %s\n", msg.Topic())
-		clientID, dsn, apiName := decodeTopicAPI(msg.Topic())
+		clientID, databaseID, apiName := decodeTopicAPI(msg.Topic())
 		if apiName == "" {
 			//TODO log topic, payload and error
 			fmt.Printf("TOPIC: %s\n", msg.Topic())
@@ -165,10 +171,10 @@ func subscribeCallback(eventQueue *gqueue.Queue) func(client mqtt.Client, msg mq
 		}
 		fmt.Printf("Payload: %v\n", payload)
 		eventQueue.Push(&SubscribeEvent{
-			ApiName:  apiName,
-			ClientID: clientID,
-			DSN:      dsn,
-			Payload:  payload,
+			ApiName:    apiName,
+			ClientID:   clientID,
+			DatabaseID: databaseID,
+			Payload:    payload,
 		})
 	}
 }
@@ -177,11 +183,11 @@ func (c *MQTTClient) subscribeEventLoop() {
 	for raw := range c.subscribeEventQueue.C {
 		subscribeEvent := raw.(*SubscribeEvent)
 		switch subscribeEvent.ApiName {
-		case Write:
+		case MQTTWrite:
 			c.processWriteEvent(subscribeEvent)
-		case Replay:
+		case MQTTReplay:
 			c.processReplayEvent(subscribeEvent)
-		case Create:
+		case MQTTCreate:
 			c.processCreateEvent(subscribeEvent)
 		default:
 			//TODO log error
@@ -191,22 +197,49 @@ func (c *MQTTClient) subscribeEventLoop() {
 }
 
 // TODO
-// 1. conf set for trigger mqtt logic
 // 2. log
 // 3. reconsider context
 func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
-	fmt.Printf("Processed write event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
-	// TODO
-	// 1. add to sqlchain
-	// c.dbms.Query(req)
-	// 2. publish to broker(in sqlchain query func, for other non-mqtt client data)
-	// 3. make it unblock
+	fmt.Printf("Processed write event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
 
-	//c.PublishDSN(Newest, event.DSN, event.Payload, event.ClientID)
+	// 1. add to sqlchain
+	var db *Database
+	var exists bool
+	// find database
+	if db, exists = c.dbms.getMeta(proto.DatabaseID(event.DatabaseID)); !exists {
+		// TODO log not exist
+		//err = ErrNotExists
+		return
+	}
+
+	// 2. build request
+	req := &types.Request{
+		Header: types.SignedRequestHeader{
+			RequestHeader: types.RequestHeader{
+				QueryType:    types.WriteQuery,
+				NodeID:       proto.NodeID(event.ClientID),
+				DatabaseID:   proto.DatabaseID(event.DatabaseID),
+				ConnectionID: 0,
+				SeqNo:        event.Payload.ClientSequence,
+				Timestamp:    getLocalTime(),
+			},
+		},
+		Payload: types.RequestPayload{
+			Queries: event.Payload.Events,
+		},
+	}
+
+	_, err := db.Query(req)
+	if err != nil {
+		//TODO log err
+		return
+	}
+	// TODO
+	// 3. make it unblock
 }
 
 func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
-	fmt.Printf("Processed replay event: %s %s %s\n", event.ClientID, event.DSN, event.ApiName)
+	fmt.Printf("Processed replay event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
 	// TODO
 	// 1. find local db bin log
 	// 2. publish to broker (in this func)
@@ -223,7 +256,50 @@ func (c *MQTTClient) processCreateEvent(event *SubscribeEvent) {
 	fmt.Printf("Create API does not support yet.\n")
 }
 
-func (c *MQTTClient) PublishDSN(apiName, dsn string, payload BrokerPayload, requestClient string) error {
+func (c *MQTTClient) updateBlockLoop() {
+	for {
+		select {
+		case <-c.updateCtx.Done():
+			return
+		case <-time.After(conf.GConf.SQLChainPeriod):
+			c.dbms.dbMap.Range(func(_, rawDB interface{}) bool {
+				db := rawDB.(*Database)
+				req := &ObserverFetchBlockReq{
+					Envelope: proto.Envelope{
+						NodeID: conf.GConf.ThisNodeID.ToRawNodeID(),
+					},
+					DatabaseID: db.dbID,
+					Count:      -1,
+				}
+				var resp *ObserverFetchBlockResp
+				err := c.dbms.rpc.ObserverFetchBlock(req, resp)
+				if err != nil {
+					// TODO log err
+					return false
+				}
+
+				err = nil
+				for index, qat := range resp.Block.QueryTxs {
+					payload := BrokerPayload{
+						BlockID:        resp.Count,
+						BlockIndex:     index,
+						ClientID:       qat.Request.Header.NodeID,
+						ClientSequence: qat.Request.Header.SeqNo,
+						Events:         qat.Request.Payload.Queries,
+					}
+					err = c.PublishDSN(MQTTNewest, qat.Request.Header.DatabaseID, payload, payload.ClientID)
+				}
+				if err != nil {
+					return false
+				}
+				return true
+			})
+
+		}
+	}
+}
+
+func (c *MQTTClient) PublishDSN(apiName MQTTAPI, databaseID proto.DatabaseID, payload BrokerPayload, requestClient proto.NodeID) error {
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -232,12 +308,12 @@ func (c *MQTTClient) PublishDSN(apiName, dsn string, payload BrokerPayload, requ
 	var topic string
 
 	switch apiName {
-	case Newest:
-		topic = c.PublishTopicPrefix + dsn + "/" + apiName
-	case Replay:
-		topic = c.PublishTopicPrefix + dsn + "/" + apiName + "/" + requestClient
+	case MQTTNewest:
+		topic = c.PublishTopicPrefix + string(databaseID) + "/" + string(apiName)
+	case MQTTReplay:
+		topic = c.PublishTopicPrefix + string(databaseID) + "/" + string(apiName) + "/" + string(requestClient)
 	default:
-		return errors.New("Invalid miner push api name" + apiName)
+		return errors.New("Invalid miner push api name" + string(apiName))
 	}
 
 	token := c.Publish(topic, 1, true, jsonBytes)
@@ -248,6 +324,7 @@ func (c *MQTTClient) PublishDSN(apiName, dsn string, payload BrokerPayload, requ
 }
 
 func (c *MQTTClient) Close() {
+	c.updateCancel()
 	c.Unsubscribe(c.ListenTopic).Wait()
 	c.subscribeEventQueue.Close()
 	c.Disconnect(250)

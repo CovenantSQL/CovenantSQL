@@ -67,10 +67,10 @@ type BrokerPayload struct {
 	Events         []types.Query `json:"events"`
 
 	//Replay API
-	BlockStart uint `json:"block_start"`
-	IndexStart uint `json:"index_start"`
-	BlockEnd   uint `json:"block_end"`
-	IndexEnd   uint `json:"index_end"`
+	BlockStart int32 `json:"block_start"`
+	IndexStart int   `json:"index_start"`
+	BlockEnd   int32 `json:"block_end"`
+	IndexEnd   int   `json:"index_end"`
 }
 
 type MQTTClient struct {
@@ -233,15 +233,56 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 	log.Debugf("Processed replay event: %s %s %s\n", event.ClientID, event.DatabaseID, event.ApiName)
 	// TODO
-	// 1. find local db bin log
-	// 2. publish to broker (in this func)
-	// 3. make it unblock
-	// 4. add a buffer for bin log to large
+	// make it unblock
 
-	//allPayload := fakedb.all(event.DSN)
-	//for _, payload := range allPayload {
-	//	c.PublishDSN(Replay, event.DSN, payload, event.ClientID)
-	//}
+	dbID := event.DatabaseID
+	bStart := event.Payload.BlockStart
+	bEnd := event.Payload.BlockEnd
+	iStart := event.Payload.IndexStart
+	iEnd := event.Payload.IndexEnd
+
+	for blockIndex := bStart; blockIndex <= bEnd; blockIndex++ {
+		req := &ObserverFetchBlockReq{
+			Envelope: proto.Envelope{
+				NodeID: conf.GConf.ThisNodeID.ToRawNodeID(),
+			},
+			DatabaseID: dbID,
+			Count:      blockIndex,
+		}
+		var resp *ObserverFetchBlockResp
+		err := c.dbms.rpc.ObserverFetchBlock(req, resp)
+		if err != nil {
+			log.Errorf("MQTT fetch block failed: databaseID: %v, err: %v", req.DatabaseID, err)
+			return
+		}
+
+		err = nil
+		for index, qat := range resp.Block.QueryTxs {
+			payload := BrokerPayload{
+				BlockID:        resp.Count,
+				BlockIndex:     index,
+				ClientID:       qat.Request.Header.NodeID,
+				ClientSequence: qat.Request.Header.SeqNo,
+				Events:         qat.Request.Payload.Queries,
+			}
+			if blockIndex == bStart {
+				if index < iStart {
+					continue
+				}
+			} else if blockIndex == bEnd {
+				if index > iEnd {
+					// Success publish all replay
+					return
+				}
+			}
+			err = c.PublishDSN(MQTTReplay, qat.Request.Header.DatabaseID, payload, payload.ClientID)
+			if err != nil {
+				log.Errorf("MQTT publish replay api failed, databaseID: %v, payload: %v, err: %v", qat.Request.Header.DatabaseID, payload, err)
+				// Cancel further publish if any error
+				return
+			}
+		}
+	}
 }
 
 func (c *MQTTClient) processCreateEvent(event *SubscribeEvent) {

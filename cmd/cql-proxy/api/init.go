@@ -70,7 +70,7 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.POST("/project/:db/user", preRegisterProjectUser)
 			v3AdminLogin.GET("/project/:db/user/:id", queryProjectUser)
 			v3AdminLogin.PUT("/project/:db/user/:id", updateProjectUser)
-			v3AdminLogin.GET("/project/:db/user/_/batch", batchQueryProjectUser)
+			v3AdminLogin.GET("/project/:db/user/:id/batch", batchQueryProjectUser) // use _ in :id
 
 			v3AdminLogin.PUT("/project/:db/config/misc", updateProjectMiscConfig)
 			v3AdminLogin.PUT("/project/:db/config/group", updateProjectGroupConfig)

@@ -931,7 +931,7 @@ func dropProjectTable(c *gin.Context) {
 func batchQueryProjectUser(c *gin.Context) {
 	r := struct {
 		DB proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
-		ID []int64          `json:"id" form:"id" uri:"id" binding:"required,dive,required,gt=0"`
+		ID []int64          `json:"id" form:"id" binding:"required,dive,required,gt=0"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)

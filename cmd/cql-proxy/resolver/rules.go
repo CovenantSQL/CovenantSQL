@@ -351,11 +351,22 @@ func (r *Rules) findUserRules(table string, qt RuleQueryType) (queryRules *Query
 
 func (r *Rules) findRulesToApply(queryRules *QueryRules, uid string, userState string) (
 	resultRules []map[string]interface{}, err error) {
+	// state rule
 	var (
-		groups = r.userGroups[uid]
-		ok     bool
+		stateRule map[string]interface{}
+		ok        bool
 	)
+	if stateRule, ok = queryRules.userStateRules[userState]; !ok {
+		// open privilege
+	} else if stateRule == nil {
+		err = errors.Errorf("permission denied of user state %s", userState)
+		return
+	}
 
+	resultRules = append(resultRules, stateRule)
+
+	// group rules
+	var groups = r.userGroups[uid]
 	for _, g := range groups {
 		var rule map[string]interface{}
 
@@ -369,20 +380,12 @@ func (r *Rules) findRulesToApply(queryRules *QueryRules, uid string, userState s
 		resultRules = append(resultRules, queryRules.groupRules[g])
 	}
 
+	// user rule
 	var rule map[string]interface{}
 	if rule, ok = queryRules.userRules[uid]; !ok {
 		// open privilege
 	} else if rule == nil {
 		err = errors.New("permission denied of user rule")
-		return
-	}
-
-	resultRules = append(resultRules, rule)
-
-	if rule, ok = queryRules.userStateRules[userState]; !ok {
-		// open privilege
-	} else if rule == nil {
-		err = errors.Errorf("permission denied of user state %s", userState)
 		return
 	}
 

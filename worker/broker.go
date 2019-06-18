@@ -47,7 +47,6 @@ const (
 )
 
 var (
-	minerName     = "miner_test"
 	publishPrefix = "/cql/miner/"
 	listenPrefix  = "/cql/client/"
 )
@@ -101,7 +100,7 @@ func NewMQTTClient(config *conf.MQTTBrokerInfo, dbms *DBMS) (c *MQTTClient) {
 	c = &MQTTClient{
 		Client:              mqtt.NewClient(opts),
 		ListenTopic:         listenPrefix + "#",
-		PublishTopicPrefix:  publishPrefix + minerName + "/",
+		PublishTopicPrefix:  publishPrefix + config.User + "/",
 		subscribeEventQueue: gqueue.New(),
 		dbms:                dbms,
 	}

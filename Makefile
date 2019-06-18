@@ -102,6 +102,10 @@ unamestr := $(shell uname)
 
 ifeq ($(unamestr),Linux)
 	platform := linux
+else
+  ifeq ($(unamestr),Darwin)
+	platform := darwin
+  endif
 endif
 
 ifdef CQLVERSION
@@ -110,7 +114,7 @@ else
 	version := $(branch)-$(GIT_COMMIT)-$(builddate)
 endif
 
-tags := $(platform) sqlite_omit_load_extension
+tags := $(platform) sqlite_omit_load_extension sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
 testtags := $(tags) testbinary
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 

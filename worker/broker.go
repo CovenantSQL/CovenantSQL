@@ -118,14 +118,16 @@ type MQTTClient struct {
 func convertToMQTTQuery(origins []types.Query) []MQTTQuery {
 	length := len(origins)
 	dests := make([]MQTTQuery, length)
-	for _, origin := range origins {
+	for index, origin := range origins {
 		var dest MQTTQuery
 		dest.Pattern = origin.Pattern
-		for _, fromArg := range origin.Args {
+		dest.Args = make([]NamedArgWithType, len(origin.Args))
 
+		for i, fromArg := range origin.Args {
 			var toArg NamedArgWithType
 			toArg.Name = fromArg.Name
 			toArg.Value = fromArg.Value
+
 			switch toArg.Value.(type) {
 			case string:
 				toArg.Type = MQTTString
@@ -144,10 +146,10 @@ func convertToMQTTQuery(origins []types.Query) []MQTTQuery {
 				toArg.Type = MQTTNull
 			}
 
-			dest.Args = append(dest.Args, toArg)
+			dest.Args[i] = toArg
 		}
 
-		dests = append(dests, dest)
+		dests[index] = dest
 	}
 	return dests
 }
@@ -155,10 +157,12 @@ func convertToMQTTQuery(origins []types.Query) []MQTTQuery {
 func convertFromMQTTQuery(origins []MQTTQuery) []types.Query {
 	length := len(origins)
 	dests := make([]types.Query, length)
-	for _, origin := range origins {
+	for index, origin := range origins {
 		var dest types.Query
 		dest.Pattern = origin.Pattern
-		for _, fromArg := range origin.Args {
+		dest.Args = make([]types.NamedArg, len(origin.Args))
+
+		for i, fromArg := range origin.Args {
 
 			var toArg types.NamedArg
 			toArg.Name = fromArg.Name
@@ -183,10 +187,10 @@ func convertFromMQTTQuery(origins []MQTTQuery) []types.Query {
 				toArg.Value = fromArg.Value
 			}
 
-			dest.Args = append(dest.Args, toArg)
+			dest.Args[i] = toArg
 		}
 
-		dests = append(dests, dest)
+		dests[index] = dest
 	}
 	return dests
 }

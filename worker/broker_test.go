@@ -1,11 +1,10 @@
 package worker
 
 import (
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"testing"
+
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
 type fakeDB map[string][]BrokerPayload
@@ -38,20 +37,7 @@ func (f fakeDB) all(dsn string) []BrokerPayload {
 
 var fakedb fakeDB
 
-func TestBroker(t *testing.T) {
-	client := NewMQTTClient()
-	if client == nil {
-		os.Exit(1)
-	}
-	defer client.Close()
+func TestConvertToMQTTQuery(t *testing.T) {
+	origin := make([]types.Query, 0)
 
-	fakedb = make(fakeDB)
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(
-		signalCh,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	signal.Ignore(syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-	<-signalCh
 }

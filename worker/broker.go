@@ -51,25 +51,50 @@ var (
 	listenPrefix  = "/cql/client/"
 )
 
-type SubscribeEvent struct {
-	ClientID   proto.NodeID
-	DatabaseID proto.DatabaseID
-	ApiName    MQTTAPI
-	Payload    BrokerPayload
+type MQTTTypeOfValue int
+
+const (
+	MQTTNull MQTTTypeOfValue = iota
+	MQTTString
+	MQTTInt64
+	MQTTBool
+	MQTTFloat64
+	MQTTByte
+	MQTTTime
+)
+
+// NamedArgWithType defines the named argument structure for database, and add a type column for json decode.
+type NamedArgWithType struct {
+	Name  string
+	Value interface{}
+	Type  MQTTTypeOfValue
+}
+
+// Query defines single query.
+type MQTTQuery struct {
+	Pattern string
+	Args    []NamedArgWithType
 }
 
 type BrokerPayload struct {
-	BlockID        int32         `json:"block_id"`
-	BlockIndex     int           `json:"block_index"`
-	ClientID       proto.NodeID  `json:"client_id"`
-	ClientSequence uint64        `json:"client_seq"`
-	Events         []types.Query `json:"events"`
+	BlockID        int32        `json:"block_id"`
+	BlockIndex     int          `json:"block_index"`
+	ClientID       proto.NodeID `json:"client_id"`
+	ClientSequence uint64       `json:"client_seq"`
+	Events         []MQTTQuery  `json:"events"`
 
 	//Replay API
 	BlockStart int32 `json:"block_start"`
 	IndexStart int   `json:"index_start"`
 	BlockEnd   int32 `json:"block_end"`
 	IndexEnd   int   `json:"index_end"`
+}
+
+type SubscribeEvent struct {
+	ClientID   proto.NodeID
+	DatabaseID proto.DatabaseID
+	ApiName    MQTTAPI
+	Payload    BrokerPayload
 }
 
 type MQTTClient struct {
@@ -83,6 +108,82 @@ type MQTTClient struct {
 	updateCancel context.CancelFunc
 
 	dbms *DBMS
+}
+
+func convertToMQTTQuery(origins []types.Query) []MQTTQuery {
+	length := len(origins)
+	dests := make([]MQTTQuery, length)
+	for _, origin := range origins {
+		var dest MQTTQuery
+		dest.Pattern = origin.Pattern
+		for _, fromArg := range origin.Args {
+
+			var toArg NamedArgWithType
+			toArg.Name = fromArg.Name
+			toArg.Value = fromArg.Value
+			switch toArg.Value.(type) {
+			case string:
+				toArg.Type = MQTTString
+			case int64:
+				toArg.Type = MQTTInt64
+			case bool:
+				toArg.Type = MQTTBool
+			case float64:
+				toArg.Type = MQTTFloat64
+			case []byte:
+				toArg.Type = MQTTByte
+			case time.Time:
+				toArg.Value = []byte(fromArg.Value.(time.Time).Format("2006-01-02 15:04:05.999999999-07:00"))
+				toArg.Type = MQTTTime
+			default:
+				toArg.Type = MQTTNull
+			}
+
+			dest.Args = append(dest.Args, toArg)
+		}
+
+		dests = append(dests, dest)
+	}
+	return dests
+}
+
+func convertFromMQTTQuery(origins []MQTTQuery) []types.Query {
+	length := len(origins)
+	dests := make([]types.Query, length)
+	for _, origin := range origins {
+		var dest types.Query
+		dest.Pattern = origin.Pattern
+		for _, fromArg := range origin.Args {
+
+			var toArg types.NamedArg
+			toArg.Name = fromArg.Name
+			switch fromArg.Type {
+			case MQTTString:
+				toArg.Value = fromArg.Value.(string)
+			case MQTTInt64:
+				toArg.Value = fromArg.Value.(int64)
+			case MQTTBool:
+				toArg.Value = fromArg.Value.(bool)
+			case MQTTFloat64:
+				toArg.Value = fromArg.Value.(float64)
+			case MQTTByte:
+				toArg.Value = fromArg.Value.([]byte)
+			case MQTTTime:
+				var err error
+				toArg.Value, err = time.Parse("2006-01-02 15:04:05.999999999-07:00", string(fromArg.Value.([]byte)))
+				if err != nil {
+					toArg.Value = fromArg.Value.([]byte)
+				}
+			default:
+				toArg.Value = fromArg.Value
+			}
+
+			dest.Args = append(dest.Args, toArg)
+		}
+
+		dests = append(dests, dest)
+	}
+	return dests
 }
 
 func NewMQTTClient(config *conf.MQTTBrokerInfo, dbms *DBMS) (c *MQTTClient) {
@@ -216,10 +317,12 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 			},
 		},
 		Payload: types.RequestPayload{
-			Queries: event.Payload.Events,
+			Queries: convertFromMQTTQuery(event.Payload.Events),
 		},
 	}
 
+	// TODO find request user's private key
+	//req.Sign(private.key)
 	_, err := db.Query(req)
 	if err != nil {
 		log.Errorf("MQTT write database failed: %v, err:%v", event, err)
@@ -260,7 +363,7 @@ func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 				BlockIndex:     index,
 				ClientID:       qat.Request.Header.NodeID,
 				ClientSequence: qat.Request.Header.SeqNo,
-				Events:         qat.Request.Payload.Queries,
+				Events:         convertToMQTTQuery(qat.Request.Payload.Queries),
 			}
 			if blockIndex == bStart {
 				if index < iStart {
@@ -309,7 +412,7 @@ func (c *MQTTClient) updateBlockLoop() {
 						BlockIndex:     index,
 						ClientID:       qat.Request.Header.NodeID,
 						ClientSequence: qat.Request.Header.SeqNo,
-						Events:         qat.Request.Payload.Queries,
+						Events:         convertToMQTTQuery(qat.Request.Payload.Queries),
 					}
 					err = c.PublishDSN(MQTTNewest, qat.Request.Header.DatabaseID, payload, payload.ClientID)
 					if err != nil {

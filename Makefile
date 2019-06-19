@@ -114,8 +114,10 @@ else
 	version := $(branch)-$(GIT_COMMIT)-$(builddate)
 endif
 
-tags := $(platform) sqlite_omit_load_extension sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
-testtags := $(tags) testbinary
+tags := $(platform) sqlite_omit_load_extension
+miner_tags := $(tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
+test_tags := $(tags) testbinary
+miner_test_tags := $(test_tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 
 ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS
@@ -123,8 +125,10 @@ ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/Coven
 ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS
 ldflags_role_client_simple_log := $(ldflags_role_client) -X github.com/CovenantSQL/CovenantSQL/utils/log.SimpleLog=Y
 
-GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(testtags)"
+GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(test_tags)"
+GOTEST_MINER := CGO_ENABLED=1 go test $(test_flags) -tags "$(miner_test_tags)"
 GOBUILD := CGO_ENABLED=1 go build -tags "$(tags)"
+GOBUILD_MINER := CGO_ENABLED=1 go build -tags "$(miner_tags)"
 
 bin/cqld.test:
 	$(GOTEST) \
@@ -139,13 +143,13 @@ bin/cqld:
 		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
 bin/cql-minerd.test:
-	$(GOTEST) \
+	$(GOTEST_MINER) \
 		-ldflags "$(ldflags_role_miner)" \
 		-o bin/cql-minerd.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
 bin/cql-minerd:
-	$(GOBUILD) \
+	$(GOBUILD_MINER) \
 		-ldflags "$(ldflags_role_miner)" \
 		-o bin/cql-minerd \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd

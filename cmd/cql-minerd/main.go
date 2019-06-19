@@ -255,6 +255,8 @@ func main() {
 	if dbms, err = startDBMS(server, direct, func() {
 		sendProvideService(reg)
 	}); err != nil {
+		// FIXME(auxten): if restart all miners with the same db,
+		// miners will fail to start
 		time.Sleep(10 * time.Second)
 		log.WithError(err).Fatal("start dbms failed")
 	}

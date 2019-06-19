@@ -25,6 +25,8 @@ import (
 
 	"path"
 
+	"sync"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -413,6 +415,7 @@ func (c *MQTTClient) processCreateEvent(event *SubscribeEvent) {
 }
 
 func (c *MQTTClient) updateBlockLoop() {
+	var dbBlockLastIndex sync.Map
 	for {
 		select {
 		case <-c.updateCtx.Done():
@@ -422,12 +425,28 @@ func (c *MQTTClient) updateBlockLoop() {
 			// make it unblock
 			c.dbms.dbMap.Range(func(_, rawDB interface{}) bool {
 				db := rawDB.(*Database)
+
+				// fetch newest block
 				block, realCount, _, err := db.chain.FetchBlockByCount(-1)
 				if err != nil {
 					log.Errorf("MQTT fetch block failed: databaseID: %v, err: %v", db.dbID, err)
 					return false
 				}
 
+				// find last published block index
+				var lastIndex int32
+				li, ok := dbBlockLastIndex.Load(db.dbID)
+				if !ok {
+					lastIndex = 0
+				} else {
+					lastIndex = li.(int32)
+				}
+				if lastIndex == realCount {
+					log.Infof("MQTT fetch newest block not changed, databaseID: %v", db.dbID)
+					return true
+				}
+
+				// publish every query of newest block
 				err = nil
 				for index, qat := range block.QueryTxs {
 					payload := BrokerPayload{
@@ -445,6 +464,9 @@ func (c *MQTTClient) updateBlockLoop() {
 				if err != nil {
 					return false
 				}
+
+				// update last published block index
+				dbBlockLastIndex.Store(db.dbID, realCount)
 				return true
 			})
 

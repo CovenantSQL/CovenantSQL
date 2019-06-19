@@ -255,6 +255,7 @@ func main() {
 	if dbms, err = startDBMS(server, direct, func() {
 		sendProvideService(reg)
 	}); err != nil {
+		time.Sleep(10 * time.Second)
 		log.WithError(err).Fatal("start dbms failed")
 	}
 

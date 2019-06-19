@@ -23,7 +23,10 @@ import (
 	"strings"
 	"time"
 
+	"path"
+
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -304,6 +307,12 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 		return
 	}
 
+	leader := db.chain.GetPeerLeaderID()
+	if leader != conf.GConf.ThisNodeID {
+		log.Debugf("MQTT write request by %v, databaseID %v will not process by follower node", event.ClientID, event.DatabaseID)
+		return
+	}
+
 	// 2. build request
 	req := &types.Request{
 		Header: types.SignedRequestHeader{
@@ -321,9 +330,17 @@ func (c *MQTTClient) processWriteEvent(event *SubscribeEvent) {
 		},
 	}
 
-	// TODO find request user's private key
-	//req.Sign(private.key)
-	_, err := db.Query(req)
+	// TODO Add masterkey support
+	clientPrivateKey := path.Join(conf.GConf.MQTTBroker.IoTKeyfilePath, string(event.ClientID)+".key")
+	privateKey, err := kms.LoadPrivateKey(clientPrivateKey, nil)
+	if err != nil {
+		log.Errorf("MQTT load IoT client private key failed: %v", clientPrivateKey)
+	}
+	err = req.Sign(privateKey)
+	if err != nil {
+		log.Errorf("MQTT sign request with IoT client private key failed: %v", err)
+	}
+	_, err = db.Query(req)
 	if err != nil {
 		log.Errorf("MQTT write database failed: %v, err:%v", event, err)
 		return
@@ -344,6 +361,12 @@ func (c *MQTTClient) processReplayEvent(event *SubscribeEvent) {
 		return
 	}
 	db := rawDB.(*Database)
+
+	leader := db.chain.GetPeerLeaderID()
+	if leader != conf.GConf.ThisNodeID {
+		log.Debugf("MQTT replay request by %v, databaseID %v will not process by follower node", event.ClientID, event.DatabaseID)
+		return
+	}
 
 	bStart := event.Payload.BlockStart
 	bEnd := event.Payload.BlockEnd

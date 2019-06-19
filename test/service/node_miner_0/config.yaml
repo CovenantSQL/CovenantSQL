@@ -50,6 +50,7 @@ BlockProducer:
 MQTTBroker:
   Addr: 127.0.0.1:18888
   Password: miner_test
+  IoTKeyfilePath: "./iot_private"
 Miner:
   UseTestMasterKey: true
   RootDir: "./data"

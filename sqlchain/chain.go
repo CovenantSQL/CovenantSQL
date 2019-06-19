@@ -1020,6 +1020,10 @@ func (c *Chain) AddResponse(resp *types.SignedResponseHeader) (err error) {
 	return c.ai.addResponse(c.rt.getHeightFromTime(resp.GetRequestTimestamp()), resp)
 }
 
+func (c *Chain) GetPeerLeaderID() proto.NodeID {
+	return c.rt.peers.Leader
+}
+
 func (c *Chain) register(ack *types.SignedAckHeader) (err error) {
 	return c.ai.register(c.rt.getHeightFromTime(ack.GetRequestTimestamp()), ack)
 }

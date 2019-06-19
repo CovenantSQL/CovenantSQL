@@ -21,7 +21,7 @@ import (
 	"path"
 	"time"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -109,8 +109,9 @@ type DNSSeed struct {
 type MQTTBrokerInfo struct {
 	Addr string `yaml:"Addr"`
 	//if no user, use ThisNodeID
-	User     string `yaml:"User,omitempty"`
-	Password string `yaml:"Password"`
+	User           string `yaml:"User,omitempty"`
+	Password       string `yaml:"Password"`
+	IoTKeyfilePath string `yaml:"IoTKeyfilePath"`
 }
 
 // Config holds all the config read from yaml config file.
@@ -194,6 +195,9 @@ func LoadConfig(configPath string) (config *Config, err error) {
 		if config.MQTTBroker.User == "" {
 			config.MQTTBroker.User = string(config.ThisNodeID)
 		}
+		if config.MQTTBroker.IoTKeyfilePath == "" {
+			config.MQTTBroker.IoTKeyfilePath = "iot_private"
+		}
 	}
 
 	configDir := path.Dir(configPath)
@@ -219,6 +223,10 @@ func LoadConfig(configPath string) (config *Config, err error) {
 
 	if config.Miner != nil && !path.IsAbs(config.Miner.RootDir) {
 		config.Miner.RootDir = path.Join(configDir, config.Miner.RootDir)
+	}
+
+	if config.MQTTBroker != nil && !path.IsAbs(config.MQTTBroker.IoTKeyfilePath) {
+		config.MQTTBroker.IoTKeyfilePath = path.Join(configDir, config.MQTTBroker.IoTKeyfilePath)
 	}
 
 	if len(config.KnownNodes) > 0 {

@@ -30,17 +30,17 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
   - ulimit -n 8192
 script:
-  - make alpine_release
+  - make release
   - mkdir tmp && tar zxvf app-bin.tgz -C tmp
-  - ldd tmp/bin/cql*
+  - ldd tmp/bin/cql* || true
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 
 before_deploy:
   - make clean
-  - make alpine_release
+  - make release
   - mkdir build && tar zxvf app-bin.tgz -C build
-  - ldd build/bin/cql*
+  - ldd build/bin/cql* || true
   - mv app-bin.tgz build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz
 
 deploy:

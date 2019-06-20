@@ -235,14 +235,20 @@ all: bp miner client
 
 build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
+# This should only called in alpine docker builder
 build-release-static: bin/cqld.static bin/cql-minerd.static bin/cql.static \
 	bin/cql-fuse.static bin/cql-mysql-adapter.static bin/cql-faucet.static
 
 release:
 ifeq ($(unamestr),Linux)
-	make -j$(JOBS) build-release-static
+	if [ -f /.dockerenv ]; then
+		make -j$(JOBS) build-release-static
+	else
+		make alpine_release
+	fi
 else
 	make -j$(JOBS) build-release
+	tar czvf app-bin.tgz bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 endif
 
 android-release: status

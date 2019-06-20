@@ -272,7 +272,7 @@ func WaitBPDatabaseCreation(
 		select {
 		case <-ticker.C:
 			count++
-			fmt.Printf("\rWaiting for miner confirmation %vs", count*int(period.Seconds()))
+			fmt.Printf("\rQuerying SQLChain Profile %vs", count*int(period.Seconds()))
 
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, nil,

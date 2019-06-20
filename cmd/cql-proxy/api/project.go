@@ -17,6 +17,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1135,7 +1136,20 @@ func populateRulesContext(c *gin.Context, ctx *projectRulesContext) (r *resolver
 	}
 
 	for tableName, ptc := range ctx.tables {
-		tableRules[tableName] = ptc.Value.(*model.ProjectTableConfig).Rules
+		tableRule := ptc.Value.(*model.ProjectTableConfig).Rules
+
+		// treat all empty values as nil
+		if len(tableRule) > 0 &&
+			!bytes.Equal(tableRule, []byte("null")) &&
+			!bytes.HasPrefix(tableRule, []byte{'{'}) {
+			switch string(tableRule) {
+			case "0", "false", `""`:
+				tableRules[tableName] = nil
+				continue
+			}
+		}
+
+		tableRules[tableName] = tableRule
 	}
 
 	r, err = resolver.CompileRules(map[string]interface{}{

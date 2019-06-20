@@ -118,12 +118,21 @@ tags := $(platform) sqlite_omit_load_extension
 miner_tags := $(tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
 test_tags := $(tags) testbinary
 miner_test_tags := $(test_tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
+
+static_flags := -linkmode external -extldflags '-static'
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 
-ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS
-ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS
-ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS
+ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B
+ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M
+ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C
 ldflags_role_client_simple_log := $(ldflags_role_client) -X github.com/CovenantSQL/CovenantSQL/utils/log.SimpleLog=Y
+
+ifeq ($(unamestr),Linux)
+  ldflags_role_bp := $(ldflags_role_bp) $(static_flags)
+  ldflags_role_miner := $(ldflags_role_miner) $(static_flags)
+  ldflags_role_client := $(ldflags_role_client) $(static_flags)
+  ldflags_role_client_simple_log := $(ldflags_role_client_simple_log) $(static_flags)
+endif
 
 GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(test_tags)"
 GOTEST_MINER := CGO_ENABLED=1 go test $(test_flags) -tags "$(miner_test_tags)"

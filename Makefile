@@ -241,10 +241,10 @@ build-release-static: bin/cqld.static bin/cql-minerd.static bin/cql.static \
 
 release:
 ifeq ($(unamestr),Linux)
-	if [ -f /.dockerenv ]; then
-		make -j$(JOBS) build-release-static
-	else
-		make alpine_release
+	if [ -f /.dockerenv ]; then \
+		make -j$(JOBS) build-release-static; \
+	else \
+		make alpine_release; \
 	fi
 else
 	make -j$(JOBS) build-release

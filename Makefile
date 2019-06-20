@@ -57,6 +57,9 @@ docker_clean: status
 	docker rmi -f $(BUILDER):$(VERSION)
 	docker rmi -f $(IMAGE):$(VERSION)
 
+alpine_release: builder
+	temp_container=$$(docker create $(BUILDER):$(VERSION)) ; \
+	docker cp $${temp_container}:/go/src/github.com/CovenantSQL/CovenantSQL/bin - | gzip > app-bin.tgz
 
 save: status
 ifeq ($(SHIP_VERSION),)

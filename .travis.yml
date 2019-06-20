@@ -34,7 +34,7 @@ script:
   - mkdir tmp && tar zxvf app-bin.tgz -C tmp
   - ldd tmp/bin/cql* || true
   - set -x
-  - mv -f tmp/bin/* bin/
+  - mv -f tmp/bin/cql* bin/
   - ./test/testnet_client/run.sh
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true

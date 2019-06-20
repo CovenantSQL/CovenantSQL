@@ -31,6 +31,7 @@ before_script:
   - ulimit -n 8192
 script:
   - make use_all_cores
+  - ldd bin/cql*
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 

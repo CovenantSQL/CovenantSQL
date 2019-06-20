@@ -238,8 +238,9 @@ build-release-static: bin/cqld.static bin/cql-minerd.static bin/cql.static \
 release:
 ifeq ($(unamestr),Linux)
 	make -j$(JOBS) build-release-static
-endif
+else
 	make -j$(JOBS) build-release
+endif
 
 android-release: status
 	docker build \

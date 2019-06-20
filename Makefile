@@ -146,8 +146,7 @@ bin/cqld:
 
 bin/cqld.static:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_bp)" \
-		$(static_flags) \
+		-ldflags "$(ldflags_role_bp) $(static_flags)" \
 		-o bin/cqld \
 		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
@@ -165,8 +164,7 @@ bin/cql-minerd:
 
 bin/cql-minerd.static:
 	$(GOBUILD_MINER) \
-		-ldflags "$(ldflags_role_miner)" \
-		$(static_flags) \
+		-ldflags "$(ldflags_role_miner) $(static_flags)" \
 		-o bin/cql-minerd \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
@@ -184,8 +182,7 @@ bin/cql:
 
 bin/cql.static:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client_simple_log)" \
-		$(static_flags) \
+		-ldflags "$(ldflags_role_client_simple_log) $(static_flags)" \
 		-o bin/cql \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
@@ -197,8 +194,7 @@ bin/cql-fuse:
 
 bin/cql-fuse.static:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client_simple_log)" \
-		$(static_flags) \
+		-ldflags "$(ldflags_role_client_simple_log) $(static_flags)" \
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
@@ -210,8 +206,7 @@ bin/cql-mysql-adapter:
 
 bin/cql-mysql-adapter.static:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
-		$(static_flags) \
+		-ldflags "$(ldflags_role_client) $(static_flags)" \
 		-o bin/cql-mysql-adapter \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
 
@@ -223,8 +218,7 @@ bin/cql-faucet:
 
 bin/cql-faucet.static:
 	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client)" \
-		$(static_flags) \
+		-ldflags "$(ldflags_role_client) $(static_flags)" \
 		-o bin/cql-faucet \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 

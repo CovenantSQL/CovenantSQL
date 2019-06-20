@@ -199,10 +199,10 @@ build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapte
 
 release:
 ifeq ($(unamestr),Linux)
-  ldflags_role_bp := $(ldflags_role_bp) $(static_flags)
-  ldflags_role_miner := $(ldflags_role_miner) $(static_flags)
-  ldflags_role_client := $(ldflags_role_client) $(static_flags)
-  ldflags_role_client_simple_log := $(ldflags_role_client_simple_log) $(static_flags)
+	ldflags_role_bp := $(ldflags_role_bp) $(static_flags)
+	ldflags_role_miner := $(ldflags_role_miner) $(static_flags)
+	ldflags_role_client := $(ldflags_role_client) $(static_flags)
+	ldflags_role_client_simple_log := $(ldflags_role_client_simple_log) $(static_flags)
 endif
 	make -j$(JOBS) build-release
 

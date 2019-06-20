@@ -81,10 +81,7 @@ func (c *cpuCollector) Update(ch chan<- prometheus.Metric) error {
 	if err := c.updateStat(ch); err != nil {
 		return err
 	}
-	if err := c.updateCPUfreq(ch); err != nil {
-		return err
-	}
-	return nil
+	return c.updateCPUfreq(ch)
 }
 
 // updateCPUfreq reads /sys/devices/system/cpu/cpu* and expose cpu frequency statistics.

@@ -33,6 +33,8 @@ script:
   - make release
   - mkdir tmp && tar zxvf app-bin.tgz -C tmp
   - ldd tmp/bin/cql* || true
+  - set -x
+  - ./test/testnet_client/run.sh
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 

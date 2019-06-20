@@ -127,13 +127,6 @@ ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/Coven
 ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C
 ldflags_role_client_simple_log := $(ldflags_role_client) -X github.com/CovenantSQL/CovenantSQL/utils/log.SimpleLog=Y
 
-ifeq ($(unamestr),Linux)
-  ldflags_role_bp := $(ldflags_role_bp) $(static_flags)
-  ldflags_role_miner := $(ldflags_role_miner) $(static_flags)
-  ldflags_role_client := $(ldflags_role_client) $(static_flags)
-  ldflags_role_client_simple_log := $(ldflags_role_client_simple_log) $(static_flags)
-endif
-
 GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(test_tags)"
 GOTEST_MINER := CGO_ENABLED=1 go test $(test_flags) -tags "$(miner_test_tags)"
 GOBUILD := CGO_ENABLED=1 go build -tags "$(tags)"
@@ -205,6 +198,12 @@ all: bp miner client
 build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
 release:
+ifeq ($(unamestr),Linux)
+  ldflags_role_bp := $(ldflags_role_bp) $(static_flags)
+  ldflags_role_miner := $(ldflags_role_miner) $(static_flags)
+  ldflags_role_client := $(ldflags_role_client) $(static_flags)
+  ldflags_role_client_simple_log := $(ldflags_role_client_simple_log) $(static_flags)
+endif
 	make -j$(JOBS) build-release
 
 android-release: status

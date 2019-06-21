@@ -50,8 +50,14 @@ func createDB(c *gin.Context) {
 
 	developer := getDeveloperID(c)
 
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
 	// run task
-	taskID, err := getTaskManager(c).New(model.TaskCreateDB, developer, gin.H{
+	taskID, err := getTaskManager(c).New(model.TaskCreateDB, developer, p.ID, gin.H{
 		"node_count": r.NodeCount,
 	})
 	if err != nil {
@@ -79,8 +85,14 @@ func topUp(c *gin.Context) {
 
 	developer := getDeveloperID(c)
 
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
 	// run task
-	taskID, err := getTaskManager(c).New(model.TaskTopUp, developer, gin.H{
+	taskID, err := getTaskManager(c).New(model.TaskTopUp, developer, p.ID, gin.H{
 		"db":     r.Database,
 		"amount": r.Amount,
 	})
@@ -228,8 +240,8 @@ func databaseList(c *gin.Context) {
 	})
 }
 
-func createDatabase(db *gorp.DbMap, developer int64, nodeCount uint16) (tx hash.Hash, dbID proto.DatabaseID, key *asymmetric.PrivateKey, err error) {
-	p, err := model.GetMainAccount(db, developer)
+func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount uint16) (tx hash.Hash, dbID proto.DatabaseID, key *asymmetric.PrivateKey, err error) {
+	p, err := model.GetAccountByID(db, developer, account)
 	if err != nil {
 		return
 	}
@@ -339,7 +351,7 @@ func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t
 		return
 	}
 
-	tx, dbID, _, err := createDatabase(db, t.Developer, args.NodeCount)
+	tx, dbID, _, err := createDatabase(db, t.Developer, t.Account, args.NodeCount)
 	if err != nil {
 		return
 	}
@@ -374,7 +386,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 		return
 	}
 
-	p, err := model.GetMainAccount(db, t.Developer)
+	p, err := model.GetAccountByID(db, t.Developer, t.Account)
 	if err != nil {
 		return
 	}
@@ -385,6 +397,29 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
+		return
+	}
+
+	// check for database account existence
+	profileReq := new(types.QuerySQLChainProfileReq)
+	profileResp := new(types.QuerySQLChainProfileResp)
+	profileReq.DBID = args.Database
+
+	err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+	if err != nil {
+		return
+	}
+
+	foundUser := false
+	for _, user := range profileResp.Profile.Users {
+		if user.Address == accountAddr {
+			foundUser = true
+			break
+		}
+	}
+
+	if !foundUser {
+		err = errors.New("user does not have access to database")
 		return
 	}
 

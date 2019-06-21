@@ -59,14 +59,14 @@ type projectRulesContext struct {
 }
 
 func getProjects(c *gin.Context) {
-	projectList, err := model.GetProjects(model.GetDB(c), getDeveloperID(c))
+	developer := getDeveloperID(c)
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
 	}
 
-	developer := getDeveloperID(c)
-	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	projectList, err := model.GetProjects(model.GetDB(c), developer, p.ID)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -128,8 +128,15 @@ func createProject(c *gin.Context) {
 		return
 	}
 
+	developer := getDeveloperID(c)
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
 	// run task
-	taskID, err := getTaskManager(c).New(model.TaskCreateProject, getDeveloperID(c), gin.H{
+	taskID, err := getTaskManager(c).New(model.TaskCreateProject, developer, p.ID, gin.H{
 		"node_count": r.NodeCount,
 	})
 	if err != nil {
@@ -152,7 +159,7 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 		return
 	}
 
-	tx, dbID, key, err := createDatabase(db, t.Developer, args.NodeCount)
+	tx, dbID, key, err := createDatabase(db, t.Developer, t.Account, args.NodeCount)
 	if err != nil {
 		return
 	}
@@ -182,7 +189,7 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 	}
 
 	// bind database to current developer
-	_, err = model.AddProject(db, dbID, t.Developer)
+	_, err = model.AddProject(db, dbID, t.Developer, t.Account)
 
 	r = gin.H{
 		"tx":      tx.String(),
@@ -1137,12 +1144,12 @@ func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.
 func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (db *gorp.DbMap, err error) {
 	developer := getDeveloperID(c)
 
-	if !model.HasPrivilege(model.GetDB(c), dbID, developer) {
-		err = errors.New("permission denied")
+	project, err := model.GetProjectByID(model.GetDB(c), dbID, developer)
+	if err != nil {
 		return
 	}
 
-	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	p, err := model.GetAccountByID(model.GetDB(c), developer, project.Account)
 	if err != nil {
 		return
 	}

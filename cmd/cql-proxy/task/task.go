@@ -132,8 +132,8 @@ func (m *Manager) Wait(ctx context.Context, id int64) (err error) {
 	}
 }
 
-func (m *Manager) New(tt model.TaskType, developer int64, args gin.H) (id int64, err error) {
-	t, err := model.NewTask(m.db, tt, developer, args)
+func (m *Manager) New(tt model.TaskType, developer int64, account int64, args gin.H) (id int64, err error) {
+	t, err := model.NewTask(m.db, tt, developer, account, args)
 	if err != nil {
 		return
 	}

@@ -55,7 +55,7 @@ func applyToken(c *gin.Context) {
 	developer := getDeveloperID(c)
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -66,9 +66,8 @@ func applyToken(c *gin.Context) {
 	}
 
 	// run task
-	taskID, err := getTaskManager(c).New(model.TaskApplyToken, developer, gin.H{
-		"account": p.Account,
-		"amount":  amount,
+	taskID, err := getTaskManager(c).New(model.TaskApplyToken, developer, p.ID, gin.H{
+		"amount": amount,
 	})
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
@@ -186,16 +185,19 @@ func setMainAccount(c *gin.Context) {
 
 func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
 	args := struct {
-		Account utils.AccountAddress `json:"account"`
-		Amount  uint64               `json:"amount"`
+		Amount uint64 `json:"amount"`
 	}{}
-
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
 		return
 	}
 
-	accountAddr, err := args.Account.Get()
+	p, err := model.GetAccountByID(db, t.Developer, t.Account)
+	if err != nil {
+		return
+	}
+
+	accountAddr, err := p.Account.Get()
 	if err != nil {
 		return
 	}
@@ -206,7 +208,7 @@ func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *
 	}
 
 	// add record
-	ar, err := model.AddTokenApplyRecord(db, t.Developer, args.Account, args.Amount)
+	ar, err := model.AddTokenApplyRecord(db, t.Developer, p.Account, args.Amount)
 	if err != nil {
 		return
 	}
@@ -218,7 +220,7 @@ func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *
 	lastState, err := waitForTxState(timeoutCtx, txHash)
 	r = gin.H{
 		"id":      ar.ID,
-		"account": args.Account,
+		"account": p.Account,
 		"tx":      txHash.String(),
 		"state":   lastState.String(),
 	}

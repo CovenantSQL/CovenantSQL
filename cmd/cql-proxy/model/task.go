@@ -75,6 +75,7 @@ func (s TaskState) String() string {
 type Task struct {
 	ID        int64     `db:"id"`
 	Developer int64     `db:"developer_id"`
+	Account   int64     `db:"account_id"`
 	Type      TaskType  `db:"type"`
 	State     TaskState `db:"state"`
 	RawArgs   []byte    `db:"args"`
@@ -94,6 +95,7 @@ func (t *Task) LogData() string {
 	d, _ := json.Marshal(gin.H{
 		"id":        t.ID,
 		"developer": t.Developer,
+		"account":   t.Account,
 		"type":      t.Type.String(),
 		"state":     t.State.String(),
 		"args":      t.Args,
@@ -126,11 +128,12 @@ func (t *Task) Deserialize() (err error) {
 	return
 }
 
-func NewTask(db *gorp.DbMap, tt TaskType, developer int64, args gin.H) (t *Task, err error) {
+func NewTask(db *gorp.DbMap, tt TaskType, developer int64, account int64, args gin.H) (t *Task, err error) {
 	now := time.Now().Unix()
 	t = &Task{
 		Type:      tt,
 		Developer: developer,
+		Account:   account,
 		State:     TaskWaiting,
 		Args:      args,
 		Result:    nil,
@@ -166,33 +169,56 @@ func UpdateTask(db *gorp.DbMap, t *Task) (err error) {
 	return
 }
 
-func ListTask(db *gorp.DbMap, developer int64, showAll bool, offset int64, limit int64) (
+func ListTask(db *gorp.DbMap, developer int64, account int64, showAll bool, offset int64, limit int64) (
 	tasks []*Task, total int64, err error) {
-	if showAll {
-		total, err = db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ?`, developer)
-	} else {
-		total, err = db.SelectInt(
-			`SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ? AND "state" NOT IN (?, ?)`,
-			developer, TaskSuccess, TaskFailed)
-	}
-	if err != nil {
-		return
-	}
-	if showAll {
-		_, err = db.Select(&tasks,
-			`SELECT * FROM "task" WHERE "developer_id" = ? ORDER BY "id" DESC LIMIT ?, ?`, developer, offset, limit)
-	} else {
-		_, err = db.Select(&tasks,
-			`SELECT * FROM "task" WHERE "developer_id" = ? AND "state" NOT IN (?, ?) 
-ORDER BY "id" DESC LIMIT ?, ?`, developer, TaskSuccess, TaskFailed, offset, limit)
-	}
-	if err != nil {
-		return
+	var (
+		totalSQL  string
+		totalArgs []interface{}
+
+		listSQL  string
+		listArgs []interface{}
+	)
+	switch {
+	case showAll && account != 0:
+		totalSQL = `SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ? AND "account_id" = ?`
+		totalArgs = append(totalArgs, developer, account)
+
+		listSQL = `SELECT * FROM "task" WHERE "developer_id" = ? AND "account_id" = ? ORDER BY "id" DESC LIMIT ?, ?`
+		listArgs = append(listArgs, developer, account, offset, limit)
+	case showAll && account == 0:
+		totalSQL = `SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ?`
+		totalArgs = append(totalArgs, developer)
+
+		listSQL = `SELECT * FROM "task" WHERE "developer_id" = ? ORDER BY "id" DESC LIMIT ?, ?`
+		listArgs = append(listArgs, developer, offset, limit)
+	case !showAll && account != 0:
+		totalSQL = `SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ? AND "account_id" = ? AND "state" NOT IN (?, ?)`
+		totalArgs = append(totalArgs, developer, account, TaskSuccess, TaskFailed)
+
+		listSQL = `SELECT * FROM "task" WHERE "developer_id" = ? AND "account_id" = ? AND "state" NOT IN (?, ?) 
+ORDER BY "id" DESC LIMIT ?, ?`
+		listArgs = append(listArgs, developer, account, TaskSuccess, TaskFailed, offset, limit)
+	case !showAll && account == 0:
+		totalSQL = `SELECT COUNT(1) AS "cnt" FROM "task" WHERE "developer_id" = ? AND "state" NOT IN (?, ?)`
+		totalArgs = append(totalArgs, developer, TaskSuccess, TaskFailed)
+
+		listSQL = `SELECT * FROM "task" WHERE "developer_id" = ? AND "state" NOT IN (?, ?) 
+ORDER BY "id" DESC LIMIT ?, ?`
+		listArgs = append(listArgs, developer, TaskSuccess, TaskFailed, offset, limit)
 	}
 
+	total, err = db.SelectInt(totalSQL, totalArgs...)
+	if err != nil {
+		return
+	}
+	_, err = db.Select(&tasks, listSQL, listArgs...)
+	if err != nil {
+		return
+	}
 	for _, t := range tasks {
 		_ = t.Deserialize()
 	}
+
 	return
 }
 

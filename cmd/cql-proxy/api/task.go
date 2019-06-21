@@ -41,7 +41,14 @@ func listTasks(c *gin.Context) {
 	}
 
 	developer := getDeveloperID(c)
-	tasks, total, err := model.ListTask(model.GetDB(c), developer, r.All, r.Offset, r.Limit)
+
+	p, err := model.GetMainAccount(model.GetDB(c), developer)
+	if err != nil {
+		abortWithError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	tasks, total, err := model.ListTask(model.GetDB(c), developer, p.ID, r.All, r.Offset, r.Limit)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return

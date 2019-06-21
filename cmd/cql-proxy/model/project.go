@@ -28,13 +28,15 @@ type Project struct {
 	DB        proto.DatabaseID `db:"database_id"`
 	Alias     string           `db:"alias"`
 	Developer int64            `db:"developer_id"`
+	Account   int64            `db:"account_id"`
 }
 
-func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *Project, err error) {
+func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, account int64) (p *Project, err error) {
 	p = &Project{
 		DB:        dbID,
-		Developer: developer,
 		Alias:     string(dbID)[:8],
+		Developer: developer,
+		Account:   account,
 	}
 	err = db.Insert(p)
 	return
@@ -63,16 +65,14 @@ func GetProjectByID(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *
 	return
 }
 
-func GetProjects(db *gorp.DbMap, developer int64) (p []*Project, err error) {
-	_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ?`, developer)
+func GetProjects(db *gorp.DbMap, developer int64, account int64) (p []*Project, err error) {
+	if account == 0 {
+		_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ?`, developer)
+	} else {
+		_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ? AND "account_id" = ?`,
+			developer, account)
+	}
 	return
-}
-
-func HasPrivilege(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) bool {
-	recordCnt, err := db.SelectInt(
-		`SELECT COUNT(1) AS "cnt" FROM "project" WHERE "database_id" = ? AND "developer_id" = ?`,
-		dbID, developer)
-	return err == nil && recordCnt > 0
 }
 
 func DeleteProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (err error) {

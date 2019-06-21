@@ -35,7 +35,7 @@ script:
   - ldd tmp/bin/cql* || true
   - set -x
   - mv -f tmp/bin/cql* bin/
-  - ./test/testnet_client/run.sh
+  - if [ $TRAVIS_PULL_REQUEST != false ] && [ "$OSTYPE" == "linux-gnu" ]; then ./test/testnet_client/run.sh; fi
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 

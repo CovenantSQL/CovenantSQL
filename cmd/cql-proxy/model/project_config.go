@@ -85,11 +85,13 @@ func (c *ProjectOAuthConfig) IsEnabled() bool {
 }
 
 type ProjectTableConfig struct {
-	Columns   []string          `json:"columns"`
-	Types     []string          `json:"types"`
-	Keys      map[string]string `json:"keys"`
-	Rules     json.RawMessage   `json:"rules"`
-	IsDeleted bool              `json:"is_deleted"`
+	Columns       []string          `json:"columns"`
+	Types         []string          `json:"types"`
+	Keys          map[string]string `json:"keys"`
+	Rules         json.RawMessage   `json:"rules"`
+	PrimaryKey    string            `json:"primary_key"`
+	AutoIncrement bool              `json:"is_auto_increment"`
+	IsDeleted     bool              `json:"is_deleted"`
 }
 
 type ProjectGroupConfig struct {

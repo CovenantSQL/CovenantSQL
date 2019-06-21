@@ -34,7 +34,7 @@ func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *Proj
 	p = &Project{
 		DB:        dbID,
 		Developer: developer,
-		Alias:     string(dbID),
+		Alias:     string(dbID)[:8],
 	}
 	err = db.Insert(p)
 	return

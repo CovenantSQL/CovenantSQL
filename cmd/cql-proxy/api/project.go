@@ -20,13 +20,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
@@ -40,6 +40,12 @@ import (
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
+)
+
+const (
+	metaTableUserInfo      = "____user"
+	metaTableProjectConfig = "____config"
+	deletedTablePrefix     = "____deleted"
 )
 
 type projectRulesContext struct {
@@ -703,10 +709,12 @@ func getProjectTables(c *gin.Context) {
 
 func createProjectTable(c *gin.Context) {
 	r := struct {
-		DB          proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
-		Table       string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
-		ColumnNames []string         `json:"names" form:"names" binding:"required,min=1,dive,required,max=32"`
-		ColumnTypes []string         `json:"types" form:"types" binding:"required,min=1,dive,required,max=16"`
+		DB            proto.DatabaseID `json:"db" json:"project" form:"db" form:"project" uri:"db" uri:"project" binding:"required,len=64"`
+		Table         string           `json:"table" form:"table" uri:"table" binding:"required,max=128"`
+		ColumnNames   []string         `json:"names" form:"names" binding:"required,min=1,dive,required,max=32"`
+		ColumnTypes   []string         `json:"types" form:"types" binding:"required,min=1,dive,required,max=16"`
+		PrimaryKey    string           `json:"primary_key" form:"primary_key" binding:"omitempty,max=32"`
+		AutoIncrement bool             `json:"auto_increment" form:"auto_increment"`
 	}{}
 
 	_ = c.ShouldBindUri(&r)
@@ -719,6 +727,37 @@ func createProjectTable(c *gin.Context) {
 	if len(r.ColumnNames) != len(r.ColumnTypes) {
 		abortWithError(c, http.StatusBadRequest, errors.New("column names and types not matched"))
 		return
+	}
+
+	if strings.EqualFold(r.Table, metaTableProjectConfig) || strings.EqualFold(r.Table, metaTableUserInfo) ||
+		strings.HasPrefix(r.Table, deletedTablePrefix) {
+		abortWithError(c, http.StatusBadRequest, errors.New("invalid table name"))
+		return
+	}
+
+	// try find primary key in columns
+	pkIdx := -1
+
+	if r.PrimaryKey != "" {
+		for idx, colName := range r.ColumnNames {
+			if strings.EqualFold(colName, r.PrimaryKey) {
+				pkIdx = idx
+
+				if r.AutoIncrement && !strings.EqualFold(r.ColumnTypes[idx], "INTEGER") {
+					abortWithError(c, http.StatusBadRequest,
+						errors.Errorf("autoincrement column only supports INTEGER type"))
+					return
+				}
+
+				break
+			}
+		}
+
+		if pkIdx == -1 {
+			abortWithError(c, http.StatusBadRequest,
+				errors.Errorf("unknown primary key column: %s", r.PrimaryKey))
+			return
+		}
 	}
 
 	projectDB, err := getProjectDB(c, r.DB)
@@ -736,6 +775,13 @@ func createProjectTable(c *gin.Context) {
 			sql += ",\n"
 		}
 		sql += fmt.Sprintf(`"%s" %s`, colName, r.ColumnTypes[idx])
+		if idx == pkIdx {
+			sql += " PRIMARY KEY "
+
+			if r.AutoIncrement {
+				sql += " AUTOINCREMENT "
+			}
+		}
 	}
 
 	sql += `);`
@@ -748,8 +794,10 @@ func createProjectTable(c *gin.Context) {
 
 	// save project table meta config
 	ptc := &model.ProjectTableConfig{
-		Columns: r.ColumnNames,
-		Types:   r.ColumnTypes,
+		Columns:       r.ColumnNames,
+		Types:         r.ColumnTypes,
+		PrimaryKey:    r.PrimaryKey,
+		AutoIncrement: r.AutoIncrement,
 	}
 	p, err := model.AddProjectConfig(projectDB, model.ProjectConfigTable, r.Table, ptc)
 	if err != nil {
@@ -903,6 +951,20 @@ func dropProjectTable(c *gin.Context) {
 	}
 
 	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
+	if err != nil {
+		abortWithError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if ptc.IsDeleted {
+		abortWithError(c, http.StatusNotFound, errors.New("table not exists"))
+		return
+	}
+
+	// rename table
+	newName := fmt.Sprintf("%s_%s_%d", deletedTablePrefix, r.Table, pc.ID)
+	_, err = projectDB.Exec(fmt.Sprintf(
+		`ALTER TABLE "%s" RENAME TO "%s"`, r.Table, newName))
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return

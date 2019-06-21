@@ -193,7 +193,7 @@ _cql() {
 	"adapter:start a SQLChain adapter"
 	"idminer:calculate nonce and node id for config.yaml file"
 	"rpc:make a rpc request"
-	"version:show build version infomation"
+	"version:show build version information"
 	"help:show help for sub command"
   )
 

@@ -16,7 +16,7 @@ ENV VERSION=${VERSION}
 ENV COVENANT_ROLE=miner
 ENV COVENANT_CONF=config.yaml
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates icu-libs musl
 
 WORKDIR /app
 COPY --from=covenantsql/covenantsql-builder /go/src/github.com/CovenantSQL/CovenantSQL/bin/* /app/

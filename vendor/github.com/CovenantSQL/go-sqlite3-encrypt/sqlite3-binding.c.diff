@@ -1,8 +1,8 @@
 diff --git a/sqlite3-binding.c b/sqlite3-binding.c
-index f077152..98f1857 100644
+index a4e32d1..7c35ee9 100644
 --- a/sqlite3-binding.c
 +++ b/sqlite3-binding.c
-@@ -57211,6 +57211,38 @@ SQLITE_PRIVATE int sqlite3PagerWalFramesize(Pager *pPager){
+@@ -58311,6 +58311,38 @@ SQLITE_PRIVATE int sqlite3PagerWalFramesize(Pager *pPager){
  
  #endif /* SQLITE_OMIT_DISKIO */
  
@@ -41,7 +41,7 @@ index f077152..98f1857 100644
  /************** End of pager.c ***********************************************/
  /************** Begin file wal.c *********************************************/
  /*
-@@ -103066,6 +103098,13 @@ static int resolveAttachExpr(NameContext *pName, Expr *pExpr)
+@@ -105977,6 +106009,13 @@ static int resolveAttachExpr(NameContext *pName, Expr *pExpr)
    return rc;
  }
  
@@ -55,7 +55,7 @@ index f077152..98f1857 100644
  /*
  ** An SQL user-function registered to do the work of an ATTACH statement. The
  ** three arguments to the function come directly from an attach statement:
-@@ -103210,11 +103249,8 @@ static void attachFunc(
+@@ -106120,11 +106159,8 @@ static void attachFunc(
      rc = SQLITE_NOMEM_BKPT;
    }
  
@@ -67,7 +67,7 @@ index f077152..98f1857 100644
      int nKey;
      char *zKey;
      int t = sqlite3_value_type(argv[2]);
-@@ -118241,6 +118277,11 @@ SQLITE_PRIVATE void sqlite3Pragma(
+@@ -121536,6 +121572,11 @@ SQLITE_PRIVATE void sqlite3Pragma(
    Db *pDb;                     /* The specific database being pragmaed */
    Vdbe *v = sqlite3GetVdbe(pParse);  /* Prepared statement */
    const PragmaName *pPragma;   /* The pragma */
@@ -79,7 +79,7 @@ index f077152..98f1857 100644
  
    if( v==0 ) return;
    sqlite3VdbeRunOnlyOnce(v);
-@@ -118311,6 +118352,15 @@ SQLITE_PRIVATE void sqlite3Pragma(
+@@ -121606,6 +121647,15 @@ SQLITE_PRIVATE void sqlite3Pragma(
      goto pragma_out;
    }
  
@@ -95,7 +95,7 @@ index f077152..98f1857 100644
    /* Locate the pragma in the lookup table */
    pPragma = pragmaLocate(zLeft);
    if( pPragma==0 ) goto pragma_out;
-@@ -130408,7 +130458,6 @@ SQLITE_PRIVATE int sqlite3RunVacuum(char **pzErrMsg, sqlite3 *db, int iDb){
+@@ -134118,7 +134168,6 @@ SQLITE_PRIVATE SQLITE_NOINLINE int sqlite3RunVacuum(
    /* A VACUUM cannot change the pagesize of an encrypted database. */
  #ifdef SQLITE_HAS_CODEC
    if( db->nextPagesize ){
@@ -103,7 +103,7 @@ index f077152..98f1857 100644
      int nKey;
      char *zKey;
      sqlite3CodecGetKey(db, iDb, (void**)&zKey, &nKey);
-@@ -212222,3 +212271,2569 @@ int sqlite3_user_delete(
+@@ -223234,3 +223283,2569 @@ int sqlite3_user_delete(
  }
  
  #endif /* SQLITE_USER_AUTHENTICATION */
@@ -1594,8 +1594,8 @@ index f077152..98f1857 100644
 +      pSrc = pDb->pBt;
 +
 +      rc = sqlite3_exec(db, "BEGIN;", NULL, NULL, NULL);
-+      rc = sqlite3BtreeBeginTrans(pSrc, 2);
-+      rc = sqlite3BtreeBeginTrans(pDest, 2);
++      rc = sqlite3BtreeBeginTrans(pSrc, 2, 0);
++      rc = sqlite3BtreeBeginTrans(pDest, 2, 0);
 +
 +      assert( 1==sqlite3BtreeIsInTrans(pDest) );
 +      assert( 1==sqlite3BtreeIsInTrans(pSrc) );
@@ -2413,7 +2413,7 @@ index f077152..98f1857 100644
 +      ** 3. If that goes ok then commit and put ctx->rekey into ctx->key
 +      **    note: don't deallocate rekey since it may be used in a subsequent iteration
 +      */
-+      rc = sqlite3BtreeBeginTrans(pDb->pBt, 1); /* begin write transaction */
++      rc = sqlite3BtreeBeginTrans(pDb->pBt, 1, 0); /* begin write transaction */
 +      sqlite3PagerPagecount(pPager, &page_count);
 +      for(pgno = 1; rc == SQLITE_OK && pgno <= (unsigned int)page_count; pgno++) { /* pgno's start at 1 see pager.c:pagerAcquire */
 +        if(!sqlite3pager_is_mj_pgno(pPager, pgno)) { /* skip this page (see pager.c:pagerAcquire for reasoning) */

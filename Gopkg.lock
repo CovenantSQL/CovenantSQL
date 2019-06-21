@@ -32,15 +32,15 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:9691c7a98f7d559cf573a98dd19c26f0859d30343e59a6a30e91c3d187a8ad37"
+  digest = "1:ec4f14966f44ff9a229363321112be3dccb606824bc6ac975c2d7170881f0126"
   name = "github.com/CovenantSQL/go-sqlite3-encrypt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "43e89c9e6ba4ec912425e667d6689fb3ef3c7d45"
+  revision = "86281c4fdaa851b72f59831d72d5249d5c0b5f23"
 
 [[projects]]
   branch = "master"
-  digest = "1:38611168bdc4d52af3345fb15b65d404662ba03ebf0629b89377f456d9d10c0b"
+  digest = "1:0233f11b3ca1f265d158adb8027235b04d30f562d03d9bd58d0e0982d12379e1"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -50,7 +50,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "4527548de91375a7a392cfac8c8efa7656d7fad9"
+  revision = "c4a6cf6cebb6872b2d82503fcdbbe004ccfc2540"
 
 [[projects]]
   digest = "1:3e98d7591efd49c324016c20fa4409e7498f791bc764a7c016258e34584d9514"

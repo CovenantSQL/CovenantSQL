@@ -272,7 +272,6 @@ func WaitBPDatabaseCreation(
 		select {
 		case <-ticker.C:
 			count++
-			fmt.Printf("\rQuerying SQLChain Profile %vs", count*int(period.Seconds()))
 
 			if err = rpc.RequestBP(
 				route.MCCQuerySQLChainProfile.String(), req, nil,
@@ -291,6 +290,7 @@ func WaitBPDatabaseCreation(
 					return
 				}
 			}
+			fmt.Printf("\rQuerying SQLChain Profile %vs", count*int(period.Seconds()))
 		case <-ctx.Done():
 			err = ctx.Err()
 			return

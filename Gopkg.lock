@@ -32,11 +32,11 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:ec4f14966f44ff9a229363321112be3dccb606824bc6ac975c2d7170881f0126"
+  digest = "1:3ec25d7ae86a9575c46227973066255919773ed86c92481175973afb4f7950ba"
   name = "github.com/CovenantSQL/go-sqlite3-encrypt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "86281c4fdaa851b72f59831d72d5249d5c0b5f23"
+  revision = "dc98560308abfab316df54fbb58f4567f9e9745a"
 
 [[projects]]
   branch = "master"

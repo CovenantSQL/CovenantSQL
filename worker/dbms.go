@@ -673,7 +673,9 @@ func (dbms *DBMS) Shutdown() (err error) {
 
 	dbms.busService.Stop()
 
-	dbms.mqttClient.Close()
+	if dbms.mqttClient != nil {
+		dbms.mqttClient.Close()
+	}
 
 	return
 }

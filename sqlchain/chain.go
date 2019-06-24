@@ -797,8 +797,8 @@ func (c *Chain) processBlocks(ctx context.Context) {
 			}
 			// Return all stashed blocks to pending channel
 			c.logEntryWithHeadState().WithFields(log.Fields{
-				"height": h,
-				"stashs": len(stash),
+				"height":  h,
+				"stashes": len(stash),
 			}).Debug("read new height from channel")
 			if stash != nil {
 				wg.Add(1)
@@ -853,7 +853,7 @@ func (c *Chain) Stop() (err error) {
 	le.Debug("chain service and workers stopped")
 	// Close state
 	var ierr error
-	if ierr = c.st.Close(false); ierr != nil && err == nil {
+	if ierr = c.st.Close(false); ierr != nil {
 		err = ierr
 	}
 	le.WithError(ierr).Debug("chain state storage closed")
@@ -996,11 +996,6 @@ func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) 
 	}
 
 	return c.pushAckedQuery(ack)
-}
-
-// UpdatePeers updates peer list of the sql-chain.
-func (c *Chain) UpdatePeers(peers *proto.Peers) error {
-	return c.rt.updatePeers(peers)
 }
 
 // Query queries req from local chain state and returns the query results in resp.

@@ -134,8 +134,6 @@ func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServi
 	switch req.Header.Op {
 	case types.CreateDB:
 		err = rpc.dbms.Create(&req.Header.Instance, true)
-	case types.UpdateDB:
-		err = rpc.dbms.Update(&req.Header.Instance)
 	case types.DropDB:
 		err = rpc.dbms.Drop(req.Header.Instance.DatabaseID)
 	}

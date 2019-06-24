@@ -91,7 +91,10 @@ func (s *MuxService) FetchBlock(req *MuxFetchBlockReq, resp *MuxFetchBlockResp) 
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).FetchBlock(&req.FetchBlockReq, &resp.FetchBlockResp)
+		innerReq := &FetchBlockReq{
+			node: req.NodeID.ToNodeID(),
+		}
+		return v.(*ChainRPCService).FetchBlock(innerReq, &resp.FetchBlockResp)
 	}
 
 	return ErrUnknownMuxRequest

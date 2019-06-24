@@ -337,8 +337,8 @@ static int nonce_function_rfc6979(unsigned char *nonce32, const unsigned char *m
    return 1;
 }
 
-const secp256k1_nonce_function secp256k1_nonce_function_rfc6979 = nonce_function_rfc6979;
-const secp256k1_nonce_function secp256k1_nonce_function_default = nonce_function_rfc6979;
+static const secp256k1_nonce_function cql_secp256k1_nonce_function_rfc6979 = nonce_function_rfc6979;
+static const secp256k1_nonce_function cql_secp256k1_nonce_function_default = nonce_function_rfc6979;
 
 int secp256k1_ecdsa_sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature *signature, const unsigned char *msg32, const unsigned char *seckey, secp256k1_nonce_function noncefp, const void* noncedata) {
     secp256k1_scalar r, s;
@@ -351,7 +351,7 @@ int secp256k1_ecdsa_sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature
     ARG_CHECK(signature != NULL);
     ARG_CHECK(seckey != NULL);
     if (noncefp == NULL) {
-        noncefp = secp256k1_nonce_function_default;
+        noncefp = cql_secp256k1_nonce_function_default;
     }
 
     secp256k1_scalar_set_b32(&sec, seckey, &overflow);

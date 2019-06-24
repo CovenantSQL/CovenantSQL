@@ -47,6 +47,10 @@ BlockProducer:
       - Address: 9e1618775cceeb19f110e04fbc6c5bca6c8e4e9b116e193a42fe69bf602e7bcd
         StableCoinBalance: 10000000000000000000
         CovenantCoinBalance: 10000000000000000000
+MQTTBroker:
+  Addr: 127.0.0.1:18888
+  Password: miner_test
+  IoTKeyfilePath: "./iot_private"
 Miner:
   UseTestMasterKey: true
   RootDir: "./data"

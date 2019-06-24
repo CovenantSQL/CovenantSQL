@@ -152,6 +152,17 @@
   version = "v1.1.6"
 
 [[projects]]
+  digest = "1:bb89a2542933056fcebc2950bb15ec636e623cc43c96597288aa2009f15b0ce1"
+  name = "github.com/eclipse/paho.mqtt.golang"
+  packages = [
+    ".",
+    "packets",
+  ]
+  pruneopts = "UT"
+  revision = "adca289fdcf8c883800aafa545bc263452290bae"
+  version = "v1.2.0"
+
+[[projects]]
   digest = "1:547f5df5f708c880f0af507317c8d022b8d62053a5cb075e23c6eeed09eb2e4e"
   name = "github.com/fortytw2/leaktest"
   packages = ["."]
@@ -166,6 +177,18 @@
   pruneopts = "UT"
   revision = "4df78490a9aa9a78b9b02b0c913df8dc1954faee"
   version = "2.1"
+
+[[projects]]
+  digest = "1:015732c64b7cb1721d775da733b35660c8e42cf01bb8c034760cc8b3c60cab5b"
+  name = "github.com/gogf/gf"
+  packages = [
+    "g/container/glist",
+    "g/container/gqueue",
+    "g/internal/rwmutex",
+  ]
+  pruneopts = "UT"
+  revision = "7aaf9e9228655eb712c2675fe7bf06c3edded226"
+  version = "v1.7.0"
 
 [[projects]]
   branch = "master"
@@ -613,9 +636,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:76ee51c3f468493aff39dbacc401e8831fbb765104cbf613b89bef01cf4bad70"
+  digest = "1:492ac03ced56256365bdb486c00cabdc9f36a4c16e2577d87933202274db6cbc"
   name = "golang.org/x/net"
-  packages = ["context"]
+  packages = [
+    "context",
+    "internal/socks",
+    "proxy",
+    "websocket",
+  ]
   pruneopts = "UT"
   revision = "eb5bcb51f2a31c7d5141d810b70815c05d9c9146"
 
@@ -653,8 +681,10 @@
     "github.com/btcsuite/btcutil/base58",
     "github.com/cyberdelia/go-metrics-graphite",
     "github.com/davecgh/go-spew/spew",
+    "github.com/eclipse/paho.mqtt.golang",
     "github.com/fortytw2/leaktest",
     "github.com/go-gorp/gorp",
+    "github.com/gogf/gf/g/container/gqueue",
     "github.com/gorilla/handlers",
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",

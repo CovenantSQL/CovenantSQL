@@ -221,7 +221,7 @@ func projectUserList(c *gin.Context) {
 		r.Limit = 20
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -270,7 +270,7 @@ func preRegisterProjectUser(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -304,7 +304,7 @@ func queryProjectUser(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -346,7 +346,7 @@ func updateProjectUser(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -449,7 +449,7 @@ func updateProjectOAuthConfig(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -521,7 +521,7 @@ func updateProjectGroupConfig(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -570,7 +570,7 @@ func updateProjectMiscConfig(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -640,7 +640,7 @@ func getProjectConfig(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	projectData, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -677,12 +677,35 @@ func getProjectConfig(c *gin.Context) {
 		}
 	}
 
-	responseWithData(c, http.StatusOK, gin.H{
-		"misc":   miscConfig,
-		"oauth":  oauthConfig,
-		"tables": tablesConfig,
-		"group":  groupConfig,
-	})
+	if miscConfig == nil {
+		miscConfig = map[string]interface{}{}
+	} else if mc, ok := miscConfig.(*model.ProjectMiscConfig); !ok || mc == nil {
+		miscConfig = map[string]interface{}{}
+	}
+
+	var (
+		resp = gin.H{
+			"misc":               miscConfig,
+			"oauth":              oauthConfig,
+			"tables":             tablesConfig,
+			"group":              groupConfig,
+			"client_api_domains": nil,
+		}
+		cfg = getConfig(c)
+	)
+
+	if cfg != nil && len(cfg.Hosts) > 0 {
+		var domains []string
+
+		for _, h := range cfg.Hosts {
+			apiHost := projectData.Alias + "." + strings.TrimLeft(h, ".")
+			domains = append(domains, apiHost)
+		}
+
+		resp["client_api_domains"] = domains
+	}
+
+	responseWithData(c, http.StatusOK, resp)
 }
 
 func getProjectTables(c *gin.Context) {
@@ -697,7 +720,7 @@ func getProjectTables(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -767,7 +790,7 @@ func createProjectTable(c *gin.Context) {
 		}
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -839,7 +862,7 @@ func getProjectTableDetail(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -887,7 +910,7 @@ func addFieldsToProjectTable(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -951,7 +974,7 @@ func dropProjectTable(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -1012,7 +1035,7 @@ func batchQueryProjectUser(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -1059,7 +1082,7 @@ func updateProjectTableRules(c *gin.Context) {
 		return
 	}
 
-	projectDB, err := getProjectDB(c, r.DB)
+	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
 		abortWithError(c, http.StatusForbidden, err)
 		return
@@ -1141,10 +1164,10 @@ func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.
 	return
 }
 
-func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (db *gorp.DbMap, err error) {
+func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (project *model.Project, db *gorp.DbMap, err error) {
 	developer := getDeveloperID(c)
 
-	project, err := model.GetProjectByID(model.GetDB(c), dbID, developer)
+	project, err = model.GetProjectByID(model.GetDB(c), dbID, developer)
 	if err != nil {
 		return
 	}

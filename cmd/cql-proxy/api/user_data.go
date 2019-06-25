@@ -368,7 +368,12 @@ func scanRows(rows *sql.Rows) (result []gin.H, err error) {
 		target := gin.H{}
 
 		for i, col := range columns {
-			target[col] = row[i]
+			switch v := row[i].(type) {
+			case []byte:
+				target[col] = string(v)
+			default:
+				target[col] = v
+			}
 		}
 
 		result = append(result, target)

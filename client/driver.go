@@ -111,6 +111,7 @@ type ResourceMeta struct {
 	UseEventualConsistency bool                   `json:"eventual-consistency,omitempty"` // use eventual consistency replication if enabled
 	ConsistencyLevel       float64                `json:"consistency-level,omitempty"`    // customized strong consistency level
 	IsolationLevel         int                    `json:"isolation-level,omitempty"`      // customized isolation level
+	StandbyNode            uint16                 `json:"standby-node,omitempty"`         // standby node count for recovery
 
 	GasPrice       uint64 `json:"gas-price"`       // customized gas price
 	AdvancePayment uint64 `json:"advance-payment"` // customized advance payment
@@ -209,6 +210,10 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 			UseEventualConsistency: meta.UseEventualConsistency,
 			ConsistencyLevel:       meta.ConsistencyLevel,
 			IsolationLevel:         meta.IsolationLevel,
+			StandbyNode:            meta.StandbyNode,
+
+			// version hint
+			Version: int32((*types.ResourceMeta)(nil).HSPDefaultVersion()),
 		},
 		GasPrice:       meta.GasPrice,
 		AdvancePayment: meta.AdvancePayment,

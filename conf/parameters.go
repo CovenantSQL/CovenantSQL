@@ -30,3 +30,8 @@ const (
 const (
 	BPHeightCIPFixProvideService = 675550 // inclusive, in 2019-5-15 16:11:40 +08:00
 )
+
+// ResourceMeta version number for supporting standby nodes.
+const (
+	ResourceMetaSupportingStandbyNodeVersion = 1
+)

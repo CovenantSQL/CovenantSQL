@@ -40,6 +40,8 @@ type ResourceMeta struct {
 	UseEventualConsistency bool                   // use eventual consistency replication if enabled
 	ConsistencyLevel       float64                // customized strong consistency level
 	IsolationLevel         int                    // customized isolation level
+	StandbyNode            uint16                 // standby node count for recovery
+	Version                int32                  `hsp:"v,version"` // hsp version field
 }
 
 // ServiceInstance defines single instance to be initialized.

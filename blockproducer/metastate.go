@@ -18,6 +18,7 @@ package blockproducer
 
 import (
 	"bytes"
+	"encoding/binary"
 	"sort"
 
 	"github.com/mohae/deepcopy"
@@ -26,6 +27,7 @@ import (
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -571,7 +573,11 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		err = ErrInvalidMinerCount
 		return
 	}
+
 	minerCount := uint64(tx.ResourceMeta.Node)
+	if tx.ResourceMeta.Version >= conf.ResourceMetaSupportingStandbyNodeVersion {
+		minerCount += uint64(tx.ResourceMeta.StandbyNode)
+	}
 
 	minAdvancePayment := minDeposit(tx.GasPrice, minerCount)
 
@@ -664,6 +670,18 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		return
 	}
 
+	var (
+		normalMiners  MinerInfos
+		standbyMiners MinerInfos
+	)
+
+	if tx.ResourceMeta.Version >= conf.ResourceMetaSupportingStandbyNodeVersion {
+		normalMiners = miners[:int(tx.ResourceMeta.Node)]
+		standbyMiners = miners[int(tx.ResourceMeta.Node):]
+	} else {
+		normalMiners = miners
+	}
+
 	// create sqlchain
 	sp := &types.SQLChainProfile{
 		ID:                dbID,
@@ -673,7 +691,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		LastUpdatedHeight: 0,
 		TokenType:         types.Particle,
 		Owner:             sender,
-		Miners:            miners,
+		Miners:            normalMiners,
+		StandbyMiners:     standbyMiners,
 		Users:             users,
 		EncodedGenesis:    enc.Bytes(),
 		Meta:              tx.ResourceMeta,

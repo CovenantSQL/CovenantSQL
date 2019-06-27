@@ -26,7 +26,7 @@ import (
 )
 
 //go:generate hsp
-//hsp:ignore PermStat
+//hsp:ignore PermStat SQLChainProfile MinerInfo UserArrears SQLChainUser
 
 // SQLChainRole defines roles of account in a SQLChain.
 type SQLChainRole byte
@@ -277,7 +277,9 @@ type SQLChainProfile struct {
 
 	Owner proto.AccountAddress
 	// first miner in the list is leader
-	Miners []*MinerInfo
+	// last ones are standby nodes if standby is enabled
+	Miners        []*MinerInfo
+	StandbyMiners []*MinerInfo
 
 	Users []*SQLChainUser
 

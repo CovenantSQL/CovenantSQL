@@ -34,9 +34,9 @@ esac
 
 cd ${TEST_WD}
 # start bp
-nohup ${BPBIN} -config node_0/config.yaml >${LOGS_DIR}/bp0.log 2>&1 &
-nohup ${BPBIN} -config node_1/config.yaml >${LOGS_DIR}/bp1.log 2>&1 &
-nohup ${BPBIN} -config node_2/config.yaml >${LOGS_DIR}/bp2.log 2>&1 &
+nohup ${BPBIN} -config node_0/config.yaml -log-level debug >${LOGS_DIR}/bp0.log 2>&1 &
+nohup ${BPBIN} -config node_1/config.yaml -log-level debug >${LOGS_DIR}/bp1.log 2>&1 &
+nohup ${BPBIN} -config node_2/config.yaml -log-level debug >${LOGS_DIR}/bp2.log 2>&1 &
 
 # wait bp start
 sleep 20

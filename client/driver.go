@@ -197,24 +197,31 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 		meta.AdvancePayment = DefaultAdvancePayment
 	}
 
+	rsMeta := types.ResourceMeta{
+		TargetMiners:           meta.TargetMiners,
+		Node:                   meta.Node,
+		Space:                  meta.Space,
+		Memory:                 meta.Memory,
+		LoadAvgPerCPU:          meta.LoadAvgPerCPU,
+		EncryptionKey:          meta.EncryptionKey,
+		UseEventualConsistency: meta.UseEventualConsistency,
+		ConsistencyLevel:       meta.ConsistencyLevel,
+		IsolationLevel:         meta.IsolationLevel,
+		StandbyNode:            meta.StandbyNode,
+
+		// version hint
+		Version: int32((*types.ResourceMeta)(nil).HSPDefaultVersion()),
+	}
+
+	if meta.StandbyNode == 0 {
+		// use old version for compatibility
+		rsMeta.Version = 0
+	}
+
 	req.TTL = 1
 	req.Tx = types.NewCreateDatabase(&types.CreateDatabaseHeader{
-		Owner: clientAddr,
-		ResourceMeta: types.ResourceMeta{
-			TargetMiners:           meta.TargetMiners,
-			Node:                   meta.Node,
-			Space:                  meta.Space,
-			Memory:                 meta.Memory,
-			LoadAvgPerCPU:          meta.LoadAvgPerCPU,
-			EncryptionKey:          meta.EncryptionKey,
-			UseEventualConsistency: meta.UseEventualConsistency,
-			ConsistencyLevel:       meta.ConsistencyLevel,
-			IsolationLevel:         meta.IsolationLevel,
-			StandbyNode:            meta.StandbyNode,
-
-			// version hint
-			Version: int32((*types.ResourceMeta)(nil).HSPDefaultVersion()),
-		},
+		Owner:          clientAddr,
+		ResourceMeta:   rsMeta,
 		GasPrice:       meta.GasPrice,
 		AdvancePayment: meta.AdvancePayment,
 		TokenType:      types.Particle,

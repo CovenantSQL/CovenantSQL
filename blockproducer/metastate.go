@@ -746,8 +746,31 @@ func (s *metaState) filterNMiners(
 		return
 	}
 
-	sort.Slice(newMiners, newMiners.Less)
+	if tx.ResourceMeta.Version >= conf.ResourceMetaSupportingStandbyNodeVersion {
+		// get miner with nonce offset, use first byte of account address and nonce value
+		accountAddr := tx.GetAccountAddress()
+		accountNonce := tx.GetAccountNonce()
+
+		sort.Slice(newMiners, func(i, j int) bool {
+			return bytes.Compare(
+				minerSortFactor(newMiners[i].NodeID, accountAddr, accountNonce),
+				minerSortFactor(newMiners[j].NodeID, accountAddr, accountNonce)) < 0
+		})
+	} else {
+		sort.Slice(newMiners, newMiners.Less)
+	}
+
 	return newMiners[:minerCount], nil
+}
+
+func minerSortFactor(nodeID proto.NodeID, sender proto.AccountAddress, nonce pi.AccountNonce) []byte {
+	var buf bytes.Buffer
+	if rawNode := nodeID.ToRawNodeID(); rawNode != nil {
+		buf.Write(rawNode.Hash[:])
+	}
+	buf.Write(sender[:])
+	_ = binary.Write(&buf, binary.BigEndian, uint32(nonce))
+	return hash.HashB(buf.Bytes())
 }
 
 func filterAndAppendMiner(

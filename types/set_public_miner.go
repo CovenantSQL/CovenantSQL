@@ -61,8 +61,8 @@ func (mr *SetPublicMiner) Verify() error {
 	return mr.DefaultHashSignVerifierImpl.Verify(&mr.SetPublicMinerHeader)
 }
 
-// NewMinerRegister returns new instance.
-func NewMinerRegister(header *SetPublicMinerHeader) *SetPublicMiner {
+// NewSetPublicMiner returns new instance.
+func NewSetPublicMiner(header *SetPublicMinerHeader) *SetPublicMiner {
 	return &SetPublicMiner{
 		SetPublicMinerHeader: *header,
 		TransactionTypeMixin: *pi.NewTransactionTypeMixin(pi.TransactionTypeSetPublicMiner),

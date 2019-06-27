@@ -518,6 +518,8 @@ func (s *metaState) updateProviderList(tx *types.ProvideService, height uint32) 
 		return
 	}
 
+	var allowPublicService bool
+
 	if height >= conf.BPHeightCIPFixProvideService {
 		// load previous provider object
 		po, loaded := s.loadProviderObject(sender)
@@ -527,6 +529,7 @@ func (s *metaState) updateProviderList(tx *types.ProvideService, height uint32) 
 				return
 			}
 
+			allowPublicService = po.AllowPublicService
 			s.deleteProviderObject(sender)
 		}
 	}
@@ -548,11 +551,16 @@ func (s *metaState) updateProviderList(tx *types.ProvideService, height uint32) 
 		GasPrice:      tx.GasPrice,
 		NodeID:        tx.NodeID,
 	}
+
+	if height >= conf.BPHeightCIPSetPublicMiner {
+		pp.AllowPublicService = allowPublicService
+	}
+
 	s.dirty.provider[sender] = &pp
 	return
 }
 
-func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error) {
+func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase, height uint32) (err error) {
 	log.Infof("create database: %s", tx.Hash())
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
@@ -591,12 +599,12 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	miners := make(MinerInfos, 0, minerCount)
 
 	for _, m := range tx.ResourceMeta.TargetMiners {
-		if po, loaded := s.loadProviderObject(m); !loaded {
+		if po, loaded := s.loadProviderObject(m); !loaded || po.IsConsumed {
+			err = ErrNoSuchMiner
 			log.WithFields(log.Fields{
 				"miner_addr": m,
 				"user_addr":  sender,
 			}).Error(err)
-			err = ErrNoSuchMiner
 			continue
 		} else {
 			miners, err = filterAndAppendMiner(miners, po, tx, sender)
@@ -618,7 +626,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 		}
 		var newMiners MinerInfos
 		// create new merged map
-		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-miners.Len())
+		newMiners, err = s.filterNMiners(tx, sender, int(minerCount)-miners.Len(), height)
 		if err != nil {
 			return
 		}
@@ -705,6 +713,17 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
 	s.dirty.databases[dbID] = sp
 	for _, miner := range miners {
+		if height >= conf.BPHeightCIPSetPublicMiner {
+			if po, loaded := s.loadProviderObject(miner.Address); loaded && po.AllowPublicService {
+				s.dirty.provider[miner.Address] = &types.ProviderProfile{
+					Provider:           miner.Address,
+					IsConsumed:         true,
+					AllowPublicService: true,
+					// leave all values including deposit as blank
+				}
+				continue
+			}
+		}
 		s.deleteProviderObject(miner.Address)
 	}
 	log.Infof("success create sqlchain with database ID: %s", dbID)
@@ -714,7 +733,8 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 func (s *metaState) filterNMiners(
 	tx *types.CreateDatabase,
 	user proto.AccountAddress,
-	minerCount int) (
+	minerCount int,
+	height uint32) (
 	m MinerInfos, err error,
 ) {
 	// create new merged map
@@ -739,6 +759,13 @@ func (s *metaState) filterNMiners(
 	newMiners := make(MinerInfos, 0, len(allProviderMap)/4)
 	// filter all miners to slice and sort
 	for _, po := range allProviderMap {
+		if height >= conf.BPHeightCIPSetPublicMiner {
+			if po.IsConsumed || (!po.AllowPublicService && len(po.TargetUser) == 0) {
+				// not yet consumed
+				// not supporting public service, and want to provide public service
+				continue
+			}
+		}
 		newMiners, _ = filterAndAppendMiner(newMiners, po, tx, user)
 	}
 	if newMiners.Len() < minerCount {
@@ -1040,6 +1067,57 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 	return
 }
 
+func (s *metaState) setPublicMiner(tx *types.SetPublicMiner, height uint32) (err error) {
+	log.WithFields(log.Fields{
+		"tx_hash": tx.Hash(),
+		"sender":  tx.GetAccountAddress(),
+		"miner":   tx.Miner,
+		"enabled": tx.Enabled,
+	}).Debug("set public miner")
+
+	// check if the signer is block producer
+	if tx.Signee == nil || !tx.Signee.IsEqual(conf.GConf.BP.PublicKey) {
+		err = ErrInvalidSender
+		log.WithError(err).Warning("invalid signee for setting public miners")
+		return
+	}
+
+	if height < conf.BPHeightCIPSetPublicMiner {
+		err = ErrUnknownTransactionType
+		log.WithError(err).Warning("set public miner tx sent before enabled state")
+		return
+	}
+
+	po, loaded := s.loadProviderObject(tx.Miner)
+	if loaded {
+		if tx.Enabled > 0 {
+			pp := deepcopy.Copy(po).(*types.ProviderProfile)
+			pp.AllowPublicService = true
+			s.dirty.provider[tx.Miner] = pp
+		} else {
+			if po.IsConsumed {
+				s.deleteProviderObject(tx.Miner)
+			} else {
+				pp := deepcopy.Copy(po).(*types.ProviderProfile)
+				pp.AllowPublicService = false
+				s.dirty.provider[tx.Miner] = pp
+			}
+		}
+	} else {
+		if tx.Enabled > 0 {
+			s.dirty.provider[tx.Miner] = &types.ProviderProfile{
+				Provider:           tx.Miner,
+				IsConsumed:         true,
+				AllowPublicService: true,
+				// leave all values including deposit as blank
+			}
+		} else {
+			// nothing to do, no provider service means no privilege to public service
+		}
+	}
+	return
+}
+
 func (s *metaState) loadROSQLChains(addr proto.AccountAddress) (dbs []*types.SQLChainProfile) {
 	for _, db := range s.readonly.databases {
 		for _, miner := range db.Miners {
@@ -1181,13 +1259,15 @@ func (s *metaState) applyTransaction(tx pi.Transaction, height uint32) (err erro
 	case *types.ProvideService:
 		err = s.updateProviderList(t, height)
 	case *types.CreateDatabase:
-		err = s.matchProvidersWithUser(t)
+		err = s.matchProvidersWithUser(t, height)
 	case *types.UpdatePermission:
 		err = s.updatePermission(t)
 	case *types.IssueKeys:
 		err = s.updateKeys(t)
 	case *types.UpdateBilling:
 		err = s.updateBilling(t)
+	case *types.SetPublicMiner:
+		err = s.setPublicMiner(t, height)
 	case *pi.TransactionWrapper:
 		// call again using unwrapped transaction
 		err = s.applyTransaction(t.Unwrap(), height)

@@ -72,6 +72,8 @@ const (
 	TransactionTypeIssueKeys
 	// TransactionTypeUpdateBilling defines SQLChain update billing information.
 	TransactionTypeUpdateBilling
+	// TransactionTypeSetPublicMiner defines miners should/should not provide public service.
+	TransactionTypeSetPublicMiner
 	// TransactionTypeNumber defines transaction types number.
 	TransactionTypeNumber
 )
@@ -102,6 +104,8 @@ func (t TransactionType) String() string {
 		return "IssueKeys"
 	case TransactionTypeUpdateBilling:
 		return "UpdateBilling"
+	case TransactionTypeSetPublicMiner:
+		return "SetPublicMiner"
 	default:
 		return "Unknown"
 	}

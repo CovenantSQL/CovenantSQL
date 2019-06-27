@@ -45,7 +45,7 @@ func setup() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if runtime.GOOS == "linux" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
 			panic(err)
 		}
@@ -53,6 +53,9 @@ func setup() {
 			panic("insufficient max RLIMIT_NOFILE")
 		}
 		lmt.Cur = lmt.Max
+		if runtime.GOOS == "darwin" && lmt.Cur > 10240 {
+			lmt.Cur = 10240
+		}
 		if err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {
 			panic(err)
 		}

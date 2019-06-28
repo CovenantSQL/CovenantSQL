@@ -46,16 +46,22 @@ func userDataFind(c *gin.Context) {
 		return
 	}
 
-	db, uid, userState, vars, rules, fieldMap, err := buildExecuteContext(c, r.Table)
+	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryFind)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
+	var filter map[string]interface{}
+
+	if !adminMode {
+		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryFind)
+		if err != nil {
+			abortWithError(c, http.StatusForbidden, err)
+			return
+		}
+	} else {
+		filter = r.Filter
 	}
 
 	stmt, args, _, err := resolver.Find(r.Table, fieldMap, filter, r.Projection, r.OrderBy, r.Skip, r.Limit)
@@ -94,16 +100,22 @@ func userDataInsert(c *gin.Context) {
 		return
 	}
 
-	db, uid, userState, vars, rules, fieldMap, err := buildExecuteContext(c, r.Table)
+	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	insertData, err := rules.EnforceRulesOnInsert(r.Data, r.Table, uid, userState, vars)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
+	var insertData map[string]interface{}
+
+	if !adminMode {
+		insertData, err = rules.EnforceRulesOnInsert(r.Data, r.Table, uid, userState, vars)
+		if err != nil {
+			abortWithError(c, http.StatusForbidden, err)
+			return
+		}
+	} else {
+		insertData = r.Data
 	}
 
 	stmt, args, _, err := resolver.Insert(r.Table, fieldMap, insertData)
@@ -139,22 +151,32 @@ func userDataUpdate(c *gin.Context) {
 		return
 	}
 
-	db, uid, userState, vars, rules, fieldMap, err := buildExecuteContext(c, r.Table)
+	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryUpdate)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
-	}
+	var (
+		filter map[string]interface{}
+		update map[string]interface{}
+	)
 
-	update, err := rules.EnforceRulesOnUpdate(r.Update, r.Table, uid, userState, vars)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
+	if !adminMode {
+		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryUpdate)
+		if err != nil {
+			abortWithError(c, http.StatusForbidden, err)
+			return
+		}
+
+		update, err = rules.EnforceRulesOnUpdate(r.Update, r.Table, uid, userState, vars)
+		if err != nil {
+			abortWithError(c, http.StatusForbidden, err)
+			return
+		}
+	} else {
+		filter = r.Filter
+		update = r.Update
 	}
 
 	stmt, args, _, err := resolver.Update(r.Table, fieldMap, filter, update, r.JustOne)
@@ -188,16 +210,22 @@ func userDataRemove(c *gin.Context) {
 		return
 	}
 
-	db, uid, userState, vars, rules, fieldMap, err := buildExecuteContext(c, r.Table)
+	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryRemove)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
+	var filter map[string]interface{}
+
+	if !adminMode {
+		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryRemove)
+		if err != nil {
+			abortWithError(c, http.StatusForbidden, err)
+			return
+		}
+	} else {
+		filter = r.Filter
 	}
 
 	stmt, args, _, err := resolver.Remove(r.Table, fieldMap, filter, r.JustOne)
@@ -230,16 +258,22 @@ func userDataCount(c *gin.Context) {
 		return
 	}
 
-	db, uid, userState, vars, rules, fieldMap, err := buildExecuteContext(c, r.Table)
+	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	filter, err := rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryCount)
-	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
-		return
+	var filter map[string]interface{}
+
+	if !adminMode {
+		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryCount)
+		if err != nil {
+			abortWithError(c, http.StatusForbidden, err)
+			return
+		}
+	} else {
+		filter = r.Filter
 	}
 
 	stmt, args, _, err := resolver.Count(r.Table, fieldMap, filter)
@@ -260,7 +294,7 @@ func userDataCount(c *gin.Context) {
 }
 
 func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMap, uid string, userState string,
-	vars map[string]interface{}, r *resolver.Rules, fields resolver.FieldMap, err error) {
+	vars map[string]interface{}, r *resolver.Rules, fields resolver.FieldMap, adminMode bool, err error) {
 	project := getCurrentProject(c)
 	projectDB, err = getCurrentProjectDB(c)
 	if err != nil {
@@ -268,9 +302,11 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 	}
 
 	var (
-		userID   = getUserID(c)
-		userInfo *model.ProjectUser
+		userID      = getUserID(c)
+		developerID = getDeveloperID(c)
+		userInfo    *model.ProjectUser
 	)
+
 	if userID != 0 {
 		userInfo, err = model.GetProjectUser(projectDB, userID)
 		if err != nil {
@@ -278,6 +314,10 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 		}
 
 		uid = fmt.Sprint(userID)
+	}
+	if developerID != 0 && project.Developer == developerID {
+		// table accessing from admin mode, check admin project belonging
+		adminMode = true
 	}
 
 	vars = map[string]interface{}{}

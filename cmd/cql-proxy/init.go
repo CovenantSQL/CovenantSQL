@@ -172,7 +172,7 @@ func initSession(e *gin.Engine, cfg *config.Config) {
 				r := struct {
 					Token string `json:"token" form:"token"`
 				}{}
-				_ = c.ShouldBind(&r)
+				_ = c.ShouldBindQuery(&r)
 				token = r.Token
 			}
 

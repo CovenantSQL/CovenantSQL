@@ -23,6 +23,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -36,7 +37,7 @@ import (
 	"testing"
 	"time"
 
-	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -120,6 +121,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_0/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/leader.cover.out"),
 			"-metric-web", "0.0.0.0:13122",
+			"-log-level", "debug",
 		},
 		"leader", testWorkingDir, logDir, true,
 	); err == nil {
@@ -132,6 +134,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_1/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower1.cover.out"),
 			"-metric-web", "0.0.0.0:13121",
+			"-log-level", "debug",
 		},
 		"follower1", testWorkingDir, logDir, false,
 	); err == nil {
@@ -144,6 +147,7 @@ func startNodes() {
 		[]string{"-config", FJ(testWorkingDir, "./integration/node_2/config.yaml"),
 			"-test.coverprofile", FJ(baseDir, "./cmd/cql-minerd/follower2.cover.out"),
 			"-metric-web", "0.0.0.0:13120",
+			"-log-level", "debug",
 		},
 		"follower2", testWorkingDir, logDir, false,
 	); err == nil {
@@ -381,6 +385,7 @@ func TestFullProcess(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		var (
+			bpPrivKey     *asymmetric.PrivateKey
 			clientPrivKey *asymmetric.PrivateKey
 			clientAddr    proto.AccountAddress
 
@@ -389,6 +394,8 @@ func TestFullProcess(t *testing.T) {
 		)
 
 		// get miners' private keys
+		bpPrivKey, err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_0/private.key"), []byte{})
+		So(err, ShouldBeNil)
 		minersPrivKeys[0], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_0/private.key"), []byte{})
 		So(err, ShouldBeNil)
 		minersPrivKeys[1], err = kms.LoadPrivateKey(FJ(testWorkingDir, "./integration/node_miner_1/private.key"), []byte{})
@@ -406,6 +413,10 @@ func TestFullProcess(t *testing.T) {
 		minersAddrs[2], err = crypto.PubKeyHash(minersPrivKeys[2].PubKey())
 		So(err, ShouldBeNil)
 		clientAddr, err = crypto.PubKeyHash(clientPrivKey.PubKey())
+		So(err, ShouldBeNil)
+
+		// set public miner for public service
+		err = sendSetPublicMiner(bpPrivKey, minersAddrs)
 		So(err, ShouldBeNil)
 
 		// client send create database transaction
@@ -996,6 +1007,61 @@ func benchOutsideMinerWithTargetMinerList(
 	So(err, ShouldBeNil)
 
 	benchDB(b, db, minerCount > 0)
+}
+
+func sendSetPublicMiner(bpKey *asymmetric.PrivateKey, publicMiners []proto.AccountAddress) (err error) {
+	var bpAddr proto.AccountAddress
+	bpAddr, err = crypto.PubKeyHash(bpKey.PubKey())
+	if err != nil {
+		return
+	}
+
+	var (
+		nonceReq  = &types.NextAccountNonceReq{Addr: bpAddr}
+		nonceResp = &types.NextAccountNonceResp{}
+	)
+
+	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
+	if err != nil {
+		return
+	}
+
+	var (
+		nonce    = nonceResp.Nonce
+		lastHash hash.Hash
+	)
+
+	for _, miner := range publicMiners {
+		var (
+			tx = types.NewSetPublicMiner(&types.SetPublicMinerHeader{
+				Miner:   miner,
+				Enabled: 1,
+				Nonce:   nonce,
+			})
+			req  = &types.AddTxReq{TTL: 1}
+			resp = &types.AddTxResp{}
+		)
+
+		if err = tx.Sign(bpKey); err != nil {
+			return
+		}
+
+		req.Tx = tx
+
+		err = rpc.RequestBP(route.MCCAddTx.String(), req, resp)
+		if err != nil {
+			return
+		}
+
+		lastHash = tx.Hash()
+		nonce++
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	_, err = client.WaitTxConfirmation(ctx, lastHash)
+
+	return
 }
 
 func BenchmarkClientOnly(b *testing.B) {

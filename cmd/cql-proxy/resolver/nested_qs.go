@@ -38,11 +38,15 @@ func CheckAndBindParams(c *gin.Context, res interface{}, pathes ...string) {
 	}
 
 	rv := reflect.ValueOf(res)
-	if rv.Kind() != reflect.Ptr || !rv.CanSet() {
+	if rv.Kind() != reflect.Ptr {
 		return
 	}
 
 	rve := rv.Elem()
+
+	if !rve.CanSet() {
+		return
+	}
 
 	switch rve.Kind() {
 	case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
@@ -79,7 +83,7 @@ func CheckAndBindParams(c *gin.Context, res interface{}, pathes ...string) {
 		return
 	}
 
-	rv.Set(rvRes)
+	rve.Set(rvRes)
 }
 
 func ParseNestedQuery(form url.Values, pathes ...string) (res interface{}, err error) {

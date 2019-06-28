@@ -1,0 +1,34 @@
+WorkingRoot: ""
+PubKeyStoreFile: ""
+PrivateKeyFile: private.key
+WalletAddress: 9235bc4130a2ed4e6c35ea189dab35198ebb105640bedb97dd5269cc80863b16
+DHTFileName: ""
+ListenAddr: ""
+ThisNodeID: 00000023bde18934db9597c6279cf6c6eaf3eb73d0cfe98d3325a7e8d1affc92
+ValidDNSKeys: {}
+MinNodeIDDifficulty: 0
+DNSSeed:
+  EnforcedDNSSEC: false
+  DNSServers: []
+  Domain: testnet.gridb.io
+  BPCount: 6
+BlockProducer: null
+KnownNodes:
+- ID: 00000023bde18934db9597c6279cf6c6eaf3eb73d0cfe98d3325a7e8d1affc92
+  Role: Client
+  Addr: 0.0.0.0:15151
+  PublicKey: 03ae859eac5b72ee428c7a85f10b2ce748d9de5e480aefbb70f6597dfa8b2175e5
+  Nonce:
+    a: 332605
+    b: 0
+    c: 0
+    d: 5751846513
+QPS: 0
+ChainBusPeriod: 0s
+BillingBlockCount: 0
+BPPeriod: 0s
+BPTick: 0s
+SQLChainPeriod: 1m0s
+SQLChainTick: 0s
+SQLChainTTL: 0
+MinProviderDeposit: 0

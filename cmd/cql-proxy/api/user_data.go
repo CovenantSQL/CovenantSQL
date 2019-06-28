@@ -46,6 +46,10 @@ func userDataFind(c *gin.Context) {
 		return
 	}
 
+	resolver.CheckAndBindParams(c, &r.Filter, "filter")
+	resolver.CheckAndBindParams(c, &r.Projection, "projection")
+	resolver.CheckAndBindParams(c, &r.OrderBy, "order")
+
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
@@ -100,6 +104,8 @@ func userDataInsert(c *gin.Context) {
 		return
 	}
 
+	resolver.CheckAndBindParams(c, &r.Data, "data")
+
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
@@ -150,6 +156,9 @@ func userDataUpdate(c *gin.Context) {
 		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
+
+	resolver.CheckAndBindParams(c, &r.Filter, "filter")
+	resolver.CheckAndBindParams(c, &r.Update, "update")
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
@@ -210,6 +219,8 @@ func userDataRemove(c *gin.Context) {
 		return
 	}
 
+	resolver.CheckAndBindParams(c, &r.Filter, "filter")
+
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		abortWithError(c, http.StatusInternalServerError, err)
@@ -257,6 +268,8 @@ func userDataCount(c *gin.Context) {
 		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
+
+	resolver.CheckAndBindParams(c, &r.Filter, "filter")
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {

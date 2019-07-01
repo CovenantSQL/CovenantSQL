@@ -46,6 +46,16 @@ func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, account 
 	return
 }
 
+func GetUserProjects(db *gorp.DbMap, developer int64, account int64) (p []*Project, err error) {
+	_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ? AND "account_id" = ?`,
+		developer, account)
+	if err != nil {
+		err = errors.Wrapf(err, "get developer account related projects failed")
+	}
+
+	return
+}
+
 func GetProject(db *gorp.DbMap, name string) (p *Project, err error) {
 	// if the alias fits to a hash, query using database id
 	var h hash.Hash
@@ -108,5 +118,20 @@ func SetProjectAlias(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, ali
 	if err != nil {
 		err = errors.Wrapf(err, "set project alias failed")
 	}
+	return
+}
+
+func DeleteProjects(db *gorp.DbMap, projects ...*Project) (err error) {
+	args := make([]interface{}, 0, len(projects))
+
+	for _, p := range projects {
+		args = append(args, p)
+	}
+
+	_, err = db.Delete(args...)
+	if err != nil {
+		err = errors.Wrapf(err, "delete projects failed")
+	}
+
 	return
 }

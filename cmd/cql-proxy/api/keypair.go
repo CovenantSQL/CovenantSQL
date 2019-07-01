@@ -42,7 +42,7 @@ func genKeyPair(c *gin.Context) {
 	p, err := model.AddNewPrivateKey(model.GetDB(c), developer)
 	if err != nil {
 		_ = c.Error(err)
-		abortWithError(c, http.StatusInternalServerError, ErrGenerateKeypairFailed)
+		abortWithError(c, http.StatusInternalServerError, ErrGenerateKeyPairFailed)
 		return
 	}
 
@@ -112,6 +112,7 @@ func uploadKeyPair(c *gin.Context) {
 func deleteKeyPair(c *gin.Context) {
 	r := struct {
 		Account utils.AccountAddress `json:"account" form:"account" uri:"account" binding:"required,len=64"`
+		Force   bool                 `json:"force" form:"force"`
 	}{}
 
 	// ignore validation, check in later ShouldBind
@@ -122,19 +123,49 @@ func deleteKeyPair(c *gin.Context) {
 		return
 	}
 
-	// TODO(): check running projects and tasks
-
 	// check and delete private key
 	developer := getDeveloperID(c)
+	db := model.GetDB(c)
 
-	p, err := model.DeletePrivateKey(model.GetDB(c), developer, r.Account)
+	account, err := model.GetAccount(db, developer, r.Account)
+	if err != nil {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrGetAccountFailed)
+		return
+	}
+
+	// check account for projects
+	var projects []*model.Project
+	projects, err = model.GetUserProjects(db, developer, account.ID)
+	if err != nil {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrGetProjectsFailed)
+		return
+	}
+
+	if len(projects) > 0 {
+		if r.Force {
+			err = model.DeleteProjects(db, projects...)
+			if err != nil {
+				_ = c.Error(err)
+				abortWithError(c, http.StatusInternalServerError, ErrDeleteProjectsFailed)
+				return
+			}
+		} else {
+			err = ErrKeyPairHasRelatedProjects
+			abortWithError(c, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	p, err := model.DeletePrivateKey(db, developer, r.Account)
 	if err != nil {
 		_ = c.Error(err)
 		abortWithError(c, http.StatusInternalServerError, ErrDeletePrivateKeyFailed)
 		return
 	}
 
-	err = model.FixDeletedMainAccount(model.GetDB(c), developer, p.ID)
+	err = model.FixDeletedMainAccount(db, developer, p.ID)
 	if err != nil {
 		_ = c.Error(err)
 		abortWithError(c, http.StatusInternalServerError, ErrUnbindMainAccountFailed)

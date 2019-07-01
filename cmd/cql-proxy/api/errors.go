@@ -79,4 +79,5 @@ var (
 	ErrNotAuthorizedUser              = errors.New("ERR_NOT_AUTHORIZED_USER")
 	ErrKeyPairHasRelatedProjects      = errors.New("ERR_KEYPAIR_HAS_RELATED_PROJECTS")
 	ErrDeleteProjectsFailed           = errors.New("ERR_DELETE_PROJECTS_FAILED")
+	ErrProjectIsDisabled              = errors.New("ERR_PROJECT_IS_DISABLED")
 )

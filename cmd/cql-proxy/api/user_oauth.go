@@ -53,6 +53,12 @@ func userOAuthAuthorize(c *gin.Context) {
 		return
 	}
 
+	_, miscConfig, err := model.GetProjectMiscConfig(projectDB)
+	if err != nil || !miscConfig.IsEnabled() {
+		_ = c.AbortWithError(http.StatusForbidden, err)
+		return
+	}
+
 	_, oauthConfig, err := model.GetProjectOAuthConfig(projectDB, r.Provider)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusForbidden, err)
@@ -88,7 +94,7 @@ func userOAuthCallback(c *gin.Context) {
 			status = http.StatusOK
 		}
 
-		// TODO(): callback to popup parent page
+		// TODO(): callback to popup parent page, require cql-dbaas js driver integration
 		responseWithData(c, status, res)
 	}
 }
@@ -134,10 +140,10 @@ func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) 
 
 	var miscConfig *model.ProjectMiscConfig
 	_, miscConfig, err = model.GetProjectMiscConfig(projectDB)
-	if err != nil {
-		// use default config
-		miscConfig = &model.ProjectMiscConfig{}
-		err = nil
+	if err != nil || !miscConfig.IsEnabled() {
+		err = errors.Wrapf(err, "project is disabled for service")
+		status = http.StatusForbidden
+		return
 	}
 
 	var oauthConfig *model.ProjectOAuthConfig

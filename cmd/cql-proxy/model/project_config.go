@@ -67,6 +67,10 @@ type ProjectMiscConfig struct {
 	SessionAge               time.Duration `json:"session_age" form:"session_age"`
 }
 
+func (c *ProjectMiscConfig) IsEnabled() bool {
+	return c != nil && c.Enabled != nil && *c.Enabled
+}
+
 func (c *ProjectMiscConfig) SupportSignUp() bool {
 	return c != nil && c.EnableSignUp != nil && *c.EnableSignUp
 }

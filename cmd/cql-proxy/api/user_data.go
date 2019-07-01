@@ -53,7 +53,10 @@ func userDataFind(c *gin.Context) {
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
 		_ = c.Error(err)
-		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
+		if err != ErrProjectIsDisabled {
+			err = ErrPrepareExecutionContextFailed
+		}
+		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -112,8 +115,10 @@ func userDataInsert(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		_ = c.Error(err)
-		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
+		if err != ErrProjectIsDisabled {
+			err = ErrPrepareExecutionContextFailed
+		}
+		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -169,8 +174,10 @@ func userDataUpdate(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		_ = c.Error(err)
-		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
+		if err != ErrProjectIsDisabled {
+			err = ErrPrepareExecutionContextFailed
+		}
+		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -234,8 +241,10 @@ func userDataRemove(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		_ = c.Error(err)
-		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
+		if err != ErrProjectIsDisabled {
+			err = ErrPrepareExecutionContextFailed
+		}
+		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -287,8 +296,10 @@ func userDataCount(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		_ = c.Error(err)
-		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
+		if err != ErrProjectIsDisabled {
+			err = ErrPrepareExecutionContextFailed
+		}
+		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -347,9 +358,20 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 
 		uid = fmt.Sprint(userID)
 	}
+
 	if developerID != 0 && project.Developer == developerID {
 		// table accessing from admin mode, check admin project belonging
 		adminMode = true
+	}
+
+	// check if project is disabled, admin mode does not check whether project is enabled or not
+	if !adminMode {
+		var pmc *model.ProjectMiscConfig
+		_, pmc, err = model.GetProjectMiscConfig(projectDB)
+		if err != nil || !pmc.IsEnabled() {
+			err = ErrProjectIsDisabled
+			return
+		}
 	}
 
 	vars = map[string]interface{}{}

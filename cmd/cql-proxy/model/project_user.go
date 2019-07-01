@@ -214,7 +214,7 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 
 	if err != nil && !enableSignUp {
 		// new user, not even pre-registered
-		err = errors.New("user does not exists")
+		err = errors.New("user does not exists, sign up disabled")
 		return
 	}
 

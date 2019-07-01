@@ -127,6 +127,7 @@ func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) 
 	var projectDB *gorp.DbMap
 	projectDB, err = getCurrentProjectDB(c)
 	if err != nil {
+		err = errors.Wrapf(err, "get project database failed")
 		status = http.StatusBadRequest
 		return
 	}
@@ -142,6 +143,8 @@ func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) 
 	var oauthConfig *model.ProjectOAuthConfig
 	_, oauthConfig, err = model.GetProjectOAuthConfig(projectDB, r.Provider)
 	if err != nil {
+		_ = c.Error(err)
+		err = ErrGetProjectConfigFailed
 		status = http.StatusForbidden
 		return
 	}
@@ -178,7 +181,7 @@ func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) 
 		err = h.err
 		status = h.status
 	case <-c.Request.Context().Done():
-		err = c.Request.Context().Err()
+		err = errors.New("oauth callback process timeout")
 	}
 
 	return
@@ -228,6 +231,7 @@ func handleUserOAuthCallbackSuccess(
 		)
 
 		if err != nil {
+			err = errors.Wrapf(err, "user register/login failed")
 			status = http.StatusInternalServerError
 			return
 		}
@@ -242,6 +246,7 @@ func handleUserOAuthCallbackSuccess(
 
 		s, err := model.NewSession(c, sessionExpireSeconds)
 		if err != nil {
+			err = errors.Wrapf(err, "new user session failed")
 			status = http.StatusInternalServerError
 			return
 		}
@@ -270,14 +275,14 @@ func userCheckRequireLogin(c *gin.Context) {
 		return
 	}
 
-	abortWithError(c, http.StatusForbidden, errors.New("unauthorized access"))
+	abortWithError(c, http.StatusForbidden, ErrNotAuthorizedUser)
 }
 
 func projectIDInject(c *gin.Context) {
 	// load project alias
 	cfg := getConfig(c)
 	if cfg == nil || len(cfg.Hosts) == 0 {
-		abortWithError(c, http.StatusInternalServerError, errors.New("no public service available"))
+		abortWithError(c, http.StatusInternalServerError, ErrNoPublicServiceHosts)
 		return
 	}
 
@@ -318,7 +323,8 @@ func projectIDInject(c *gin.Context) {
 	if p != nil {
 		c.Set("project", p)
 	} else {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrGetProjectFailed)
 		return
 	}
 
@@ -328,14 +334,16 @@ func projectIDInject(c *gin.Context) {
 func getUserInfo(c *gin.Context) {
 	projectDB, err := getCurrentProjectDB(c)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	userID := getUserID(c)
 	u, err := model.GetProjectUser(projectDB, userID)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetProjectUserFailed)
 		return
 	}
 
@@ -351,16 +359,21 @@ func getUserInfo(c *gin.Context) {
 func getCurrentProjectDB(c *gin.Context) (db *gorp.DbMap, err error) {
 	project := getCurrentProject(c)
 
-	p, err := model.GetMainAccount(model.GetDB(c), project.Developer)
+	p, err := model.GetAccountByID(model.GetDB(c), project.Developer, project.Account)
 	if err != nil {
+		err = errors.Wrapf(err, "get project owner user info failed")
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
+		err = errors.Wrapf(err, "decode account private key failed")
 		return
 	}
 
 	db, err = initProjectDB(project.DB, p.Key)
+	if err != nil {
+		err = errors.Wrapf(err, "init project database failed")
+	}
 
 	return
 }

@@ -19,7 +19,7 @@ package resolver
 import "strings"
 
 func InjectMagicVars(q map[string]interface{}, vars map[string]interface{}) (
-	injectedQuery map[string]interface{}, err error) {
+	injectedQuery map[string]interface{}) {
 	if q == nil {
 		return
 	}
@@ -27,31 +27,19 @@ func InjectMagicVars(q map[string]interface{}, vars map[string]interface{}) (
 	injectedQuery = make(map[string]interface{}, len(q))
 
 	for k, v := range q {
-		var r interface{}
-		r, err = processInject(v, vars)
-		if err != nil {
-			return
-		}
-
-		injectedQuery[k] = r
+		injectedQuery[k] = processInject(v, vars)
 	}
 
 	return
 }
 
-func processInject(v interface{}, vars map[string]interface{}) (r interface{}, err error) {
+func processInject(v interface{}, vars map[string]interface{}) (r interface{}) {
 	switch rv := v.(type) {
 	case []interface{}:
 		var subQueryList []interface{}
 
 		for _, ov := range rv {
-			var subQuery interface{}
-			subQuery, err = processInject(ov, vars)
-			if err != nil {
-				return
-			}
-
-			subQueryList = append(subQueryList, subQuery)
+			subQueryList = append(subQueryList, processInject(ov, vars))
 		}
 
 		r = subQueryList

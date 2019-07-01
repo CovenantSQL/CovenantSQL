@@ -36,8 +36,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
-	"github.com/CovenantSQL/CovenantSQL/route"
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -62,19 +60,22 @@ func getProjects(c *gin.Context) {
 	developer := getDeveloperID(c)
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrNoMainAccount)
 		return
 	}
 
 	projectList, err := model.GetProjects(model.GetDB(c), developer, p.ID)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetProjectsFailed)
 		return
 	}
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrParseAccountFailed)
 		return
 	}
 
@@ -82,19 +83,17 @@ func getProjects(c *gin.Context) {
 
 	for _, p := range projectList {
 		var (
-			req     = new(types.QuerySQLChainProfileReq)
-			resp    = new(types.QuerySQLChainProfileResp)
+			profile *types.SQLChainProfile
 			balance gin.H
 		)
 
-		req.DBID = p.DB
-
-		if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-			abortWithError(c, http.StatusInternalServerError, err)
+		if profile, err = getDatabaseProfile(p.DB); err != nil {
+			_ = c.Error(err)
+			abortWithError(c, http.StatusInternalServerError, ErrSendETLSRPCFailed)
 			return
 		}
 
-		for _, user := range resp.Profile.Users {
+		for _, user := range profile.Users {
 			if user.Address == accountAddr {
 				balance = gin.H{
 					"deposit":         user.Deposit,
@@ -131,7 +130,8 @@ func createProject(c *gin.Context) {
 	developer := getDeveloperID(c)
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrNoMainAccount)
 		return
 	}
 
@@ -140,7 +140,8 @@ func createProject(c *gin.Context) {
 		"node_count": r.NodeCount,
 	})
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrCreateTaskFailed)
 		return
 	}
 
@@ -156,11 +157,13 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
+		err = errors.Wrapf(err, "unmarshal task args failed")
 		return
 	}
 
 	tx, dbID, key, err := createDatabase(db, t.Developer, t.Account, args.NodeCount)
 	if err != nil {
+		err = errors.Wrapf(err, "create database failed")
 		return
 	}
 
@@ -170,6 +173,7 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 
 	lastState, err := waitForTxState(timeoutCtx, tx)
 	if err != nil {
+		err = errors.Wrapf(err, "wait for database creation confirmation failed")
 		r = gin.H{
 			"project": dbID,
 			"db":      dbID,
@@ -185,11 +189,15 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 
 	_, err = initProjectDB(dbID, key)
 	if err != nil {
+		err = errors.Wrapf(err, "init project database meta tables failed")
 		return
 	}
 
 	// bind database to current developer
 	_, err = model.AddProject(db, dbID, t.Developer, t.Account)
+	if err != nil {
+		err = errors.Wrapf(err, "register project failed")
+	}
 
 	r = gin.H{
 		"tx":      tx.String(),
@@ -223,13 +231,15 @@ func projectUserList(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	users, total, err := model.GetProjectUserList(projectDB, r.Term, r.ShowOnlyEnabled, r.Offset, r.Limit)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetUserListFailed)
 		return
 	}
 
@@ -272,13 +282,22 @@ func preRegisterProjectUser(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	var u *model.ProjectUser
 	u, err = model.PreRegisterUser(projectDB, r.Provider, r.Name, r.Email)
 	if err != nil {
+		_ = c.Error(err)
+
+		if strings.Contains(err.Error(), "constraint failed") {
+			err = ErrPreRegisterUserAlreadyExists
+		} else {
+			err = ErrPreRegisterUserFailed
+		}
+
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -306,13 +325,15 @@ func queryProjectUser(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	u, err := model.GetProjectUser(projectDB, r.ID)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectUserFailed)
 		return
 	}
 
@@ -348,13 +369,15 @@ func updateProjectUser(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	u, err := model.GetProjectUser(projectDB, r.ID)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectUserFailed)
 		return
 	}
 
@@ -370,13 +393,20 @@ func updateProjectUser(c *gin.Context) {
 	if r.State != "" {
 		u.State, err = model.ParseProjectUserState(r.State)
 		if err != nil {
-			abortWithError(c, http.StatusBadRequest, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusBadRequest, ErrGetProjectUserStateFailed)
 			return
 		}
 	}
 
 	err = model.UpdateProjectUser(projectDB, u)
 	if err != nil {
+		_ = c.Error(err)
+		if strings.Contains(err.Error(), "constraint failed") {
+			err = ErrUpdateUserConflictWithExisting
+		} else {
+			err = ErrUpdateUserFailed
+		}
 		abortWithError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -411,26 +441,33 @@ func getProjectOAuthCallback(c *gin.Context) {
 
 	p, err := model.GetProjectByID(model.GetDB(c), r.DB, developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetProjectFailed)
 		return
 	}
 
 	cfg := getConfig(c)
 	if cfg == nil || len(cfg.Hosts) == 0 {
-		abortWithError(c, http.StatusInternalServerError, errors.New("no public service hosts available"))
+		abortWithError(c, http.StatusInternalServerError, ErrNoPublicServiceHosts)
 		return
 	}
 
-	var resp []string
+	var (
+		authorize []string
+		callback  []string
+	)
 
 	for _, h := range cfg.Hosts {
 		// project alias happy and host api.covenantsql.io will produce happy.api.covenantsql.io as service host
-		resp = append(resp,
+		authorize = append(authorize,
+			fmt.Sprintf("http://%s.%s/auth/authorize/%s", p.Alias, strings.TrimLeft(h, "."), r.Provider))
+		callback = append(callback,
 			fmt.Sprintf("http://%s.%s/auth/callback/%s", p.Alias, strings.TrimLeft(h, "."), r.Provider))
 	}
 
 	responseWithData(c, http.StatusOK, gin.H{
-		"callbacks": resp,
+		"authorizes": authorize,
+		"callbacks":  callback,
 	})
 }
 
@@ -451,7 +488,8 @@ func updateProjectOAuthConfig(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
@@ -459,7 +497,8 @@ func updateProjectOAuthConfig(c *gin.Context) {
 
 	if cfg.ClientID == "" && cfg.ClientSecret == "" {
 		// update nothing
-		abortWithError(c, http.StatusBadRequest, errors.New("no config provided"))
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrIncompleteOAuthConfig)
 		return
 	}
 
@@ -472,12 +511,13 @@ func updateProjectOAuthConfig(c *gin.Context) {
 	if err != nil {
 		// not exists, create
 		if cfg.ClientID == "" || cfg.ClientSecret == "" {
-			abortWithError(c, http.StatusBadRequest, errors.New("required client_id and client_secret"))
+			abortWithError(c, http.StatusBadRequest, ErrIncompleteOAuthConfig)
 			return
 		}
 		p, err = model.AddProjectConfig(projectDB, model.ProjectConfigOAuth, r.Provider, cfg)
 		if err != nil {
-			abortWithError(c, http.StatusInternalServerError, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusInternalServerError, ErrAddProjectOAuthConfigFailed)
 			return
 		}
 		poc = cfg
@@ -494,7 +534,8 @@ func updateProjectOAuthConfig(c *gin.Context) {
 		}
 		err = model.UpdateProjectConfig(projectDB, p)
 		if err != nil {
-			abortWithError(c, http.StatusInternalServerError, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusInternalServerError, ErrUpdateProjectConfigFailed)
 			return
 		}
 	}
@@ -523,14 +564,16 @@ func updateProjectGroupConfig(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	rulesCtx, err := getRulesContext(r.DB, projectDB)
 	if err != nil {
 		// get rules context failed
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectRulesFailed)
 		return
 	}
 
@@ -547,7 +590,8 @@ func updateProjectGroupConfig(c *gin.Context) {
 	}
 
 	if _, err = populateRulesContext(c, rulesCtx); err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrPopulateProjectRulesFailed)
 		return
 	}
 
@@ -572,7 +616,8 @@ func updateProjectMiscConfig(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
@@ -583,7 +628,8 @@ func updateProjectMiscConfig(c *gin.Context) {
 		// set alias to project database
 		err = model.SetProjectAlias(model.GetDB(c), r.DB, getDeveloperID(c), cfg.Alias)
 		if err != nil {
-			abortWithError(c, http.StatusInternalServerError, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusInternalServerError, ErrSetProjectAliasFailed)
 			return
 		}
 	}
@@ -598,7 +644,8 @@ func updateProjectMiscConfig(c *gin.Context) {
 		// not exists, create
 		p, err = model.AddProjectConfig(projectDB, model.ProjectConfigMisc, "", cfg)
 		if err != nil {
-			abortWithError(c, http.StatusInternalServerError, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusInternalServerError, ErrAddProjectMiscConfigFailed)
 			return
 		}
 		pmc = cfg
@@ -617,7 +664,8 @@ func updateProjectMiscConfig(c *gin.Context) {
 		}
 		err = model.UpdateProjectConfig(projectDB, p)
 		if err != nil {
-			abortWithError(c, http.StatusInternalServerError, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusInternalServerError, ErrUpdateProjectConfigFailed)
 			return
 		}
 	}
@@ -642,13 +690,15 @@ func getProjectConfig(c *gin.Context) {
 
 	projectData, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	projectConfigList, err := model.GetAllProjectConfig(projectDB)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectConfigFailed)
 		return
 	}
 
@@ -722,13 +772,15 @@ func getProjectTables(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	tables, err := model.GetProjectTablesName(projectDB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetProjectTableNamesFailed)
 		return
 	}
 
@@ -755,13 +807,13 @@ func createProjectTable(c *gin.Context) {
 	}
 
 	if len(r.ColumnNames) != len(r.ColumnTypes) {
-		abortWithError(c, http.StatusBadRequest, errors.New("column names and types not matched"))
+		abortWithError(c, http.StatusBadRequest, ErrMismatchedColumnNameAndTypes)
 		return
 	}
 
 	if strings.EqualFold(r.Table, metaTableProjectConfig) || strings.EqualFold(r.Table, metaTableUserInfo) ||
 		strings.HasPrefix(r.Table, deletedTablePrefix) {
-		abortWithError(c, http.StatusBadRequest, errors.New("invalid table name"))
+		abortWithError(c, http.StatusBadRequest, ErrReservedTableName)
 		return
 	}
 
@@ -773,9 +825,10 @@ func createProjectTable(c *gin.Context) {
 			if strings.EqualFold(colName, r.PrimaryKey) {
 				pkIdx = idx
 
-				if r.AutoIncrement && !strings.EqualFold(r.ColumnTypes[idx], "INTEGER") {
-					abortWithError(c, http.StatusBadRequest,
-						errors.Errorf("autoincrement column only supports INTEGER type"))
+				if r.AutoIncrement &&
+					!strings.EqualFold(r.ColumnTypes[idx], "NUMBER") &&
+					!strings.EqualFold(r.ColumnTypes[idx], "INTEGER") {
+					abortWithError(c, http.StatusBadRequest, ErrInvalidAutoIncrementColumnType)
 					return
 				}
 
@@ -784,15 +837,15 @@ func createProjectTable(c *gin.Context) {
 		}
 
 		if pkIdx == -1 {
-			abortWithError(c, http.StatusBadRequest,
-				errors.Errorf("unknown primary key column: %s", r.PrimaryKey))
+			abortWithError(c, http.StatusBadRequest, ErrUnknownPrimaryKeyColumn)
 			return
 		}
 	}
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
@@ -804,7 +857,26 @@ func createProjectTable(c *gin.Context) {
 		if idx != 0 {
 			sql += ",\n"
 		}
-		sql += fmt.Sprintf(`"%s" %s`, colName, r.ColumnTypes[idx])
+
+		// remap column types
+		var colType string
+
+		switch strings.ToUpper(r.ColumnTypes[idx]) {
+		case "NUMBER":
+			if r.AutoIncrement {
+				colType = "INTEGER"
+			} else {
+				colType = "NUMERIC"
+			}
+		case "TEXT":
+			colType = "TEXT"
+		case "BINARY":
+			colType = "BLOB"
+		default:
+			colType = "NUMERIC"
+		}
+
+		sql += fmt.Sprintf(`"%s" %s`, colName, colType)
 		if idx == pkIdx {
 			sql += " PRIMARY KEY "
 
@@ -818,7 +890,8 @@ func createProjectTable(c *gin.Context) {
 
 	_, err = projectDB.Exec(sql)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrDDLExecuteFailed)
 		return
 	}
 
@@ -831,7 +904,8 @@ func createProjectTable(c *gin.Context) {
 	}
 	p, err := model.AddProjectConfig(projectDB, model.ProjectConfigTable, r.Table, ptc)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrAddProjectTableConfigFailed)
 		return
 	}
 
@@ -864,19 +938,22 @@ func getProjectTableDetail(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectTableConfigFailed)
 		return
 	}
 
 	ddl, err := projectDB.SelectStr(`SHOW CREATE TABLE "` + r.Table + `"`)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectTableDDLFailed)
 		return
 	}
 
@@ -912,20 +989,23 @@ func addFieldsToProjectTable(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectTableConfigFailed)
 		return
 	}
 
 	// find column in current column list
 	for _, col := range ptc.Columns {
 		if strings.EqualFold(col, r.ColumnName) {
-			abortWithError(c, http.StatusBadRequest, errors.New("column already exists"))
+			_ = c.Error(err)
+			abortWithError(c, http.StatusBadRequest, ErrColumnAlreadyExists)
 			return
 		}
 	}
@@ -937,13 +1017,15 @@ func addFieldsToProjectTable(c *gin.Context) {
 	_, err = projectDB.Exec(fmt.Sprintf(
 		`ALTER TABLE "%s" ADD COLUMN "%s" %s;`, r.Table, r.ColumnName, r.ColumnType))
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrDDLExecuteFailed)
 		return
 	}
 
 	err = model.UpdateProjectConfig(projectDB, pc)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrUpdateProjectConfigFailed)
 		return
 	}
 
@@ -976,18 +1058,21 @@ func dropProjectTable(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	pc, ptc, err := model.GetProjectTableConfig(projectDB, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectTableConfigFailed)
 		return
 	}
 
 	if ptc.IsDeleted {
-		abortWithError(c, http.StatusNotFound, errors.New("table not exists"))
+		_ = c.Error(err)
+		abortWithError(c, http.StatusNotFound, ErrTableNotExists)
 		return
 	}
 
@@ -996,7 +1081,8 @@ func dropProjectTable(c *gin.Context) {
 	_, err = projectDB.Exec(fmt.Sprintf(
 		`ALTER TABLE "%s" RENAME TO "%s"`, r.Table, newName))
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrDDLExecuteFailed)
 		return
 	}
 
@@ -1004,7 +1090,8 @@ func dropProjectTable(c *gin.Context) {
 
 	err = model.UpdateProjectConfig(projectDB, pc)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrUpdateProjectConfigFailed)
 		return
 	}
 
@@ -1037,13 +1124,15 @@ func batchQueryProjectUser(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	users, err := model.GetProjectUsers(projectDB, r.ID)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectUserFailed)
 		return
 	}
 
@@ -1084,13 +1173,15 @@ func updateProjectTableRules(c *gin.Context) {
 
 	_, projectDB, err := getProjectDB(c, r.DB)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrLoadProjectDatabaseFailed)
 		return
 	}
 
 	rulesCtx, err := getRulesContext(r.DB, projectDB)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetProjectRulesFailed)
 		return
 	}
 
@@ -1105,12 +1196,14 @@ func updateProjectTableRules(c *gin.Context) {
 		ptc.Rules = r.Rules
 		rulesCtx.toUpdate = pc
 	} else {
-		abortWithError(c, http.StatusInternalServerError, errors.New("table does not exists"))
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrTableNotExists)
 		return
 	}
 
 	if _, err = populateRulesContext(c, rulesCtx); err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrPopulateProjectRulesFailed)
 		return
 	}
 
@@ -1135,6 +1228,7 @@ func getProjectAudits(c *gin.Context) {
 func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.DbMap, err error) {
 	nodeID, err := getDatabaseLeaderNodeID(dbID)
 	if err != nil {
+		err = errors.Wrapf(err, "could not get project leader node")
 		return
 	}
 
@@ -1169,19 +1263,25 @@ func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (project *model.Project
 
 	project, err = model.GetProjectByID(model.GetDB(c), dbID, developer)
 	if err != nil {
+		err = errors.Wrapf(err, "get project info failed")
 		return
 	}
 
 	p, err := model.GetAccountByID(model.GetDB(c), developer, project.Account)
 	if err != nil {
+		err = errors.Wrapf(err, "get project owner user info failed")
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
+		err = errors.Wrapf(err, "decode account private key failed")
 		return
 	}
 
 	db, err = initProjectDB(dbID, p.Key)
+	if err != nil {
+		err = errors.Wrapf(err, "init project database failed")
+	}
 
 	return
 }
@@ -1196,6 +1296,7 @@ func getRulesContext(dbID proto.DatabaseID, db *gorp.DbMap) (ctx *projectRulesCo
 	var configs []*model.ProjectConfig
 	configs, err = model.GetAllProjectConfig(db)
 	if err != nil {
+		err = errors.Wrapf(err, "get project config failed")
 		return
 	}
 
@@ -1249,12 +1350,14 @@ func populateRulesContext(c *gin.Context, ctx *projectRulesContext) (r *resolver
 		"rules":  tableRules,
 	})
 	if err != nil {
+		err = errors.Wrapf(err, "compile rules failed")
 		return
 	}
 
 	if ctx.toUpdate != nil {
 		err = model.UpdateProjectConfig(ctx.db, ctx.toUpdate)
 		if err != nil {
+			err = errors.Wrapf(err, "execute rules config update failed")
 			return
 		}
 	}
@@ -1262,6 +1365,7 @@ func populateRulesContext(c *gin.Context, ctx *projectRulesContext) (r *resolver
 	if ctx.toInsert != nil {
 		err = model.AddRawProjectConfig(ctx.db, ctx.toInsert)
 		if err != nil {
+			err = errors.Wrapf(err, "execute new rules creation failed")
 			return
 		}
 	}
@@ -1279,11 +1383,13 @@ func loadRules(c *gin.Context, dbID proto.DatabaseID, db *gorp.DbMap) (r *resolv
 		var ctx *projectRulesContext
 		ctx, err = getRulesContext(dbID, db)
 		if err != nil {
+			err = errors.Wrapf(err, "get rules failed")
 			return
 		}
 
 		r, err = populateRulesContext(c, ctx)
 		if err != nil {
+			err = errors.Wrapf(err, "populate rules failed")
 			return
 		}
 

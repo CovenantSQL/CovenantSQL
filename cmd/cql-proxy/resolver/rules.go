@@ -256,14 +256,7 @@ func (r *Rules) EnforceRulesOnFilter(f map[string]interface{}, table string,
 	var resultAndSubExpr []interface{}
 
 	for _, r := range resultRules {
-		var singleRule map[string]interface{}
-
-		singleRule, err = InjectMagicVars(r, vars)
-		if err != nil {
-			return
-		}
-
-		resultAndSubExpr = append(resultAndSubExpr, singleRule)
+		resultAndSubExpr = append(resultAndSubExpr, InjectMagicVars(r, vars))
 	}
 
 	resultAndSubExpr = append(resultAndSubExpr, f)
@@ -297,12 +290,7 @@ func (r *Rules) EnforceRulesOnUpdate(d map[string]interface{}, table string,
 		return
 	}
 
-	update, err = InjectMagicVars(update, vars)
-	if err != nil {
-		return
-	}
-
-	update, err = mergeUpdate(d, update)
+	update, err = mergeUpdate(d, InjectMagicVars(update, vars))
 
 	return
 }
@@ -319,13 +307,8 @@ func (r *Rules) EnforceRulesOnInsert(d map[string]interface{}, table string,
 		return
 	}
 
-	insert, err = InjectMagicVars(mergeInsert(resultRules...), vars)
-	if err != nil {
-		return
-	}
-
 	// merge inserts vars to original query
-	insert = mergeInsert(d, insert)
+	insert = mergeInsert(d, InjectMagicVars(mergeInsert(resultRules...), vars))
 
 	return
 }

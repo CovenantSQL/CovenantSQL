@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 )
 
@@ -101,6 +102,7 @@ type ProjectGroupConfig struct {
 func GetAllProjectConfig(db *gorp.DbMap) (p []*ProjectConfig, err error) {
 	_, err = db.Select(&p, `SELECT * FROM "____config"`)
 	if err != nil {
+		err = errors.Wrapf(err, "get project config failed")
 		return
 	}
 
@@ -126,12 +128,15 @@ func GetProjectOAuthConfig(db *gorp.DbMap, provider string) (p *ProjectConfig, p
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? AND "key" = ? LIMIT 1`,
 		ProjectConfigOAuth, provider)
 	if err != nil {
+		err = errors.Wrapf(err, "get project oauth config failed")
 		return
 	}
 
 	err = json.Unmarshal(p.RawValue, &pc)
 	if err == nil {
 		p.Value = pc
+	} else {
+		err = errors.Wrapf(err, "resolve project oauth config data failed")
 	}
 
 	return
@@ -141,12 +146,15 @@ func GetProjectTableConfig(db *gorp.DbMap, tableName string) (p *ProjectConfig, 
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? AND "key" = ? LIMIT 1`,
 		ProjectConfigTable, tableName)
 	if err != nil {
+		err = errors.Wrapf(err, "get project table config failed")
 		return
 	}
 
 	err = json.Unmarshal(p.RawValue, &pc)
 	if err == nil {
 		p.Value = pc
+	} else {
+		err = errors.Wrapf(err, "resolve project table config data failed")
 	}
 
 	return
@@ -157,6 +165,7 @@ func GetProjectTablesName(db *gorp.DbMap) (tables []string, err error) {
 
 	_, err = db.Select(&projects, `SELECT * FROM "____config" WHERE "type" = ?`, ProjectConfigTable)
 	if err != nil {
+		err = errors.Wrapf(err, "get project table config failed")
 		return
 	}
 
@@ -177,12 +186,15 @@ func GetProjectMiscConfig(db *gorp.DbMap) (p *ProjectConfig, pc *ProjectMiscConf
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? LIMIT 1`,
 		ProjectConfigMisc)
 	if err != nil {
+		err = errors.Wrapf(err, "get project misc config failed")
 		return
 	}
 
 	err = json.Unmarshal(p.RawValue, &pc)
 	if err == nil {
 		p.Value = pc
+	} else {
+		err = errors.Wrapf(err, "resolve project misc config failed")
 	}
 
 	return
@@ -192,12 +204,15 @@ func GetProjectGroupConfig(db *gorp.DbMap) (p *ProjectConfig, gc *ProjectGroupCo
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? LIMIT 1`,
 		ProjectConfigGroup)
 	if err != nil {
+		err = errors.Wrapf(err, "get project group config failed")
 		return
 	}
 
 	err = json.Unmarshal(p.RawValue, &gc)
 	if err != nil {
 		p.Value = gc
+	} else {
+		err = errors.Wrapf(err, "resolve project group config failed")
 	}
 
 	return
@@ -213,10 +228,14 @@ func AddProjectConfig(db *gorp.DbMap, configType ProjectConfigType, configKey st
 
 	p.RawValue, err = json.Marshal(p.Value)
 	if err != nil {
+		err = errors.Wrapf(err, "encode project config data failed")
 		return
 	}
 
 	err = db.Insert(p)
+	if err != nil {
+		err = errors.Wrapf(err, "add project config record failed")
+	}
 
 	return
 }
@@ -224,12 +243,16 @@ func AddProjectConfig(db *gorp.DbMap, configType ProjectConfigType, configKey st
 func AddRawProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
 	p.RawValue, err = json.Marshal(p.Value)
 	if err != nil {
+		err = errors.Wrapf(err, "encode project config data failed")
 		return
 	}
 
 	p.Created = time.Now().Unix()
 
 	err = db.Insert(p)
+	if err != nil {
+		err = errors.Wrapf(err, "add project config record failed")
+	}
 
 	return
 }
@@ -237,12 +260,16 @@ func AddRawProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
 func UpdateProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
 	p.RawValue, err = json.Marshal(p.Value)
 	if err != nil {
+		err = errors.Wrapf(err, "encode project config data failed")
 		return
 	}
 
 	p.LastUpdated = time.Now().Unix()
 
 	_, err = db.Update(p)
+	if err != nil {
+		err = errors.Wrapf(err, "update project config failed")
+	}
 
 	return
 }

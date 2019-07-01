@@ -48,20 +48,22 @@ func applyToken(c *gin.Context) {
 		userLimits = cfg.Faucet.AccountDailyQuota
 		accountLimits = cfg.Faucet.AddressDailyQuota
 	} else {
-		abortWithError(c, http.StatusForbidden, errors.New("token apply is disabled"))
+		abortWithError(c, http.StatusForbidden, ErrTokenApplyDisabled)
 		return
 	}
 
 	developer := getDeveloperID(c)
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrNoMainAccount)
 		return
 	}
 
 	err = model.CheckTokenApplyLimits(model.GetDB(c), developer, p.Account, userLimits, accountLimits)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrTokenApplyLimitExceeded)
 		return
 	}
 
@@ -70,7 +72,8 @@ func applyToken(c *gin.Context) {
 		"amount": amount,
 	})
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrCreateTaskFailed)
 		return
 	}
 
@@ -84,13 +87,15 @@ func showAllAccounts(c *gin.Context) {
 	developer := getDeveloperID(c)
 	d, err := model.GetDeveloper(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrInvalidDeveloper)
 		return
 	}
 
 	accounts, err := model.GetAllAccounts(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetAccountFailed)
 		return
 	}
 
@@ -108,7 +113,8 @@ func showAllAccounts(c *gin.Context) {
 
 		req.Addr, err = account.Account.Get()
 		if err != nil {
-			abortWithError(c, http.StatusBadRequest, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusBadRequest, ErrParseAccountFailed)
 			return
 		}
 
@@ -136,7 +142,8 @@ func getBalance(c *gin.Context) {
 	developer := getDeveloperID(c)
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrNoMainAccount)
 		return
 	}
 
@@ -147,12 +154,14 @@ func getBalance(c *gin.Context) {
 
 	req.Addr, err = p.Account.Get()
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrParseAccountFailed)
 		return
 	}
 
 	if err = rpc.RequestBP(route.MCCQueryAccountTokenBalance.String(), req, resp); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSendETLSRPCFailed)
 		return
 	}
 
@@ -174,7 +183,8 @@ func setMainAccount(c *gin.Context) {
 	developer := getDeveloperID(c)
 	err := model.SetMainAccount(model.GetDB(c), developer, r.Account)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSetMainAccountFailed)
 		return
 	}
 
@@ -189,27 +199,32 @@ func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *
 	}{}
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
+		err = errors.Wrapf(err, "unmarshal task args failed")
 		return
 	}
 
 	p, err := model.GetAccountByID(db, t.Developer, t.Account)
 	if err != nil {
+		err = errors.Wrapf(err, "get account for task failed")
 		return
 	}
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
+		err = errors.Wrapf(err, "decode task account failed")
 		return
 	}
 
 	txHash, err := client.TransferToken(accountAddr, args.Amount, types.Particle)
 	if err != nil {
+		err = errors.Wrapf(err, "send transfer token rpc failed")
 		return
 	}
 
 	// add record
 	ar, err := model.AddTokenApplyRecord(db, t.Developer, p.Account, args.Amount)
 	if err != nil {
+		err = errors.Wrapf(err, "record token application log failed")
 		return
 	}
 
@@ -217,7 +232,7 @@ func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *
 	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancelCtx()
 
-	lastState, err := waitForTxState(timeoutCtx, txHash)
+	lastState, _ := waitForTxState(timeoutCtx, txHash)
 	r = gin.H{
 		"id":      ar.ID,
 		"account": p.Account,

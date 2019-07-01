@@ -35,11 +35,11 @@ import (
 
 func abortWithError(c *gin.Context, code int, err error) {
 	if err != nil {
+		_ = c.Error(err)
 		c.AbortWithStatusJSON(code, gin.H{
 			"success": false,
 			"msg":     err.Error(),
 		})
-		_ = c.Error(err)
 	}
 }
 
@@ -87,6 +87,7 @@ func getDatabaseProfile(dbID proto.DatabaseID) (profile *types.SQLChainProfile, 
 
 	err = mux.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp)
 	if err != nil {
+		err = errors.Wrapf(err, "query chain profile failed")
 		return
 	}
 

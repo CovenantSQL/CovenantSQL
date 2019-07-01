@@ -40,6 +40,7 @@ func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.Accoun
 	recordCount, err := db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "developer_id" = ?`,
 		beginOfTheDay, developer)
 	if err != nil {
+		err = errors.Wrapf(err, "get developer daily token applied count failed")
 		return
 	}
 
@@ -51,6 +52,7 @@ func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.Accoun
 	recordCount, err = db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "account" = ?`,
 		beginOfTheDay, account)
 	if err != nil {
+		err = errors.Wrapf(err, "get account daily token applied count failed")
 		return
 	}
 
@@ -74,5 +76,10 @@ func AddTokenApplyRecord(db *gorp.DbMap, developer int64, account utils.AccountA
 	}
 
 	err = db.Insert(r)
+
+	if err != nil {
+		err = errors.Wrapf(err, "add token apply record failed")
+	}
+
 	return
 }

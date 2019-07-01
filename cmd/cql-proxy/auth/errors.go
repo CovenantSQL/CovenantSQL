@@ -19,6 +19,7 @@ package auth
 import "errors"
 
 var (
-	ErrIncorrectPassword  = errors.New("incorrect password")
-	ErrOAuthGetUserFailed = errors.New("get user failed")
+	ErrIncorrectPassword           = errors.New("incorrect password")
+	ErrOAuthGetUserFailed          = errors.New("get user failed")
+	ErrUnsupportedUserAuthProvider = errors.New("unsupported user auth provider")
 )

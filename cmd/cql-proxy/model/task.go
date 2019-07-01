@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 )
 
@@ -87,6 +88,18 @@ type Task struct {
 	Result    gin.H     `db:"-"`
 }
 
+func (t *Task) PostGet(gorp.SqlExecutor) error {
+	return t.Deserialize()
+}
+
+func (t *Task) PreUpdate(gorp.SqlExecutor) error {
+	return t.Serialize()
+}
+
+func (t *Task) PreInsert(gorp.SqlExecutor) error {
+	return t.Serialize()
+}
+
 func (t *Task) LogData() string {
 	if t == nil {
 		return ""
@@ -141,11 +154,10 @@ func NewTask(db *gorp.DbMap, tt TaskType, developer int64, account int64, args g
 		Updated:   now,
 	}
 
-	if err = t.Serialize(); err != nil {
-		return
-	}
-
 	err = db.Insert(t)
+	if err != nil {
+		err = errors.Wrapf(err, "new task failed")
+	}
 
 	return
 }
@@ -154,18 +166,17 @@ func GetTask(db *gorp.DbMap, developer int64, id int64) (t *Task, err error) {
 	err = db.SelectOne(&t,
 		`SELECT * FROM "task" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`, id, developer)
 	if err != nil {
-		return
+		err = errors.Wrapf(err, "get task failed")
 	}
-	err = t.Deserialize()
 	return
 }
 
 func UpdateTask(db *gorp.DbMap, t *Task) (err error) {
 	t.Updated = time.Now().Unix()
-	if err = t.Serialize(); err != nil {
-		return
-	}
 	_, err = db.Update(t)
+	if err != nil {
+		err = errors.Wrapf(err, "update task failed")
+	}
 	return
 }
 
@@ -209,14 +220,13 @@ ORDER BY "id" DESC LIMIT ?, ?`
 
 	total, err = db.SelectInt(totalSQL, totalArgs...)
 	if err != nil {
+		err = errors.Wrapf(err, "get total task count failed")
 		return
 	}
 	_, err = db.Select(&tasks, listSQL, listArgs...)
 	if err != nil {
+		err = errors.Wrapf(err, "get task list failed")
 		return
-	}
-	for _, t := range tasks {
-		_ = t.Deserialize()
 	}
 
 	return
@@ -227,10 +237,7 @@ func ListIncompleteTask(db *gorp.DbMap, limit int64) (tasks []*Task, err error) 
 		`SELECT * FROM "task" WHERE "state" NOT IN (?, ?) ORDER BY "id" ASC LIMIT ?`,
 		TaskSuccess, TaskFailed, limit)
 	if err != nil {
-		return
-	}
-	for _, t := range tasks {
-		_ = t.Deserialize()
+		err = errors.Wrapf(err, "get incomplete task list failed")
 	}
 	return
 }

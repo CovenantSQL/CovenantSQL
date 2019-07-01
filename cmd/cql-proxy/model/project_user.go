@@ -58,7 +58,7 @@ func ParseProjectUserState(s string) (st ProjectUserState, err error) {
 		}
 	}
 
-	err = errors.New("invalid state")
+	err = errors.New("invalid user state")
 	return
 }
 
@@ -73,6 +73,18 @@ type ProjectUser struct {
 	Extra       gin.H            `db:"-"`
 	Created     int64            `db:"created"`
 	LastLogin   int64            `db:"last_login"`
+}
+
+func (u *ProjectUser) PostGet(gorp.SqlExecutor) error {
+	return u.LoadExtra()
+}
+
+func (u *ProjectUser) PreUpdate(gorp.SqlExecutor) error {
+	return u.SaveExtra()
+}
+
+func (u *ProjectUser) PreInsert(gorp.SqlExecutor) error {
+	return u.SaveExtra()
 }
 
 func (u *ProjectUser) SaveExtra() (err error) {
@@ -94,12 +106,10 @@ func PreRegisterUser(db *gorp.DbMap, provider string, name string, email string)
 		Created:  time.Now().Unix(),
 	}
 
-	err = u.SaveExtra()
-	if err != nil {
-		return
-	}
-
 	err = db.Insert(u)
+	if err != nil {
+		err = errors.Wrapf(err, "add pre-registered user failed")
+	}
 
 	return
 }
@@ -108,9 +118,9 @@ func GetProjectUser(db *gorp.DbMap, id int64) (u *ProjectUser, err error) {
 	err = db.SelectOne(&u, `SELECT * FROM "____user" WHERE "id" = ? LIMIT 1`,
 		id)
 	if err != nil {
+		err = errors.Wrapf(err, "get project user failed")
 		return
 	}
-	err = u.LoadExtra()
 	return
 }
 
@@ -128,11 +138,7 @@ func GetProjectUsers(db *gorp.DbMap, id []int64) (users []*ProjectUser, err erro
 	_, err = db.Select(&users, `SELECT * FROM "____user" WHERE "id" IN (`+
 		strings.Repeat("?,", len(id)-1)+`?)`, args...)
 	if err != nil {
-		return
-	}
-
-	for _, u := range users {
-		_ = u.LoadExtra()
+		err = errors.Wrapf(err, "get project users failed")
 	}
 
 	return
@@ -166,16 +172,14 @@ func GetProjectUserList(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool,
 
 	total, err = db.SelectInt(totalSQL, totalArgs...)
 	if err != nil {
+		err = errors.Wrapf(err, "get user list total count failed")
 		return
 	}
 
 	_, err = db.Select(&users, sql, args...)
 	if err != nil {
+		err = errors.Wrapf(err, "get user list failed")
 		return
-	}
-
-	for _, u := range users {
-		_ = u.LoadExtra()
 	}
 
 	return
@@ -210,6 +214,7 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 
 	if err != nil && !enableSignUp {
 		// new user, not even pre-registered
+		err = errors.New("user does not exists")
 		return
 	}
 
@@ -244,17 +249,17 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 		u.ProviderUID = uid
 	}
 
-	// encode extra
-	err = u.SaveExtra()
-	if err != nil {
-		return
-	}
-
 	// update user info
 	if exists {
 		_, err = db.Update(u)
+		if err != nil {
+			err = errors.Wrapf(err, "update user info failed")
+		}
 	} else {
 		err = db.Insert(u)
+		if err != nil {
+			err = errors.Wrapf(err, "add new user failed")
+		}
 	}
 
 	if err != nil {
@@ -271,10 +276,9 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 }
 
 func UpdateProjectUser(db *gorp.DbMap, u *ProjectUser) (err error) {
-	if err = u.SaveExtra(); err != nil {
-		return
-	}
-
 	_, err = db.Update(u)
+	if err != nil {
+		err = errors.Wrapf(err, "update project user failed")
+	}
 	return
 }

@@ -107,7 +107,7 @@ func HandleUserAuth(c *gin.Context, provider string, clientID string, clientSecr
 				), nil),
 		).ServeHTTP(c.Writer, c.Request)
 	default:
-		_ = c.AbortWithError(http.StatusBadRequest, errors.New("unsupported auth provider"))
+		_ = c.AbortWithError(http.StatusBadRequest, ErrUnsupportedUserAuthProvider)
 	}
 }
 
@@ -148,7 +148,7 @@ func HandleUserCallback(c *gin.Context, provider string, clientID string, client
 				sinaWeiboAuthCallback(c, success, fail, cfg), wrapFailCallback(fail)),
 		).ServeHTTP(c.Writer, c.Request)
 	default:
-		fail(errors.New("unsupported auth provider"))
+		fail(ErrUnsupportedUserAuthProvider)
 	}
 }
 
@@ -208,6 +208,7 @@ func googleAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := google.UserFromContext(r.Context())
 		if err != nil {
+			err = errors.Wrapf(err, "get user info failed")
 			fail(err)
 			return
 		}
@@ -218,12 +219,14 @@ func googleAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "marshal user info failed")
 				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "unmarshal extra user info failed")
 				fail(err)
 				return
 			}
@@ -243,6 +246,7 @@ func facebookAuthCallback(c *gin.Context, success UserSuccessCallback, fail User
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
+			err = errors.Wrapf(err, "get facebook token info failed")
 			fail(err)
 			return
 		}
@@ -263,6 +267,7 @@ func facebookAuthCallback(c *gin.Context, success UserSuccessCallback, fail User
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get("me?fields=id,name,email,picture").ReceiveSuccess(&resp)
 			if err != nil {
+				err = errors.Wrapf(err, "request facebook user info failed")
 				fail(err)
 				return
 			}
@@ -288,6 +293,7 @@ func twitterAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserF
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := twitter.UserFromContext(r.Context())
 		if err != nil {
+			err = errors.Wrapf(err, "get twitter user info failed")
 			fail(err)
 			return
 		}
@@ -297,12 +303,14 @@ func twitterAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserF
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "marshal user info failed")
 				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "unmarshal extra user info failed")
 				fail(err)
 				return
 			}
@@ -330,6 +338,7 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 
 		userInfo, _, err := rpc.Users.Get(r.Context(), "")
 		if err != nil {
+			err = errors.Wrapf(err, "get github user info failed")
 			fail(err)
 			return
 		}
@@ -339,12 +348,14 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "marshal user info failed")
 				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "unmarshal extra user info failed")
 				fail(err)
 				return
 			}
@@ -359,6 +370,7 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 			// userInfo.GetEmail returns the public email, may not be primary email
 			emails, _, err := rpc.Users.ListEmails(r.Context(), nil)
 			if err != nil {
+				err = errors.Wrapf(err, "get github user primary email failed")
 				fail(err)
 				return
 			}
@@ -391,6 +403,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
+			err = errors.Wrapf(err, "get weibo token info failed")
 			fail(err)
 			return
 		}
@@ -407,6 +420,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get("account/get_uid.json").ReceiveSuccess(&uidData)
 			if err != nil {
+				err = errors.Wrapf(err, "get weibo user id failed")
 				fail(err)
 				return
 			}
@@ -414,17 +428,19 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get(fmt.Sprintf("users/show.json?uid=%v", uidData["uid"])).ReceiveSuccess(&userInfo)
 			if err != nil {
+				err = errors.Wrapf(err, "get weibo user info failed")
 				fail(err)
 				return
 			}
 
-			// remove userinfo status
+			// remove userinfo recent weibo status
 			delete(userInfo, "status")
 			delete(userInfo, "statuses_count")
 
 			res := jsonq.NewQuery(userInfo)
 			idStr, err := res.String("idstr")
 			if err != nil {
+				err = errors.Wrapf(err, "get weibo user id failed")
 				fail(err)
 				return
 			}
@@ -434,7 +450,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 			success(&UserInfo{
 				UID:    idStr,
 				Name:   screenName,
-				Email:  "",
+				Email:  idStr + "@fake.email.weibo.com", // use dummy email
 				Avatar: avatar,
 				Extra:  userInfo,
 			})
@@ -446,6 +462,7 @@ func wrapFailCallback(c UserFailCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if c != nil {
 			if err := gologin.ErrorFromContext(r.Context()); err != nil {
+				err = errors.Wrapf(err, "login failed")
 				c(err)
 			} else {
 				err = errors.New("unknown error")

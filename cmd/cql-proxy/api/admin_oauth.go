@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -68,7 +67,8 @@ func adminOAuthCallback(c *gin.Context) {
 
 	d, err := model.EnsureDeveloper(model.GetDB(c), userInfo.ID, userInfo.Name, userInfo.Email, userInfo.Extra)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrUpdateDeveloperAccount)
 		return
 	}
 
@@ -76,7 +76,8 @@ func adminOAuthCallback(c *gin.Context) {
 	sessionExpireSeconds := int64(getConfig(c).AdminAuth.OAuthExpires.Seconds())
 	s, err := model.NewSession(c, sessionExpireSeconds)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrCreateSessionFailed)
 		return
 	}
 
@@ -102,14 +103,15 @@ func adminCheck(c *gin.Context) {
 		return
 	}
 
-	abortWithError(c, http.StatusForbidden, errors.New("unauthorized access"))
+	abortWithError(c, http.StatusForbidden, ErrNotAuthorizedAdmin)
 }
 
 func getDeveloperInfo(c *gin.Context) {
 	developer := getDeveloperID(c)
 	d, err := model.GetDeveloper(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetDeveloperFailed)
 		return
 	}
 

@@ -98,9 +98,11 @@ type impersonatedDB struct {
 	key    *asymmetric.PrivateKey
 }
 
-func (d *impersonatedDB) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (result driver.Result, err error) {
+func (d *impersonatedDB) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (
+	result driver.Result, err error) {
 	resp, err := d.sendQuery(query, args, types.WriteQuery)
 	if err != nil {
+		err = errors.Wrapf(err, "send query failed")
 		return
 	}
 
@@ -112,9 +114,11 @@ func (d *impersonatedDB) ExecContext(ctx context.Context, query string, args []d
 	return
 }
 
-func (d *impersonatedDB) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (rows driver.Rows, err error) {
+func (d *impersonatedDB) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (
+	rows driver.Rows, err error) {
 	resp, err := d.sendQuery(query, args, types.ReadQuery)
 	if err != nil {
+		err = errors.Wrapf(err, "send query failed")
 		return
 	}
 
@@ -166,11 +170,13 @@ func (d *impersonatedDB) sendQuery(query string, args []driver.NamedValue, query
 	resp = &types.Response{}
 
 	if err = req.Sign(d.key); err != nil {
+		err = errors.Wrapf(err, "sign query failed")
 		return
 	}
 
 	err = d.rpc.Call(route.DBSQuery.String(), req, resp)
 	if err != nil {
+		err = errors.Wrapf(err, "send query rpc failed")
 		return
 	}
 

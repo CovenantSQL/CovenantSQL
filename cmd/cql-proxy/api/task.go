@@ -44,13 +44,15 @@ func listTasks(c *gin.Context) {
 
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
+		_ = c.Error(err)
 		abortWithError(c, http.StatusBadRequest, err)
 		return
 	}
 
 	tasks, total, err := model.ListTask(model.GetDB(c), developer, p.ID, r.All, r.Offset, r.Limit)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetTaskListFailed)
 		return
 	}
 
@@ -88,7 +90,8 @@ func getTask(c *gin.Context) {
 	developer := getDeveloperID(c)
 	task, err := model.GetTask(model.GetDB(c), developer, r.ID)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetTaskDetailFailed)
 		return
 	}
 
@@ -123,7 +126,8 @@ func cancelTask(c *gin.Context) {
 	developer := getDeveloperID(c)
 	task, err := model.GetTask(model.GetDB(c), developer, r.ID)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrGetTaskDetailFailed)
 		return
 	}
 

@@ -22,5 +22,5 @@ import (
 )
 
 func GetDB(c *gin.Context) *gorp.DbMap {
-	return c.MustGet(keyDB).(*gorp.DbMap)
+	return c.MustGet("db").(*gorp.DbMap)
 }

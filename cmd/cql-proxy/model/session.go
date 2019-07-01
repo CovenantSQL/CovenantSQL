@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -272,6 +273,7 @@ func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
 
 	err = GetDB(c).Insert(s)
 	if err != nil {
+		err = errors.Wrapf(err, "new session failed")
 		return
 	}
 
@@ -284,10 +286,12 @@ func GetSession(c *gin.Context, id string) (s *Session, err error) {
 	err = GetDB(c).SelectOne(&s,
 		`SELECT * FROM "session" WHERE "id" = ? LIMIT 1`, id)
 	if err != nil {
+		err = errors.Wrapf(err, "get session failed")
 		return
 	}
 	err = s.Deserialize()
 	if err != nil {
+		err = errors.Wrapf(err, "decode session failed")
 		return
 	}
 
@@ -304,11 +308,15 @@ func SaveSession(c *gin.Context, s *Session, expire int64) (r *Session, err erro
 	r = s
 	err = r.Serialize()
 	if err != nil {
+		err = errors.Wrapf(err, "encode session failed")
 		return
 	}
 
 	r.Expire = time.Now().Unix() + expire
 
 	_, err = GetDB(c).Update(r)
+	if err != nil {
+		err = errors.Wrapf(err, "update session failed")
+	}
 	return
 }

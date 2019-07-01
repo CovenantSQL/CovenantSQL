@@ -86,7 +86,8 @@ func ResolveProjection(p map[string]interface{}, availFields FieldMap) (fm Field
 	return
 }
 
-func andORRelation(childQueries []map[string]interface{}, availFields FieldMap, op string) (fields FieldMap, statement string, args []interface{}, err error) {
+func logicRelation(childQueries []map[string]interface{}, availFields FieldMap, op string) (
+	fields FieldMap, statement string, args []interface{}, err error) {
 	fields = FieldMap{}
 
 	if len(childQueries) == 0 {
@@ -226,7 +227,7 @@ func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 				err = errors.Wrapf(err, "%s operator", k)
 				return
 			}
-			childFields, childStatement, childArgs, err = andORRelation(childQuery, availFields, opMap[k])
+			childFields, childStatement, childArgs, err = logicRelation(childQuery, availFields, opMap[k])
 			if err != nil {
 				return
 			}

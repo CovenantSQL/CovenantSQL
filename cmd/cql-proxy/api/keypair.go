@@ -41,20 +41,23 @@ func genKeyPair(c *gin.Context) {
 
 	p, err := model.AddNewPrivateKey(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGenerateKeypairFailed)
 		return
 	}
 
 	// set as main account
 	err = model.SetIfNoMainAccount(model.GetDB(c), developer, p.Account)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSetMainAccountFailed)
 		return
 	}
 
 	keyBytes, err := kms.EncodePrivateKey(p.Key, []byte(r.Password))
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrEncodePrivateKeyFailed)
 		return
 	}
 
@@ -78,7 +81,8 @@ func uploadKeyPair(c *gin.Context) {
 	// decode key
 	key, err := kms.DecodePrivateKey([]byte(r.Key), []byte(r.Password))
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrInvalidPrivateKeyUploaded)
 		return
 	}
 
@@ -87,14 +91,16 @@ func uploadKeyPair(c *gin.Context) {
 
 	p, err := model.SavePrivateKey(model.GetDB(c), developer, key)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSavePrivateKeyFailed)
 		return
 	}
 
 	// set as main account
 	err = model.SetIfNoMainAccount(model.GetDB(c), developer, p.Account)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSetMainAccountFailed)
 		return
 	}
 
@@ -116,18 +122,22 @@ func deleteKeyPair(c *gin.Context) {
 		return
 	}
 
+	// TODO(): check running projects and tasks
+
 	// check and delete private key
 	developer := getDeveloperID(c)
 
 	p, err := model.DeletePrivateKey(model.GetDB(c), developer, r.Account)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrDeletePrivateKeyFailed)
 		return
 	}
 
 	err = model.FixDeletedMainAccount(model.GetDB(c), developer, p.ID)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrUnbindMainAccountFailed)
 		return
 	}
 
@@ -152,13 +162,15 @@ func downloadKeyPair(c *gin.Context) {
 
 	p, err := model.GetPrivateKey(model.GetDB(c), developer, r.Account)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrGetAccountFailed)
 		return
 	}
 
 	privateKeyBytes, err := kms.EncodePrivateKey(p.Key, []byte(r.Password))
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrEncodePrivateKeyFailed)
 		return
 	}
 

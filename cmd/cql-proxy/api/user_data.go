@@ -18,11 +18,11 @@ package api
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -52,7 +52,8 @@ func userDataFind(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
 		return
 	}
 
@@ -61,7 +62,8 @@ func userDataFind(c *gin.Context) {
 	if !adminMode {
 		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryFind)
 		if err != nil {
-			abortWithError(c, http.StatusForbidden, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusForbidden, ErrEnforceRuleOnQueryFailed)
 			return
 		}
 	} else {
@@ -77,14 +79,16 @@ func userDataFind(c *gin.Context) {
 	var rows *sql.Rows
 	rows, err = db.Query(stmt, args...)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrExecuteQueryFailed)
 		return
 	}
 
 	var result []gin.H
 	result, err = scanRows(rows)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrScanRowsFailed)
 		return
 	}
 
@@ -108,7 +112,8 @@ func userDataInsert(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
 		return
 	}
 
@@ -117,7 +122,8 @@ func userDataInsert(c *gin.Context) {
 	if !adminMode {
 		insertData, err = rules.EnforceRulesOnInsert(r.Data, r.Table, uid, userState, vars)
 		if err != nil {
-			abortWithError(c, http.StatusForbidden, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusForbidden, ErrEnforceRuleOnQueryFailed)
 			return
 		}
 	} else {
@@ -132,7 +138,8 @@ func userDataInsert(c *gin.Context) {
 
 	result, err := db.Exec(stmt, args...)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrExecuteQueryFailed)
 		return
 	}
 
@@ -162,7 +169,8 @@ func userDataUpdate(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
 		return
 	}
 
@@ -174,13 +182,15 @@ func userDataUpdate(c *gin.Context) {
 	if !adminMode {
 		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryUpdate)
 		if err != nil {
-			abortWithError(c, http.StatusForbidden, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusForbidden, ErrEnforceRuleOnQueryFailed)
 			return
 		}
 
 		update, err = rules.EnforceRulesOnUpdate(r.Update, r.Table, uid, userState, vars)
 		if err != nil {
-			abortWithError(c, http.StatusForbidden, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusForbidden, ErrEnforceRuleOnQueryFailed)
 			return
 		}
 	} else {
@@ -196,7 +206,8 @@ func userDataUpdate(c *gin.Context) {
 
 	result, err := db.Exec(stmt, args...)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrExecuteQueryFailed)
 		return
 	}
 
@@ -223,7 +234,8 @@ func userDataRemove(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
 		return
 	}
 
@@ -232,7 +244,8 @@ func userDataRemove(c *gin.Context) {
 	if !adminMode {
 		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryRemove)
 		if err != nil {
-			abortWithError(c, http.StatusForbidden, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusForbidden, ErrEnforceRuleOnQueryFailed)
 			return
 		}
 	} else {
@@ -247,7 +260,8 @@ func userDataRemove(c *gin.Context) {
 
 	result, err := db.Exec(stmt, args...)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrExecuteQueryFailed)
 		return
 	}
 
@@ -273,7 +287,8 @@ func userDataCount(c *gin.Context) {
 
 	db, uid, userState, vars, rules, fieldMap, adminMode, err := buildExecuteContext(c, r.Table)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrPrepareExecutionContextFailed)
 		return
 	}
 
@@ -282,7 +297,8 @@ func userDataCount(c *gin.Context) {
 	if !adminMode {
 		filter, err = rules.EnforceRulesOnFilter(r.Filter, r.Table, uid, userState, vars, resolver.RuleQueryCount)
 		if err != nil {
-			abortWithError(c, http.StatusForbidden, err)
+			_ = c.Error(err)
+			abortWithError(c, http.StatusForbidden, ErrEnforceRuleOnQueryFailed)
 			return
 		}
 	} else {
@@ -297,7 +313,8 @@ func userDataCount(c *gin.Context) {
 
 	count, err := db.SelectInt(stmt, args...)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrExecuteQueryFailed)
 		return
 	}
 
@@ -311,6 +328,7 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 	project := getCurrentProject(c)
 	projectDB, err = getCurrentProjectDB(c)
 	if err != nil {
+		err = errors.Wrapf(err, "load project database failed")
 		return
 	}
 
@@ -323,6 +341,7 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 	if userID != 0 {
 		userInfo, err = model.GetProjectUser(projectDB, userID)
 		if err != nil {
+			err = errors.Wrapf(err, "get project user info failed")
 			return
 		}
 
@@ -366,12 +385,14 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 
 	r, err = loadRules(c, project.DB, projectDB)
 	if err != nil {
+		err = errors.Wrapf(err, "load rules failed")
 		return
 	}
 
 	// load table fields
 	_, ptc, err := model.GetProjectTableConfig(projectDB, tableName)
 	if err != nil {
+		err = errors.Wrapf(err, "get project table config failed")
 		return
 	}
 
@@ -402,6 +423,7 @@ func scanRows(rows *sql.Rows) (result []gin.H, err error) {
 	var columns []string
 	columns, err = rows.Columns()
 	if err != nil {
+		err = errors.Wrapf(err, "get column names failed")
 		return
 	}
 
@@ -415,6 +437,7 @@ func scanRows(rows *sql.Rows) (result []gin.H, err error) {
 			dest[i] = &row[i]
 		}
 		if err = rows.Scan(dest...); err != nil {
+			err = errors.Wrapf(err, "scan row failed")
 			return
 		}
 

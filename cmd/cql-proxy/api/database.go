@@ -19,11 +19,11 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -52,7 +52,8 @@ func createDB(c *gin.Context) {
 
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrNoMainAccount)
 		return
 	}
 
@@ -61,7 +62,8 @@ func createDB(c *gin.Context) {
 		"node_count": r.NodeCount,
 	})
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrCreateTaskFailed)
 		return
 	}
 
@@ -87,7 +89,8 @@ func topUp(c *gin.Context) {
 
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrNoMainAccount)
 		return
 	}
 
@@ -97,7 +100,8 @@ func topUp(c *gin.Context) {
 		"amount": r.Amount,
 	})
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrCreateTaskFailed)
 		return
 	}
 
@@ -122,29 +126,26 @@ func databaseBalance(c *gin.Context) {
 	developer := getDeveloperID(c)
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrNoMainAccount)
 		return
 	}
 
-	var (
-		req  = new(types.QuerySQLChainProfileReq)
-		resp = new(types.QuerySQLChainProfileResp)
-	)
-
-	req.DBID = r.Database
-
-	if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+	var profile *types.SQLChainProfile
+	if profile, err = getDatabaseProfile(r.Database); err != nil {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSendETLSRPCFailed)
 		return
 	}
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrParseAccountFailed)
 		return
 	}
 
-	for _, user := range resp.Profile.Users {
+	for _, user := range profile.Users {
 		if user.Address == accountAddr {
 			responseWithData(c, http.StatusOK, gin.H{
 				"deposit":         user.Deposit,
@@ -155,7 +156,7 @@ func databaseBalance(c *gin.Context) {
 		}
 	}
 
-	abortWithError(c, http.StatusForbidden, errors.New("unauthorized access"))
+	abortWithError(c, http.StatusForbidden, ErrNotAuthorizedAdmin)
 }
 
 func databasePricing(c *gin.Context) {
@@ -177,13 +178,15 @@ func waitTx(c *gin.Context) {
 	var h hash.Hash
 
 	if err := hash.Decode(&h, r.Tx); err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrInvalidTxHash)
 		return
 	}
 
 	txState, err := client.WaitTxConfirmation(c.Request.Context(), h)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrWaitTxConfirmationTimeout)
 		return
 	}
 
@@ -198,7 +201,8 @@ func databaseList(c *gin.Context) {
 
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
-		abortWithError(c, http.StatusForbidden, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusForbidden, ErrNoMainAccount)
 		return
 	}
 
@@ -207,14 +211,16 @@ func databaseList(c *gin.Context) {
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		abortWithError(c, http.StatusBadRequest, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusBadRequest, ErrParseAccountFailed)
 		return
 	}
 
 	req.Addr = accountAddr
 	err = rpc.RequestBP(route.MCCQueryAccountSQLChainProfiles.String(), req, resp)
 	if err != nil {
-		abortWithError(c, http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrSendETLSRPCFailed)
 		return
 	}
 
@@ -243,10 +249,12 @@ func databaseList(c *gin.Context) {
 func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount uint16) (tx hash.Hash, dbID proto.DatabaseID, key *asymmetric.PrivateKey, err error) {
 	p, err := model.GetAccountByID(db, developer, account)
 	if err != nil {
+		err = errors.Wrapf(err, "get account for task failed")
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
+		err = errors.Wrapf(err, "decode account private key failed")
 		return
 	}
 
@@ -254,6 +262,7 @@ func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount ui
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
+		err = errors.Wrapf(err, "decode task account failed")
 		return
 	}
 
@@ -263,6 +272,7 @@ func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount ui
 
 	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
 	if err != nil {
+		err = errors.Wrapf(err, "get account nonce failed")
 		return
 	}
 
@@ -297,10 +307,12 @@ func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount ui
 	})
 
 	if err = txReq.Tx.Sign(p.Key); err != nil {
+		err = errors.Wrapf(err, "sign create database tx failed")
 		return
 	}
 
 	if err = rpc.RequestBP(route.MCCAddTx.String(), txReq, txResp); err != nil {
+		err = errors.Wrapf(err, "send add tx transaction rpc failed")
 		return
 	}
 
@@ -324,6 +336,7 @@ func waitForTxState(ctx context.Context, tx hash.Hash) (state pi.TransactionStat
 			resp := &types.QueryTxStateResp{}
 			err = rpc.RequestBP(route.MCCQueryTxState.String(), req, resp)
 			if err != nil {
+				err = errors.Wrapf(err, "query tx %s state failed", tx.String())
 				continue
 			}
 
@@ -334,7 +347,7 @@ func waitForTxState(ctx context.Context, tx hash.Hash) (state pi.TransactionStat
 				return
 			case pi.TransactionStateExpired, pi.TransactionStateNotFound:
 				// set error
-				err = errors.New("transaction expired")
+				err = errors.Errorf("tx %s expired", tx.String())
 				return
 			}
 		}
@@ -348,11 +361,13 @@ func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t
 
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
+		err = errors.Wrapf(err, "unmarshal task args failed")
 		return
 	}
 
 	tx, dbID, _, err := createDatabase(db, t.Developer, t.Account, args.NodeCount)
 	if err != nil {
+		err = errors.Wrapf(err, "create database failed")
 		return
 	}
 
@@ -360,7 +375,7 @@ func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t
 	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancelCtx()
 
-	lastState, err := waitForTxState(timeoutCtx, tx)
+	lastState, _ := waitForTxState(timeoutCtx, tx)
 	r = gin.H{
 		"db":    dbID,
 		"tx":    tx.String(),
@@ -378,40 +393,43 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
+		err = errors.Wrapf(err, "unmarshal task args failed")
 		return
 	}
 
 	dbAccount, err := args.Database.AccountAddress()
 	if err != nil {
+		err = errors.Wrapf(err, "get database wallet account failed")
 		return
 	}
 
 	p, err := model.GetAccountByID(db, t.Developer, t.Account)
 	if err != nil {
+		err = errors.Wrapf(err, "get account for task failed")
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
+		err = errors.Wrapf(err, "decode account private key failed")
 		return
 	}
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
+		err = errors.Wrapf(err, "decode task account failed")
 		return
 	}
 
 	// check for database account existence
-	profileReq := new(types.QuerySQLChainProfileReq)
-	profileResp := new(types.QuerySQLChainProfileResp)
-	profileReq.DBID = args.Database
-
-	err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
+	var profile *types.SQLChainProfile
+	profile, err = getDatabaseProfile(args.Database)
 	if err != nil {
+		err = errors.Wrapf(err, "send get chain profile rpc failed")
 		return
 	}
 
 	foundUser := false
-	for _, user := range profileResp.Profile.Users {
+	for _, user := range profile.Users {
 		if user.Address == accountAddr {
 			foundUser = true
 			break
@@ -429,6 +447,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
 	if err != nil {
+		err = errors.Wrapf(err, "get account nonce failed")
 		return
 	}
 
@@ -442,6 +461,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	err = tx.Sign(p.Key)
 	if err != nil {
+		err = errors.Wrapf(err, "sign database top-up token transfer tx failed")
 		return
 	}
 
@@ -450,6 +470,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 	addTxReq.Tx = tx
 	err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
 	if err != nil {
+		err = errors.Wrapf(err, "send add tx transaction rpc failed")
 		return
 	}
 
@@ -457,7 +478,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 	timeoutCtx, cancelCtx := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancelCtx()
 
-	lastState, err := waitForTxState(timeoutCtx, tx.Hash())
+	lastState, _ := waitForTxState(timeoutCtx, tx.Hash())
 	r = gin.H{
 		"db":    args.Database,
 		"tx":    tx.Hash().String(),

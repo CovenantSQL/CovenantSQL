@@ -33,6 +33,7 @@ import (
 
 var numberRegex = regexp.MustCompile("^\\d+$")
 
+// CheckAndBindParams set binding object with parsed nested value if binding object is empty.
 func CheckAndBindParams(c *gin.Context, res interface{}, pathes ...string) {
 	if res == nil {
 		return
@@ -87,6 +88,7 @@ func CheckAndBindParams(c *gin.Context, res interface{}, pathes ...string) {
 	rve.Set(rvRes)
 }
 
+// ParseNestedQuery resolve nested object in specified path from url-encoded form.
 func ParseNestedQuery(form url.Values, pathes ...string) (res interface{}, err error) {
 	res, err = qs.Unmarshal(form.Encode())
 

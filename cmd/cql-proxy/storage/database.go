@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 )
 
+// NewDatabase returns new project database object based on storage config.
 func NewDatabase(cfg *config.StorageConfig) (storage *gorp.DbMap, err error) {
 	var db *sql.DB
 

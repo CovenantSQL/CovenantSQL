@@ -28,6 +28,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 )
 
+// DeveloperPrivateKey defines the private key object of developer.
 type DeveloperPrivateKey struct {
 	ID        int64                  `db:"id"`
 	Developer int64                  `db:"developer_id"`
@@ -37,6 +38,7 @@ type DeveloperPrivateKey struct {
 	Key       *asymmetric.PrivateKey `db:"-"`
 }
 
+// LoadPrivateKey loads the private key from raw key bytes.
 func (p *DeveloperPrivateKey) LoadPrivateKey() (err error) {
 	p.Key, err = kms.DecodePrivateKey(p.RawKey, []byte{})
 	if err != nil {
@@ -45,6 +47,7 @@ func (p *DeveloperPrivateKey) LoadPrivateKey() (err error) {
 	return
 }
 
+// GetPrivateKey load private key of account from proxy database.
 func GetPrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
 	if p, err = GetAccount(db, developer, account); err != nil || p == nil {
 		err = errors.Wrapf(err, "get private key failed")
@@ -60,6 +63,7 @@ func GetPrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddress
 	return
 }
 
+// AddNewPrivateKey generates new private key for developer.
 func AddNewPrivateKey(db *gorp.DbMap, developer int64) (p *DeveloperPrivateKey, err error) {
 	dbMap := db
 	privateKey, pubKey, err := asymmetric.GenSecp256k1KeyPair()
@@ -96,6 +100,7 @@ func AddNewPrivateKey(db *gorp.DbMap, developer int64) (p *DeveloperPrivateKey, 
 	return
 }
 
+// SavePrivateKey saves existing private key to developer keys object.
 func SavePrivateKey(db *gorp.DbMap, developer int64, key *asymmetric.PrivateKey) (
 	p *DeveloperPrivateKey, err error) {
 	dbMap := db
@@ -144,6 +149,7 @@ func SavePrivateKey(db *gorp.DbMap, developer int64, key *asymmetric.PrivateKey)
 	return
 }
 
+// DeletePrivateKey removes the keypair from proxy database.
 func DeletePrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddress) (
 	p *DeveloperPrivateKey, err error) {
 	p, err = GetPrivateKey(db, developer, account)
@@ -160,6 +166,7 @@ func DeletePrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddr
 	return
 }
 
+// GetAccount returns the account object of specified keypair.
 func GetAccount(db *gorp.DbMap, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
 	err = db.SelectOne(&p,
 		`SELECT * FROM "private_keys" WHERE "account" = ? AND "developer_id" = ? LIMIT 1`,
@@ -170,6 +177,7 @@ func GetAccount(db *gorp.DbMap, developer int64, account utils.AccountAddress) (
 	return
 }
 
+// GetAllAccounts returns all accounts of developer.
 func GetAllAccounts(db *gorp.DbMap, developer int64) (keys []*DeveloperPrivateKey, err error) {
 	_, err = db.Select(&keys,
 		`SELECT * FROM "private_keys" WHERE "developer_id" = ?`, developer)
@@ -179,6 +187,7 @@ func GetAllAccounts(db *gorp.DbMap, developer int64) (keys []*DeveloperPrivateKe
 	return
 }
 
+// GetAccountByID return account object by keypair id.
 func GetAccountByID(db *gorp.DbMap, developer int64, id int64) (p *DeveloperPrivateKey, err error) {
 	err = db.SelectOne(&p,
 		`SELECT * FROM "private_keys" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`,

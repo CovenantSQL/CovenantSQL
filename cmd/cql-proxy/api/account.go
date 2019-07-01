@@ -193,6 +193,7 @@ func setMainAccount(c *gin.Context) {
 	return
 }
 
+// ApplyTokenTask handles the token apply process.
 func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
 	args := struct {
 		Amount uint64 `json:"amount"`

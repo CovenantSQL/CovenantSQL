@@ -298,6 +298,7 @@ func convertOldArgs(args []driver.Value) (dargs []driver.NamedValue) {
 	return
 }
 
+// NewImpersonatedDB returns new database wrapper for project.
 func NewImpersonatedDB(nodeID proto.NodeID, rpc rpc.PCaller, dbID proto.DatabaseID,
 	key *asymmetric.PrivateKey) *gorp.DbMap {
 	return &gorp.DbMap{

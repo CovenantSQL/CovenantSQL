@@ -18,6 +18,7 @@ package resolver
 
 import "strings"
 
+// InjectMagicVars replaces the variables symbol in query to real value.
 func InjectMagicVars(q map[string]interface{}, vars map[string]interface{}) (
 	injectedQuery map[string]interface{}) {
 	if q == nil {

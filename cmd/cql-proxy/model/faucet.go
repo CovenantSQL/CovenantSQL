@@ -26,6 +26,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
 
+// TokenApply defines the token apply record object.
 type TokenApply struct {
 	ID        string               `db:"id"`
 	Account   utils.AccountAddress `db:"account"`
@@ -34,6 +35,7 @@ type TokenApply struct {
 	Created   int64                `db:"created"`
 }
 
+// CheckTokenApplyLimits checks developer and keypair for token apply limitations.
 func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.AccountAddress, userLimits int64, accountLimits int64) (err error) {
 	beginOfTheDay := time.Now().UTC().Truncate(24 * time.Hour).Unix()
 
@@ -64,6 +66,7 @@ func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.Accoun
 	return
 }
 
+// AddTokenApplyRecord add new token apply record to database.
 func AddTokenApplyRecord(db *gorp.DbMap, developer int64, account utils.AccountAddress, amount uint64) (r *TokenApply, err error) {
 	applicationID := uuid.Must(uuid.NewV4()).String()
 

@@ -25,24 +25,35 @@ import (
 	gorp "gopkg.in/gorp.v2"
 )
 
+// TaskType defines the task type for async execution.
 type TaskType int16
 
+// TaskState defines the task state for execution process.
 type TaskState int16
 
 const (
+	// TaskCreateDB defines the create database task type.
 	TaskCreateDB TaskType = iota
+	// TaskApplyToken defines the apply token task type.
 	TaskApplyToken
+	// TaskTopUp defines the balance top up task type.
 	TaskTopUp
+	// TaskCreateProject defines the project creation task type.
 	TaskCreateProject
 )
 
 const (
+	// TaskWaiting defines the waiting scheduling state of task.
 	TaskWaiting TaskState = iota
+	// TaskRunning defines the running state of task.
 	TaskRunning
+	// TaskFailed defines the failure of execution state of task.
 	TaskFailed
+	// TaskSuccess defines a successful execution of task.
 	TaskSuccess
 )
 
+// String implements Stringer interface for task type to stringify.
 func (t TaskType) String() string {
 	switch t {
 	case TaskCreateDB:
@@ -58,6 +69,7 @@ func (t TaskType) String() string {
 	}
 }
 
+// String implements Stringer interface for task state to stringify.
 func (s TaskState) String() string {
 	switch s {
 	case TaskWaiting:
@@ -73,6 +85,7 @@ func (s TaskState) String() string {
 	}
 }
 
+// Task defines the task object of execution context.
 type Task struct {
 	ID        int64     `db:"id"`
 	Developer int64     `db:"developer_id"`
@@ -88,18 +101,22 @@ type Task struct {
 	Result    gin.H     `db:"-"`
 }
 
+// PostGet implements gorp.HasPostGet interface.
 func (t *Task) PostGet(gorp.SqlExecutor) error {
 	return t.Deserialize()
 }
 
+// PreUpdate implements gorp.HasPreUpdate interface.
 func (t *Task) PreUpdate(gorp.SqlExecutor) error {
 	return t.Serialize()
 }
 
+// PreInsert implements gorp.HasPreInsert interface.
 func (t *Task) PreInsert(gorp.SqlExecutor) error {
 	return t.Serialize()
 }
 
+// LogData returns task info in string format for log purpose.
 func (t *Task) LogData() string {
 	if t == nil {
 		return ""
@@ -121,6 +138,7 @@ func (t *Task) LogData() string {
 	return string(d)
 }
 
+// Serialize marshal task object to bytes form.
 func (t *Task) Serialize() (err error) {
 	if t.RawArgs, err = json.Marshal(t.Args); err != nil {
 		return
@@ -131,6 +149,7 @@ func (t *Task) Serialize() (err error) {
 	return
 }
 
+// Deserialize unmarshal task object from bytes form in database.
 func (t *Task) Deserialize() (err error) {
 	if err = json.Unmarshal(t.RawArgs, &t.Args); err != nil {
 		return
@@ -141,6 +160,7 @@ func (t *Task) Deserialize() (err error) {
 	return
 }
 
+// NewTask creates new task and save in database.
 func NewTask(db *gorp.DbMap, tt TaskType, developer int64, account int64, args gin.H) (t *Task, err error) {
 	now := time.Now().Unix()
 	t = &Task{
@@ -162,6 +182,7 @@ func NewTask(db *gorp.DbMap, tt TaskType, developer int64, account int64, args g
 	return
 }
 
+// GetTask returns task with specified id and developer.
 func GetTask(db *gorp.DbMap, developer int64, id int64) (t *Task, err error) {
 	err = db.SelectOne(&t,
 		`SELECT * FROM "task" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`, id, developer)
@@ -171,6 +192,7 @@ func GetTask(db *gorp.DbMap, developer int64, id int64) (t *Task, err error) {
 	return
 }
 
+// UpdateTask save existing task object to database.
 func UpdateTask(db *gorp.DbMap, t *Task) (err error) {
 	t.Updated = time.Now().Unix()
 	_, err = db.Update(t)
@@ -180,6 +202,7 @@ func UpdateTask(db *gorp.DbMap, t *Task) (err error) {
 	return
 }
 
+// ListTask search and page existing tasks as list.
 func ListTask(db *gorp.DbMap, developer int64, account int64, showAll bool, offset int64, limit int64) (
 	tasks []*Task, total int64, err error) {
 	var (
@@ -232,6 +255,7 @@ ORDER BY "id" DESC LIMIT ?, ?`
 	return
 }
 
+// ListIncompleteTask fetches incomplete task for scheduling with limits.
 func ListIncompleteTask(db *gorp.DbMap, limit int64) (tasks []*Task, err error) {
 	_, err = db.Select(&tasks,
 		`SELECT * FROM "task" WHERE "state" NOT IN (?, ?) ORDER BY "id" ASC LIMIT ?`,

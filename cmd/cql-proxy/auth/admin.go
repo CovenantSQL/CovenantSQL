@@ -33,7 +33,9 @@ import (
 )
 
 const (
-	GithubGetUserURL      = "https://api.github.com/user"
+	// GithubGetUserURL defines the url to fetch github user info.
+	GithubGetUserURL = "https://api.github.com/user"
+	// MaxGithubResponseSize defines maximum response size limit for github user info api.
 	MaxGithubResponseSize = 1 << 20
 )
 
@@ -43,6 +45,7 @@ type AdminAuth struct {
 	oauthCfg map[string]*oauth2.Config
 }
 
+// AdminUserInfo defines the admin user info object.
 type AdminUserInfo struct {
 	ID    int64  `json:"id"`
 	Name  string `json:"name"`
@@ -50,6 +53,7 @@ type AdminUserInfo struct {
 	Extra gin.H  `json:"-"`
 }
 
+// NewAdminAuth returns the admin oauth handler object.
 func NewAdminAuth(cfg *config.AdminAuthConfig) (a *AdminAuth) {
 	a = &AdminAuth{
 		cfg:      cfg,
@@ -108,7 +112,7 @@ func (a *AdminAuth) AuthURL(state string, clientID string, callback string) (rea
 	return "", ""
 }
 
-// HandleCallback returns the tokens for github oauth authentication.
+// HandleLogin returns the tokens for github oauth authentication.
 func (a *AdminAuth) HandleLogin(ctx context.Context, state string, auth string) (userInfo *AdminUserInfo, err error) {
 	if a.OAuthEnabled() {
 		var oauthCfg *oauth2.Config

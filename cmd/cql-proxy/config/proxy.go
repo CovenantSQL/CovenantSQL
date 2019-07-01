@@ -91,6 +91,7 @@ type confWrapper struct {
 	Proxy *Config `yaml:"Proxy"`
 }
 
+// Validate checks config validity.
 func (c *Config) Validate() (err error) {
 	c.Faucet.fixConfig()
 

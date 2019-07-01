@@ -150,6 +150,7 @@ func createProject(c *gin.Context) {
 	})
 }
 
+// CreateProjectTask handles the project creation process.
 func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
 	args := struct {
 		NodeCount uint16 `json:"node_count"`
@@ -807,7 +808,7 @@ func createProjectTable(c *gin.Context) {
 	}
 
 	if len(r.ColumnNames) != len(r.ColumnTypes) {
-		abortWithError(c, http.StatusBadRequest, ErrMismatchedColumnNameAndTypes)
+		abortWithError(c, http.StatusBadRequest, ErrMismatchedColumnNamesAndTypes)
 		return
 	}
 

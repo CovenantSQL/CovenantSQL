@@ -48,8 +48,10 @@ import (
 	ctypes "github.com/CovenantSQL/CovenantSQL/types"
 )
 
+// ExchangeRequestMagic defines the magic bytes in ethereum transaction for malformed transaction detection.
 var ExchangeRequestMagic = []byte{0xC0, 0x4E, 0xA4, 0x71}
 
+// ExchangeConfig defines the exchange config object for yaml config marshal/unmarshal.
 type ExchangeConfig struct {
 	Endpoint         string           `json:"endpoint" yaml:"endpoint" validate:"required,url"`
 	Database         string           `json:"database" yaml:"database" validate:"required"`
@@ -61,6 +63,7 @@ type ExchangeConfig struct {
 	DelayBlockCount  uint64           `json:"delay_block_count"`
 }
 
+// Exchange defines the exchange instance object.
 type Exchange struct {
 	client           *ethclient.Client
 	rawClient        *rpc.Client
@@ -82,6 +85,7 @@ type Exchange struct {
 	wg               *sync.WaitGroup
 }
 
+// NewExchange creates new exchange process object.
 func NewExchange(cfg *ExchangeConfig) (e *Exchange, err error) {
 	e = &Exchange{
 		cfg:              cfg,
@@ -125,6 +129,7 @@ func NewExchange(cfg *ExchangeConfig) (e *Exchange, err error) {
 	return
 }
 
+// Start connects to server and listen to new blocks for token exchanges.
 func (e *Exchange) Start(ctx context.Context) (err error) {
 	e.newBlockCh = make(chan *types.Block)
 	e.newBlockHeaderCh = make(chan *types.Header)
@@ -144,6 +149,7 @@ func (e *Exchange) Start(ctx context.Context) (err error) {
 	return
 }
 
+// Stop stops the exchange service and disconnect from the ethereum network.
 func (e *Exchange) Stop() {
 	e.stopPreviousSubscribe()
 

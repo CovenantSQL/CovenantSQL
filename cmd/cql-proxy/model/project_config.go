@@ -25,15 +25,21 @@ import (
 	gorp "gopkg.in/gorp.v2"
 )
 
+// ProjectConfigType defines the project config enum.
 type ProjectConfigType int16
 
 const (
+	// ProjectConfigMisc defines the misc project config.
 	ProjectConfigMisc ProjectConfigType = iota
+	// ProjectConfigOAuth defines the oauth project config.
 	ProjectConfigOAuth
+	// ProjectConfigTable defines the table config of project.
 	ProjectConfigTable
+	// ProjectConfigGroup defines the rules user group info for project.
 	ProjectConfigGroup
 )
 
+// String implements Stringer interface to ProjectConfigType enum stringify.
 func (c ProjectConfigType) String() string {
 	switch c {
 	case ProjectConfigMisc:
@@ -49,6 +55,7 @@ func (c ProjectConfigType) String() string {
 	}
 }
 
+// ProjectConfig defines general project config wrapper object.
 type ProjectConfig struct {
 	ID          int64             `db:"id"`
 	Type        ProjectConfigType `db:"type"`
@@ -59,6 +66,7 @@ type ProjectConfig struct {
 	Value       interface{}       `db:"-"`
 }
 
+// ProjectMiscConfig defines misc config object.
 type ProjectMiscConfig struct {
 	Alias                    string        `json:"alias,omitempty" form:"alias" binding:"omitempty,alphanum,min=1,max=16"`
 	Enabled                  *bool         `json:"enabled,omitempty" form:"enabled"`
@@ -67,28 +75,34 @@ type ProjectMiscConfig struct {
 	SessionAge               time.Duration `json:"session_age" form:"session_age"`
 }
 
+// IsEnabled checks for project is enabled for service or not.
 func (c *ProjectMiscConfig) IsEnabled() bool {
 	return c != nil && c.Enabled != nil && *c.Enabled
 }
 
+// SupportSignUp checks if project signing up is enabled.
 func (c *ProjectMiscConfig) SupportSignUp() bool {
 	return c != nil && c.EnableSignUp != nil && *c.EnableSignUp
 }
 
+// ShouldVerifyAfterSignUp checks if signed up new user requires further verification.
 func (c *ProjectMiscConfig) ShouldVerifyAfterSignUp() bool {
 	return c != nil && c.EnableSignUpVerification != nil && *c.EnableSignUpVerification
 }
 
+// ProjectOAuthConfig defines oauth config object.
 type ProjectOAuthConfig struct {
 	ClientID     string `json:"client_id" form:"client_id"`
 	ClientSecret string `json:"client_secret" form:"client_secret"`
 	Enabled      *bool  `json:"enabled,omitempty" form:"enabled"`
 }
 
+// IsEnabled checks if project oauth provider is enabled.
 func (c *ProjectOAuthConfig) IsEnabled() bool {
 	return c != nil && c.Enabled != nil && *c.Enabled
 }
 
+// ProjectTableConfig defines the table config object.
 type ProjectTableConfig struct {
 	Columns       []string          `json:"columns"`
 	Types         []string          `json:"types"`
@@ -99,10 +113,12 @@ type ProjectTableConfig struct {
 	IsDeleted     bool              `json:"is_deleted"`
 }
 
+// ProjectGroupConfig defines the group config object.
 type ProjectGroupConfig struct {
 	Groups map[string][]int64 `json:"groups" binding:"omitempty,dive,keys,required,endkeys,dive,gt=0"`
 }
 
+// GetAllProjectConfig returns all configs of a project.
 func GetAllProjectConfig(db *gorp.DbMap) (p []*ProjectConfig, err error) {
 	_, err = db.Select(&p, `SELECT * FROM "____config"`)
 	if err != nil {
@@ -128,6 +144,7 @@ func GetAllProjectConfig(db *gorp.DbMap) (p []*ProjectConfig, err error) {
 	return
 }
 
+// GetProjectOAuthConfig returns specified oauth provide config of project.
 func GetProjectOAuthConfig(db *gorp.DbMap, provider string) (p *ProjectConfig, pc *ProjectOAuthConfig, err error) {
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? AND "key" = ? LIMIT 1`,
 		ProjectConfigOAuth, provider)
@@ -146,6 +163,7 @@ func GetProjectOAuthConfig(db *gorp.DbMap, provider string) (p *ProjectConfig, p
 	return
 }
 
+// GetProjectTableConfig returns specified table config of project.
 func GetProjectTableConfig(db *gorp.DbMap, tableName string) (p *ProjectConfig, pc *ProjectTableConfig, err error) {
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? AND "key" = ? LIMIT 1`,
 		ProjectConfigTable, tableName)
@@ -164,6 +182,7 @@ func GetProjectTableConfig(db *gorp.DbMap, tableName string) (p *ProjectConfig, 
 	return
 }
 
+// GetProjectTablesName returns all table names of project.
 func GetProjectTablesName(db *gorp.DbMap) (tables []string, err error) {
 	var projects []*ProjectConfig
 
@@ -186,6 +205,7 @@ func GetProjectTablesName(db *gorp.DbMap) (tables []string, err error) {
 	return
 }
 
+// GetProjectMiscConfig returns misc config object of project.
 func GetProjectMiscConfig(db *gorp.DbMap) (p *ProjectConfig, pc *ProjectMiscConfig, err error) {
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? LIMIT 1`,
 		ProjectConfigMisc)
@@ -204,6 +224,7 @@ func GetProjectMiscConfig(db *gorp.DbMap) (p *ProjectConfig, pc *ProjectMiscConf
 	return
 }
 
+// GetProjectGroupConfig returns group config object of project.
 func GetProjectGroupConfig(db *gorp.DbMap) (p *ProjectConfig, gc *ProjectGroupConfig, err error) {
 	err = db.SelectOne(&p, `SELECT * FROM "____config" WHERE "type" = ? LIMIT 1`,
 		ProjectConfigGroup)
@@ -222,6 +243,7 @@ func GetProjectGroupConfig(db *gorp.DbMap) (p *ProjectConfig, gc *ProjectGroupCo
 	return
 }
 
+// AddProjectConfig adds new project config.
 func AddProjectConfig(db *gorp.DbMap, configType ProjectConfigType, configKey string, value interface{}) (p *ProjectConfig, err error) {
 	p = &ProjectConfig{
 		Type:    configType,
@@ -244,6 +266,7 @@ func AddProjectConfig(db *gorp.DbMap, configType ProjectConfigType, configKey st
 	return
 }
 
+// AddRawProjectConfig add constructed project config object to database.
 func AddRawProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
 	p.RawValue, err = json.Marshal(p.Value)
 	if err != nil {
@@ -261,6 +284,7 @@ func AddRawProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
 	return
 }
 
+// UpdateProjectConfig updates existing project config.
 func UpdateProjectConfig(db *gorp.DbMap, p *ProjectConfig) (err error) {
 	p.RawValue, err = json.Marshal(p.Value)
 	if err != nil {

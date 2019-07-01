@@ -26,8 +26,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// FieldMap defines the field map for future column level acl enforce.
 type FieldMap map[string]bool
 
+// Merge combine two field maps.
 func (m FieldMap) Merge(f FieldMap) {
 	for k := range f {
 		m[k] = true
@@ -58,6 +60,7 @@ var opMap = map[string]string{
 	"$set": `"{field}" = ?`,
 }
 
+// ResolveProjection resolves projection object and returns project sql statement and dependent fields.
 func ResolveProjection(p map[string]interface{}, availFields FieldMap) (fm FieldMap, statement string, err error) {
 	fm = FieldMap{}
 	var subStatements []string
@@ -125,6 +128,7 @@ func logicRelation(childQueries []map[string]interface{}, availFields FieldMap, 
 	return
 }
 
+// ResolveFieldCondition resolves field condition object and returns as where condition statement.
 func ResolveFieldCondition(field string, v interface{}) (statement string, args []interface{}, err error) {
 	if rv, ok := v.(map[string]interface{}); ok {
 		var subStatements []string
@@ -140,28 +144,30 @@ func ResolveFieldCondition(field string, v interface{}) (statement string, args 
 				subStatements = append(subStatements, fmt.Sprintf(`"%s" %s ?`, field, opMap[k]))
 				args = append(args, v)
 			case "$in", "$nin":
-				if lv, ok := v.([]interface{}); !ok {
+				var lv []interface{}
+
+				if lv, ok = v.([]interface{}); !ok {
 					err = errors.New("$in/$nin operator needs array")
 					return
-				} else {
-					for _, lve := range lv {
-						if !isLiteral(lve) {
-							err = errors.Errorf("can not nest non-literal under %s operator", k)
-							return
-						}
-					}
+				}
 
-					if len(lv) == 0 {
-						if k == "$in" {
-							subStatements = append(subStatements, "1=0")
-						} else {
-							subStatements = append(subStatements, "1=1")
-						}
-					} else {
-						subStatements = append(subStatements, fmt.Sprintf(`"%s" %s (%s?)`,
-							field, opMap[k], strings.Repeat("?,", len(lv)-1)))
-						args = append(args, lv...)
+				for _, lve := range lv {
+					if !isLiteral(lve) {
+						err = errors.Errorf("can not nest non-literal under %s operator", k)
+						return
 					}
+				}
+
+				if len(lv) == 0 {
+					if k == "$in" {
+						subStatements = append(subStatements, "1=0")
+					} else {
+						subStatements = append(subStatements, "1=1")
+					}
+				} else {
+					subStatements = append(subStatements, fmt.Sprintf(`"%s" %s (%s?)`,
+						field, opMap[k], strings.Repeat("?,", len(lv)-1)))
+					args = append(args, lv...)
 				}
 			case "$not":
 				if rv, ok := v.(map[string]interface{}); !ok || len(rv) == 0 {
@@ -200,6 +206,7 @@ func ResolveFieldCondition(field string, v interface{}) (statement string, args 
 	return
 }
 
+// ResolveFilter resolves filter object and returns as full where statement.
 func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 	fields FieldMap, statement string, args []interface{}, err error) {
 	if q == nil {
@@ -281,6 +288,7 @@ func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 	return
 }
 
+// ResolveUpdate resolves update object as sql update set statement.
 func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 	fields FieldMap, statement string, args []interface{}, err error) {
 	fields = FieldMap{}
@@ -306,53 +314,58 @@ func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 			}
 
 			// value must be an object
-			if ov, ok := v.(map[string]interface{}); !ok {
+			var (
+				ov map[string]interface{}
+				ok bool
+			)
+
+			if ov, ok = v.(map[string]interface{}); !ok {
 				err = errors.Errorf("$ operator needs object argument")
 				return
-			} else {
-				for field, argument := range ov {
-					if !availFields[field] {
-						err = errors.Errorf("unknown field: %s", field)
-						return
-					}
+			}
 
-					fields[field] = true
+			for field, argument := range ov {
+				if !availFields[field] {
+					err = errors.Errorf("unknown field: %s", field)
+					return
+				}
 
-					if k == "$currentDate" {
-						if isLiteral(argument) && asBool(argument) {
+				fields[field] = true
+
+				if k == "$currentDate" {
+					if isLiteral(argument) && asBool(argument) {
+						subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
+						args = append(args, time.Now().UTC())
+					} else if oa, ok := argument.(map[string]interface{}); ok && isString(oa["$type"]) {
+						switch oa["$type"] {
+						case "date":
 							subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
-							args = append(args, time.Now().UTC())
-						} else if oa, ok := argument.(map[string]interface{}); ok && isString(oa["$type"]) {
-							switch oa["$type"] {
-							case "date":
-								subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
-								args = append(args, time.Now().UTC().Format("2006-01-02"))
-							case "timestamp":
-								subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
-								args = append(args, time.Now().Unix())
-							case "datetime":
-								// mongodb does not support $currentDate with datetime
-								// this my special treatment for stupid users
-								subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
-								args = append(args, time.Now().UTC().Format("2006-01-02 15:04:05"))
-							default:
-								err = errors.Errorf("invalid $currentDate type %s", oa["$type"])
-								return
-							}
-						} else {
-							// invalid
-							err = errors.Errorf("$currentDate operator requires true or valid type config")
+							args = append(args, time.Now().UTC().Format("2006-01-02"))
+						case "timestamp":
+							subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
+							args = append(args, time.Now().Unix())
+						case "datetime":
+							// mongodb does not support $currentDate with datetime
+							// this my special treatment for stupid users
+							subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
+							args = append(args, time.Now().UTC().Format("2006-01-02 15:04:05"))
+						default:
+							err = errors.Errorf("invalid $currentDate type %s", oa["$type"])
 							return
 						}
 					} else {
-						if !isLiteral(argument) {
-							err = errors.Errorf("%s operator requires literal value as argument", k)
-							return
-						}
-
-						subStatements = append(subStatements, strings.Replace(opMap[k], "{field}", field, -1))
-						args = append(args, argument)
+						// invalid
+						err = errors.Errorf("$currentDate operator requires true or valid type config")
+						return
 					}
+				} else {
+					if !isLiteral(argument) {
+						err = errors.Errorf("%s operator requires literal value as argument", k)
+						return
+					}
+
+					subStatements = append(subStatements, strings.Replace(opMap[k], "{field}", field, -1))
+					args = append(args, argument)
 				}
 			}
 		case k == "$comment":
@@ -392,6 +405,7 @@ func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 	return
 }
 
+// ResolveInsert resolves insert data as columns and values statement in sql.
 func ResolveInsert(q map[string]interface{}, availFields FieldMap) (fields FieldMap, statement string, args []interface{}, err error) {
 	fields = FieldMap{}
 
@@ -419,6 +433,7 @@ func ResolveInsert(q map[string]interface{}, availFields FieldMap) (fields Field
 	return
 }
 
+// ResolveOrderBy resolves order by statement.
 func ResolveOrderBy(q map[string]interface{}, availFields FieldMap) (fields FieldMap, statement string, err error) {
 	fields = FieldMap{}
 
@@ -466,9 +481,9 @@ func asInt(v interface{}) int64 {
 	case bool:
 		if d {
 			return 1
-		} else {
-			return 0
 		}
+
+		return 0
 	case int:
 		return int64(d)
 	case int8:
@@ -565,12 +580,16 @@ func getNonEmptyArrayOfObjects(v interface{}) (res []map[string]interface{}, err
 	}
 
 	for _, v := range arr {
-		if o, ok := v.(map[string]interface{}); !ok {
+		var (
+			o  map[string]interface{}
+			ok bool
+		)
+
+		if o, ok = v.(map[string]interface{}); !ok {
 			err = errors.New("requires array full of objects")
 			return
-		} else {
-			res = append(res, o)
 		}
+		res = append(res, o)
 	}
 
 	return

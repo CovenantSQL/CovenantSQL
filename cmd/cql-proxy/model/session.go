@@ -29,6 +29,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// Session defines the session object for user/admin.
 type Session struct {
 	ID       string `db:"id"`
 	RawStore []byte `db:"store"`
@@ -37,11 +38,13 @@ type Session struct {
 	Expire   int64  `db:"expire"`
 }
 
+// Get returns the object with specified key stored in session object.
 func (s *Session) Get(key string) (value interface{}, exists bool) {
 	value, exists = s.Store[key]
 	return
 }
 
+// GetInt returns the int value with specified key stored in session object.
 func (s *Session) GetInt(key string) (value int64, exists bool) {
 	rv, exists := s.Get(key)
 	if !exists {
@@ -93,6 +96,7 @@ func (s *Session) GetInt(key string) (value int64, exists bool) {
 	return
 }
 
+// GetUint returns the unsigned int value with specified key stored in session object.
 func (s *Session) GetUint(key string) (value uint64, exists bool) {
 	rv, exists := s.Get(key)
 	if !exists {
@@ -143,6 +147,7 @@ func (s *Session) GetUint(key string) (value uint64, exists bool) {
 	return
 }
 
+// GetString returns the string value with specified key store in session object.
 func (s *Session) GetString(key string) (value string, exists bool) {
 	rv, exists := s.Get(key)
 	if !exists {
@@ -153,6 +158,7 @@ func (s *Session) GetString(key string) (value string, exists bool) {
 	return
 }
 
+// GetBool returns the bool value with specified key in session object.
 func (s *Session) GetBool(key string) (value bool, exists bool) {
 	rv, exists := s.Get(key)
 	if !exists {
@@ -202,44 +208,53 @@ func (s *Session) GetBool(key string) (value bool, exists bool) {
 	return
 }
 
+// MustGet returns the value with specified key in session object.
 func (s *Session) MustGet(key string) (value interface{}) {
 	value, _ = s.Get(key)
 	return
 }
 
+// MustGetInt returns the int value with specified key in session object.
 func (s *Session) MustGetInt(key string) (value int64) {
 	value, _ = s.GetInt(key)
 	return
 }
 
+// MustGetUint returns the unsigned int value with specified key in session object.
 func (s *Session) MustGetUint(key string) (value uint64) {
 	value, _ = s.GetUint(key)
 	return
 }
 
+// MustGetString returns the string value with specified key in session object.
 func (s *Session) MustGetString(key string) (value string) {
 	value, _ = s.GetString(key)
 	return
 }
 
+// MustGetBool returns the bool value with specified key in session object.
 func (s *Session) MustGetBool(key string) (value bool) {
 	value, _ = s.GetBool(key)
 	return
 }
 
+// Set stores value to session object.
 func (s *Session) Set(key string, value interface{}) {
 	s.Store[key] = value
 }
 
+// Delete removes value from session object.
 func (s *Session) Delete(key string) {
 	delete(s.Store, key)
 }
 
+// Serialize marshal session object storage to bytes form.
 func (s *Session) Serialize() (err error) {
 	s.RawStore, err = json.Marshal(s.Store)
 	return
 }
 
+// Deserialize unmarshal session object from bytes form.
 func (s *Session) Deserialize() (err error) {
 	err = json.Unmarshal(s.RawStore, &s.Store)
 	if err != nil {
@@ -251,6 +266,7 @@ func (s *Session) Deserialize() (err error) {
 	return
 }
 
+// NewEmptySession returns new session object with empty storage.
 func NewEmptySession(c *gin.Context) (s *Session) {
 	s = &Session{
 		Store: gin.H{},
@@ -261,6 +277,7 @@ func NewEmptySession(c *gin.Context) (s *Session) {
 	return
 }
 
+// NewSession created and save new session to database.
 func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
 	id := uuid.Must(uuid.NewV4()).String()
 	now := time.Now().Unix()
@@ -282,6 +299,7 @@ func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
 	return
 }
 
+// GetSession returns session object of specified session id.
 func GetSession(c *gin.Context, id string) (s *Session, err error) {
 	err = GetDB(c).SelectOne(&s,
 		`SELECT * FROM "session" WHERE "id" = ? LIMIT 1`, id)
@@ -300,6 +318,7 @@ func GetSession(c *gin.Context, id string) (s *Session, err error) {
 	return
 }
 
+// SaveSession saves session object to database.
 func SaveSession(c *gin.Context, s *Session, expire int64) (r *Session, err error) {
 	if s == nil {
 		return NewSession(c, expire)

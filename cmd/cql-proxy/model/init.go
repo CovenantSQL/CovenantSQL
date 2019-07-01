@@ -18,6 +18,7 @@ package model
 
 import gorp "gopkg.in/gorp.v2"
 
+// AddTables register tables to gorp database map.
 func AddTables(dbMap *gorp.DbMap) {
 	dbMap.AddTableWithName(Developer{}, "developer").
 		SetKeys(true, "ID").

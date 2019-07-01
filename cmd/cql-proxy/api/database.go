@@ -354,6 +354,7 @@ func waitForTxState(ctx context.Context, tx hash.Hash) (state pi.TransactionStat
 	}
 }
 
+// CreateDatabaseTask handles the database creation process.
 func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
 	args := struct {
 		NodeCount uint16 `json:"node_count"`
@@ -385,6 +386,7 @@ func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t
 	return
 }
 
+// TopUpTask handles the database balance/advance payments top-up process.
 func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error) {
 	args := struct {
 		Database proto.DatabaseID `json:"db"`

@@ -26,12 +26,17 @@ import (
 	gorp "gopkg.in/gorp.v2"
 )
 
+// ProjectUserState defines the state for project user.
 type ProjectUserState int16
 
 const (
+	// ProjectUserStatePreRegistered represents user just being pre-registered.
 	ProjectUserStatePreRegistered ProjectUserState = iota
+	// ProjectUserStateWaitSignedConfirm represents user signed up and need developer confirmation.
 	ProjectUserStateWaitSignedConfirm
+	// ProjectUserStateEnabled represents user enabled for activities.
 	ProjectUserStateEnabled
+	// ProjectUserStateDisabled represents user being disabled.
 	ProjectUserStateDisabled
 )
 
@@ -42,6 +47,7 @@ var projectStateStrMap = [...]string{
 	"Disabled",
 }
 
+// String implements Stringer for user state stringify.
 func (s ProjectUserState) String() string {
 	if s >= 0 && int(s) < len(projectStateStrMap) {
 		return projectStateStrMap[s]
@@ -50,6 +56,7 @@ func (s ProjectUserState) String() string {
 	return "Unknown"
 }
 
+// ParseProjectUserState parse user state string to enum.
 func ParseProjectUserState(s string) (st ProjectUserState, err error) {
 	for i, t := range projectStateStrMap {
 		if strings.EqualFold(s, t) {
@@ -62,6 +69,7 @@ func ParseProjectUserState(s string) (st ProjectUserState, err error) {
 	return
 }
 
+// ProjectUser defines project user info object.
 type ProjectUser struct {
 	ID          int64            `db:"id"`
 	Name        string           `db:"name"`
@@ -75,28 +83,34 @@ type ProjectUser struct {
 	LastLogin   int64            `db:"last_login"`
 }
 
+// PostGet implements gorp.HasPostGet interface.
 func (u *ProjectUser) PostGet(gorp.SqlExecutor) error {
 	return u.LoadExtra()
 }
 
+// PreUpdate implements gorp.HasPreUpdate interface.
 func (u *ProjectUser) PreUpdate(gorp.SqlExecutor) error {
 	return u.SaveExtra()
 }
 
+// PreInsert implements gorp.HasPreInsert interface.
 func (u *ProjectUser) PreInsert(gorp.SqlExecutor) error {
 	return u.SaveExtra()
 }
 
+// SaveExtra marshal extra user info to bytes form.
 func (u *ProjectUser) SaveExtra() (err error) {
 	u.RawExtra, err = json.Marshal(u.Extra)
 	return
 }
 
+// LoadExtra unmarshal extra user info object from database.
 func (u *ProjectUser) LoadExtra() (err error) {
 	err = json.Unmarshal(u.RawExtra, &u.Extra)
 	return
 }
 
+// PreRegisterUser manually adds new user to database.
 func PreRegisterUser(db *gorp.DbMap, provider string, name string, email string) (u *ProjectUser, err error) {
 	u = &ProjectUser{
 		Name:     name,
@@ -114,6 +128,7 @@ func PreRegisterUser(db *gorp.DbMap, provider string, name string, email string)
 	return
 }
 
+// GetProjectUser get project user info of specified uid.
 func GetProjectUser(db *gorp.DbMap, id int64) (u *ProjectUser, err error) {
 	err = db.SelectOne(&u, `SELECT * FROM "____user" WHERE "id" = ? LIMIT 1`,
 		id)
@@ -124,6 +139,7 @@ func GetProjectUser(db *gorp.DbMap, id int64) (u *ProjectUser, err error) {
 	return
 }
 
+// GetProjectUsers batch fetch user info by ids.
 func GetProjectUsers(db *gorp.DbMap, id []int64) (users []*ProjectUser, err error) {
 	if len(id) == 0 {
 		return
@@ -144,6 +160,7 @@ func GetProjectUsers(db *gorp.DbMap, id []int64) (users []*ProjectUser, err erro
 	return
 }
 
+// GetProjectUserList provide search and paging of project user list.
 func GetProjectUserList(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool, offset int64, limit int64) (
 	users []*ProjectUser, total int64, err error) {
 	var (
@@ -185,6 +202,7 @@ func GetProjectUserList(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool,
 	return
 }
 
+// EnsureProjectUser add/update user info to project database.s
 func EnsureProjectUser(db *gorp.DbMap, provider string,
 	uid string, name string, email string, extra gin.H,
 	enableSignUp bool, signUpState ProjectUserState) (
@@ -275,6 +293,7 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 	return
 }
 
+// UpdateProjectUser populate project user object to database.
 func UpdateProjectUser(db *gorp.DbMap, u *ProjectUser) (err error) {
 	_, err = db.Update(u)
 	if err != nil {

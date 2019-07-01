@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AddRoutes init the gin engine with all proxy api routes.
 func AddRoutes(e *gin.Engine) {
 	v3 := e.Group("/v3")
 

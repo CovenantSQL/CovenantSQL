@@ -31,6 +31,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// MaxTaskPerRound defines the max task to be schedule per round.
 const MaxTaskPerRound = 10
 
 type waitItem struct {
@@ -46,6 +47,7 @@ type taskItem struct {
 	result gin.H
 }
 
+// Manager defines the task manager object for task management.
 type Manager struct {
 	config    *config.Config
 	db        *gorp.DbMap
@@ -61,8 +63,10 @@ type Manager struct {
 	wg        sync.WaitGroup
 }
 
+// HandleFunc defines the task handler callback.
 type HandleFunc func(c context.Context, config *config.Config, db *gorp.DbMap, t *model.Task) (r gin.H, err error)
 
+// NewManager returns the new manager object.
 func NewManager(config *config.Config, db *gorp.DbMap) *Manager {
 	return &Manager{
 		config:    config,
@@ -77,6 +81,7 @@ func NewManager(config *config.Config, db *gorp.DbMap) *Manager {
 	}
 }
 
+// Start runs the manager task scheduling.
 func (m *Manager) Start() {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.wg = sync.WaitGroup{}
@@ -86,6 +91,7 @@ func (m *Manager) Start() {
 	return
 }
 
+// Stop terminate running tasks and end the manager scheduling cycle.
 func (m *Manager) Stop() {
 	if m.cancel != nil {
 		m.cancel()
@@ -105,6 +111,7 @@ func (m *Manager) Stop() {
 	return
 }
 
+// Kill terminated specified task.
 func (m *Manager) Kill(id int64) {
 	select {
 	case m.killCh <- id:
@@ -112,6 +119,7 @@ func (m *Manager) Kill(id int64) {
 	}
 }
 
+// Wait waits task for completion or wait timeout.
 func (m *Manager) Wait(ctx context.Context, id int64) (err error) {
 	i := &waitItem{
 		id: id,
@@ -132,6 +140,7 @@ func (m *Manager) Wait(ctx context.Context, id int64) (err error) {
 	}
 }
 
+// New pushes new task to scheduling pool.
 func (m *Manager) New(tt model.TaskType, developer int64, account int64, args gin.H) (id int64, err error) {
 	t, err := model.NewTask(m.db, tt, developer, account, args)
 	if err != nil {
@@ -154,6 +163,7 @@ func (m *Manager) New(tt model.TaskType, developer int64, account int64, args gi
 	return
 }
 
+// Register register new handle for specified task type to run.
 func (m *Manager) Register(tt model.TaskType, f HandleFunc) {
 	m.handleMap[tt] = f
 }

@@ -40,13 +40,7 @@ import (
 	googleOAuth2 "golang.org/x/oauth2/google"
 )
 
-type UserAuth struct {
-	Provider     string
-	ClientID     string
-	ClientSecret string
-	CallbackURL  string
-}
-
+// UserInfo defines the user info object.
 type UserInfo struct {
 	UID    string
 	Name   string
@@ -55,9 +49,13 @@ type UserInfo struct {
 	Extra  gin.H
 }
 
+// UserSuccessCallback defines the user success callback for various oauth methods.
 type UserSuccessCallback func(user *UserInfo)
+
+// UserFailCallback defines the user fail callback for various oauth methods.
 type UserFailCallback func(err error)
 
+// HandleUserAuth handles the user oauth authorize process.
 func HandleUserAuth(c *gin.Context, provider string, clientID string, clientSecret string, callback string) {
 	switch provider {
 	case "google":
@@ -111,6 +109,7 @@ func HandleUserAuth(c *gin.Context, provider string, clientID string, clientSecr
 	}
 }
 
+// HandleUserCallback handles the user oauth callback process.
 func HandleUserCallback(c *gin.Context, provider string, clientID string, clientSecret string,
 	success UserSuccessCallback, fail UserFailCallback) {
 	switch provider {

@@ -27,23 +27,37 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
+// ExchangeState defines the ethereum tx exchange state.
 type ExchangeState int16
+
+// ExchangeRefundState defines the ethereum tx exchange refund state.
 type ExchangeRefundState int16
 
+// TODO(): does not support exchange refund feature now
+
 const (
+	// ExchangeStateDetected defines the state for new tx to exchange for cql Particle.
 	ExchangeStateDetected ExchangeState = iota
+	// ExchangeStateTransferring defines the state for on-going exchange tx.
 	ExchangeStateTransferring
+	// ExchangeStateTransferred defines the state for process exchange tx.
 	ExchangeStateTransferred
+	// ExchangeStateInvalidTxData defines the state for malformed tx with invalid tx data.
 	ExchangeStateInvalidTxData
+	// ExchangeStateFailed defines general exchange process failed state.
 	ExchangeStateFailed
 )
 
 const (
+	// ExchangeRefundStateNotAvailable defines not applicable refund state.
 	ExchangeRefundStateNotAvailable ExchangeRefundState = iota
+	// ExchangeRefundStateRefunding defines state for on-going refunding.
 	ExchangeRefundStateRefunding
+	// ExchangeRefundStateRefunded defines state for finished refunding.
 	ExchangeRefundStateRefunded
 )
 
+// String implements the Stringer interface for exchange state stringify.
 func (s ExchangeState) String() string {
 	switch s {
 	case ExchangeStateDetected:
@@ -61,6 +75,7 @@ func (s ExchangeState) String() string {
 	}
 }
 
+// String implements the Stringer interface for exchange refund state stringify.
 func (s ExchangeRefundState) String() string {
 	switch s {
 	case ExchangeRefundStateNotAvailable:
@@ -74,6 +89,7 @@ func (s ExchangeRefundState) String() string {
 	}
 }
 
+// TxRecord defines the tx record object of the exchange instance.
 type TxRecord struct {
 	// eth stuff
 	Hash           string             `db:"hash"`
@@ -98,25 +114,30 @@ type TxRecord struct {
 	LastUpdate int64 `db:"last_update"`
 }
 
+// PostGet implements gorp.HasPostGet interface.
 func (r *TxRecord) PostGet(gorp.SqlExecutor) (err error) {
 	return r.Deserialize()
 }
 
+// PreUpdate implements gorp.HasPreUpdate interface.
 func (r *TxRecord) PreUpdate(gorp.SqlExecutor) (err error) {
 	r.LastUpdate = time.Now().Unix()
 	return r.Serialize()
 }
 
+// PreInsert implements gorp.HasPreInsert interface.
 func (r *TxRecord) PreInsert(gorp.SqlExecutor) (err error) {
 	r.Created = time.Now().Unix()
 	return r.Serialize()
 }
 
+// Serialize marshal tx object to bytes.
 func (r *TxRecord) Serialize() (err error) {
 	r.RawTx, err = json.Marshal(r.Tx)
 	return
 }
 
+// Deserialize unmarshal tx bytes to object.
 func (r *TxRecord) Deserialize() (err error) {
 	err = json.Unmarshal(r.RawTx, &r.Tx)
 	if err != nil {
@@ -125,6 +146,7 @@ func (r *TxRecord) Deserialize() (err error) {
 	return
 }
 
+// UpsertTx add or update tx record to database.
 func UpsertTx(db *gorp.DbMap, r *TxRecord) (d *TxRecord, err error) {
 	defer func() {
 		var auditErr = err
@@ -165,6 +187,7 @@ func UpsertTx(db *gorp.DbMap, r *TxRecord) (d *TxRecord, err error) {
 	return
 }
 
+// InvalidateTx invalidates eth transactions based on block number.
 func InvalidateTx(db *gorp.DbMap, blkNumber uint64) (err error) {
 	var records []*TxRecord
 	defer func() {
@@ -200,17 +223,20 @@ func InvalidateTx(db *gorp.DbMap, blkNumber uint64) (err error) {
 	return
 }
 
+// GetToProcessTx fetches unprocessed transactions begin before confirmed block number.
 func GetToProcessTx(db *gorp.DbMap, confirmedBlkNumber uint64) (records []*TxRecord, err error) {
 	_, err = db.Select(&records, `SELECT * FROM "record" WHERE "eth_block_number" <= ? AND "state" = ?`,
 		confirmedBlkNumber, ExchangeStateDetected)
 	return
 }
 
+// GetTransferringTx returns the transactions in transferring state.
 func GetTransferringTx(db *gorp.DbMap) (records []*TxRecord, err error) {
 	_, err = db.Select(&records, `SELECT * FROM "record" WHERE "state" = ?`, ExchangeStateTransferring)
 	return
 }
 
+// SetTxToTransferring update the transaction to transferring state.
 func SetTxToTransferring(db *gorp.DbMap, r *TxRecord, tx hash.Hash) (err error) {
 	r.CQLTxHash = tx.String()
 	r.State = ExchangeStateTransferring
@@ -218,6 +244,7 @@ func SetTxToTransferring(db *gorp.DbMap, r *TxRecord, tx hash.Hash) (err error) 
 	return
 }
 
+// SetTxConfirmed update the transaction to confirmed state.
 func SetTxConfirmed(db *gorp.DbMap, r *TxRecord) (err error) {
 	r.State = ExchangeStateTransferred
 	_, err = db.Update(r)

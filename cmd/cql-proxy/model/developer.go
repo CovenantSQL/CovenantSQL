@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
 
+// Developer defines the developer object.
 type Developer struct {
 	ID          int64  `db:"id"`
 	Name        string `db:"name"`
@@ -39,28 +40,34 @@ type Developer struct {
 	Extra       gin.H  `db:"-"`
 }
 
+// PostGet implements gorp.HasPostGet interface.
 func (d *Developer) PostGet(gorp.SqlExecutor) error {
 	return d.LoadExtra()
 }
 
+// PreUpdate implements gorp.HasPreUpdate interface.
 func (d *Developer) PreUpdate(gorp.SqlExecutor) error {
 	return d.SaveExtra()
 }
 
+// PreInsert implements gorp.HasPreInsert interface.
 func (d *Developer) PreInsert(gorp.SqlExecutor) error {
 	return d.SaveExtra()
 }
 
+// SaveExtra marshal the developer extra user info into bytes.
 func (d *Developer) SaveExtra() (err error) {
 	d.RawExtra, err = json.Marshal(d.Extra)
 	return
 }
 
+// LoadExtra unmarshal the developer extra user info from bytes to object.
 func (d *Developer) LoadExtra() (err error) {
 	err = json.Unmarshal(d.RawExtra, &d.Extra)
 	return
 }
 
+// EnsureDeveloper add/update developer user info.
 func EnsureDeveloper(db *gorp.DbMap, githubID int64, name string, email string, extra gin.H) (d *Developer, err error) {
 	err = db.SelectOne(&d, `SELECT * FROM "developer" WHERE "github_id" = ? LIMIT 1`, githubID)
 	exists := true
@@ -102,6 +109,7 @@ func EnsureDeveloper(db *gorp.DbMap, githubID int64, name string, email string, 
 	return
 }
 
+// SetMainAccount set the main account keypair for developer.
 func SetMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddress) (err error) {
 	// query account for existence
 	ar, err := GetAccount(db, developerID, account)
@@ -118,6 +126,7 @@ func SetMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddr
 	return
 }
 
+// SetIfNoMainAccount set the main account keypair for developer if no main account being set.
 func SetIfNoMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddress) (err error) {
 	d, err := GetDeveloper(db, developerID)
 	if err != nil {
@@ -142,6 +151,7 @@ func SetIfNoMainAccount(db *gorp.DbMap, developerID int64, account utils.Account
 	return
 }
 
+// FixDeletedMainAccount unbind the main account of developer.
 func FixDeletedMainAccount(db *gorp.DbMap, developerID int64, account int64) (err error) {
 	_, err = db.Exec(
 		`UPDATE "developer" SET "main_account" = 0 WHERE "id" = ? AND "main_account" = ?`,
@@ -152,6 +162,7 @@ func FixDeletedMainAccount(db *gorp.DbMap, developerID int64, account int64) (er
 	return
 }
 
+// GetDeveloper fetches the developer user info.
 func GetDeveloper(db *gorp.DbMap, developerID int64) (d *Developer, err error) {
 	err = db.SelectOne(&d,
 		`SELECT * FROM "developer" WHERE "id" = ? LIMIT 1`, developerID)
@@ -161,6 +172,7 @@ func GetDeveloper(db *gorp.DbMap, developerID int64) (d *Developer, err error) {
 	return
 }
 
+// GetMainAccount fetches the main account/keypair object of developer.
 func GetMainAccount(db *gorp.DbMap, developerID int64) (p *DeveloperPrivateKey, err error) {
 	d, err := GetDeveloper(db, developerID)
 	if err != nil {

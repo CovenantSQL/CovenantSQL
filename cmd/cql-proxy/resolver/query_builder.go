@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Find process find query with filter/project/order by/limits like a mongodb.
 func Find(table string, availFields FieldMap, query map[string]interface{}, projection map[string]interface{},
 	orderBy map[string]interface{}, skip *int64, limit *int64) (
 	statement string, args []interface{}, fields FieldMap, err error) {
@@ -80,6 +81,7 @@ func Find(table string, availFields FieldMap, query map[string]interface{}, proj
 	return
 }
 
+// Insert process insert query like a mongodb.
 func Insert(table string, availFields FieldMap, data map[string]interface{}) (
 	statement string, args []interface{}, fields FieldMap, err error) {
 	fields, statement, args, err = ResolveInsert(data, availFields)
@@ -92,6 +94,7 @@ func Insert(table string, availFields FieldMap, data map[string]interface{}) (
 	return
 }
 
+// Update process update query with filter and update object like a mongodb.
 func Update(table string, availFields FieldMap, filter map[string]interface{},
 	update map[string]interface{}, justOne bool) (
 	statement string, args []interface{}, fields FieldMap, err error) {
@@ -131,6 +134,7 @@ func Update(table string, availFields FieldMap, filter map[string]interface{},
 	return
 }
 
+// Remove process remove query with filter like a mongodb.
 func Remove(table string, availFields FieldMap, filter map[string]interface{}, justOne bool) (
 	statement string, args []interface{}, fields FieldMap, err error) {
 	fields = FieldMap{}
@@ -159,6 +163,7 @@ func Remove(table string, availFields FieldMap, filter map[string]interface{}, j
 	return
 }
 
+// Count calculate record count in table applied with filter.
 func Count(table string, availFields FieldMap, filter map[string]interface{}) (
 	statement string, args []interface{}, fields FieldMap, err error) {
 	fields = FieldMap{}

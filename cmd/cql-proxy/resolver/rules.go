@@ -27,28 +27,41 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
+// RuleQueryType defines the rule query type enum.
 type RuleQueryType uint16
 
 const (
+	// RuleQueryInsert defines the insert type query.
 	RuleQueryInsert RuleQueryType = iota
+	// RuleQueryUpdate defines the update type query.
 	RuleQueryUpdate
+	// RuleQueryFind defines the find type query.
 	RuleQueryFind
+	// RuleQueryRemove defines the remove type query.
 	RuleQueryRemove
+	// RuleQueryCount defines the count type query.
 	RuleQueryCount
 )
 
 const (
-	UserStateAnonymous         = "anonymous"
-	UserStateLoggedIn          = "logged_in"
+	// UserStateAnonymous defines anonymous user state.
+	UserStateAnonymous = "anonymous"
+	// UserStateLoggedIn defines logged in user state .
+	UserStateLoggedIn = "logged_in"
+	// UserStateWaitSignUpConfirm defines signed up user state.
 	UserStateWaitSignUpConfirm = "sign_up"
-	UserStatePreRegistered     = "pre_register"
-	UserStateDisabled          = "disabled"
+	// UserStatePreRegistered defines developer manually pre-registered user state/.
+	UserStatePreRegistered = "pre_register"
+	// UserStateDisabled defines disabled user state.
+	UserStateDisabled = "disabled"
 )
 
+// RulesManager defines the rules manger object for project rules cache.
 type RulesManager struct {
 	rules sync.Map // map[proto.DatabaseID]*Rules
 }
 
+// Get returns the rules object of specified database.
 func (m *RulesManager) Get(dbID proto.DatabaseID) *Rules {
 	if v, ok := m.rules.Load(dbID); ok && v != nil {
 		return v.(*Rules)
@@ -57,6 +70,7 @@ func (m *RulesManager) Get(dbID proto.DatabaseID) *Rules {
 	return nil
 }
 
+// Set update the global rules cache with new rules object for specified database.
 func (m *RulesManager) Set(dbID proto.DatabaseID, rules *Rules) {
 	m.rules.Store(dbID, rules)
 }
@@ -76,22 +90,26 @@ type tableEnforces struct {
 	Insert queryEnforces       `json:"insert"`
 }
 
+// RulesConfig defines raw rules config wrapper.
 type RulesConfig struct {
 	Groups map[string][]string      `json:"groups" validate:"omitempty,dive,keys,required,endkeys,required,dive,required"`
 	Rules  map[string]tableEnforces `json:"rules" validate:"omitempty,dive,keys,required,endkeys,required"`
 }
 
+// Rules defines rules object for further enforce execution.
 type Rules struct {
 	groups     []string
 	userGroups map[string][]string
 	rules      map[string]*TableRules
 }
 
+// TableRules defines rules for single table.
 type TableRules struct {
 	rules       map[RuleQueryType]*QueryRules
 	updateRules *QueryRules
 }
 
+// QueryRules defines rules for specified query type.
 type QueryRules struct {
 	groupRules     map[string]map[string]interface{}
 	userRules      map[string]map[string]interface{}
@@ -104,6 +122,7 @@ type updateMergeItem struct {
 	argument interface{}
 }
 
+// CompileRawRules compiles rules raw json to rules object.
 func CompileRawRules(rules json.RawMessage) (r *Rules, err error) {
 	var cfg *RulesConfig
 	err = json.Unmarshal(rules, &cfg)
@@ -170,6 +189,7 @@ func CompileRawRules(rules json.RawMessage) (r *Rules, err error) {
 	return
 }
 
+// CompileRules compiles golang hash object to rules object.
 func CompileRules(rules map[string]interface{}) (r *Rules, err error) {
 	rulesCfg, err := json.Marshal(rules)
 	if err != nil {
@@ -240,6 +260,7 @@ func compileQueryEnforces(cfg *RulesConfig, enforces queryEnforces) (queryRules 
 	return
 }
 
+// EnforceRulesOnFilter combines filter and rules to new filter object.
 func (r *Rules) EnforceRulesOnFilter(f map[string]interface{}, table string,
 	uid string, userState string, vars map[string]interface{}, qt RuleQueryType) (
 	filter map[string]interface{}, err error) {
@@ -268,6 +289,7 @@ func (r *Rules) EnforceRulesOnFilter(f map[string]interface{}, table string,
 	return
 }
 
+// EnforceRulesOnUpdate combines update and rules to new update object.
 func (r *Rules) EnforceRulesOnUpdate(d map[string]interface{}, table string,
 	uid string, userState string, vars map[string]interface{}) (update map[string]interface{}, err error) {
 	var (
@@ -295,6 +317,7 @@ func (r *Rules) EnforceRulesOnUpdate(d map[string]interface{}, table string,
 	return
 }
 
+// EnforceRulesOnInsert combines insert and rules to new insert data object.
 func (r *Rules) EnforceRulesOnInsert(d map[string]interface{}, table string,
 	uid string, userState string, vars map[string]interface{}) (insert map[string]interface{}, err error) {
 	resultRules, err := r.findRulesToApply(r.findUserRules(table, RuleQueryInsert), uid, userState)
@@ -463,15 +486,20 @@ func mergeUpdate(q ...map[string]interface{}) (o map[string]interface{}, err err
 			if useDollarOp {
 				switch {
 				case k == "$currentDate" || k == "$inc" || k == "$max" || k == "$min" || k == "$mul" || k == "$set":
-					if ov, ok := v.(map[string]interface{}); !ok {
+					var (
+						ov map[string]interface{}
+						ok bool
+					)
+
+					if ov, ok = v.(map[string]interface{}); !ok {
 						err = errors.Errorf("$ operator needs object argument")
 						return
-					} else {
-						for field, argument := range ov {
-							result[field] = &updateMergeItem{
-								op:       k,
-								argument: argument,
-							}
+					}
+
+					for field, argument := range ov {
+						result[field] = &updateMergeItem{
+							op:       k,
+							argument: argument,
 						}
 					}
 				case k == "$comment":

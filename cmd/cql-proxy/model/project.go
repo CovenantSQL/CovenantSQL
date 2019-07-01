@@ -24,6 +24,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
 
+// Project defines project info object.
 type Project struct {
 	ID        int64            `db:"id"`
 	DB        proto.DatabaseID `db:"database_id"`
@@ -32,6 +33,7 @@ type Project struct {
 	Account   int64            `db:"account_id"`
 }
 
+// AddProject adds new project to proxy database.
 func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, account int64) (p *Project, err error) {
 	p = &Project{
 		DB:        dbID,
@@ -46,6 +48,7 @@ func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, account 
 	return
 }
 
+// GetUserProjects fetches project list for user and account.
 func GetUserProjects(db *gorp.DbMap, developer int64, account int64) (p []*Project, err error) {
 	_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ? AND "account_id" = ?`,
 		developer, account)
@@ -56,6 +59,7 @@ func GetUserProjects(db *gorp.DbMap, developer int64, account int64) (p []*Proje
 	return
 }
 
+// GetProject fetches project object for specified name (database hash or project name alias).
 func GetProject(db *gorp.DbMap, name string) (p *Project, err error) {
 	// if the alias fits to a hash, query using database id
 	var h hash.Hash
@@ -75,6 +79,7 @@ func GetProject(db *gorp.DbMap, name string) (p *Project, err error) {
 	return
 }
 
+// GetProjectByID fetches the project object using project database id.
 func GetProjectByID(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *Project, err error) {
 	err = db.SelectOne(&p,
 		`SELECT * FROM "project" WHERE "database_id" = ? AND "developer_id" = ? LIMIT 1`,
@@ -85,6 +90,7 @@ func GetProjectByID(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *
 	return
 }
 
+// GetProjects fetches projects owned by developer and specified account address.
 func GetProjects(db *gorp.DbMap, developer int64, account int64) (p []*Project, err error) {
 	if account == 0 {
 		_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ?`, developer)
@@ -98,6 +104,7 @@ func GetProjects(db *gorp.DbMap, developer int64, account int64) (p []*Project, 
 	return
 }
 
+// DeleteProject removes project of specified database address and developer.
 func DeleteProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (err error) {
 	_, err = db.Exec(
 		`DELETE FROM "project" WHERE "database_id" = ? AND "developer_id" = ?`,
@@ -108,6 +115,7 @@ func DeleteProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (err 
 	return
 }
 
+// SetProjectAlias set the uri alias of specified project.
 func SetProjectAlias(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, alias string) (err error) {
 	if alias == "" {
 		alias = string(dbID)
@@ -121,6 +129,7 @@ func SetProjectAlias(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, ali
 	return
 }
 
+// DeleteProjects removes projects from proxy database.
 func DeleteProjects(db *gorp.DbMap, projects ...*Project) (err error) {
 	args := make([]interface{}, 0, len(projects))
 

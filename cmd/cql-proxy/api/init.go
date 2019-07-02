@@ -26,6 +26,7 @@ func AddRoutes(e *gin.Engine) {
 
 	// admin login
 	v3Admin := v3.Group("/admin")
+	v3Admin.Use(adminSessionInject)
 	{
 		v3Admin.GET("/auth/authorize", adminOAuthAuthorize)
 		v3Admin.POST("/auth/callback", adminOAuthCallback)
@@ -96,6 +97,7 @@ func AddRoutes(e *gin.Engine) {
 
 	// user auth
 	v3User := v3.Group("/")
+	v3User.Use(userSessionInject)
 	v3User.Use(projectIDInject)
 	{
 		v3User.GET("/auth/authorize/:provider", userOAuthAuthorize)
@@ -106,7 +108,6 @@ func AddRoutes(e *gin.Engine) {
 	v3UserLogin.Use(userCheckRequireLogin)
 	{
 		v3UserLogin.GET("/userinfo", getUserInfo)
-
 		v3User.POST("/auth/logout", userAuthLogout)
 	}
 	v3UserPermissive := v3User.Group("/")
@@ -121,11 +122,16 @@ func AddRoutes(e *gin.Engine) {
 	}
 
 	// alias
-	authAlias := e.Group("/")
-	authAlias.Use(projectIDInject)
+	userAuthAlias := e.Group("/")
+	userAuthAlias.Use(userSessionInject)
+	userAuthAlias.Use(projectIDInject)
 	{
-		authAlias.GET("/auth/authorize/:provider", userOAuthAuthorize)
-		authAlias.GET("/auth/callback/:provider", userOAuthCallback)
-		authAlias.POST("/auth/callback/:provider", userOAuthAPICallback)
+		userAuthAlias.GET("/auth/authorize/:provider", userOAuthAuthorize)
+		userAuthAlias.GET("/auth/callback/:provider", userOAuthCallback)
+		userAuthAlias.POST("/auth/callback/:provider", userOAuthAPICallback)
+
+		userAuthAliasLoggedIn := userAuthAlias.Group("/")
+		userAuthAliasLoggedIn.Use(userCheckRequireLogin)
+		userAuthAliasLoggedIn.POST("/auth/logout", userAuthLogout)
 	}
 }

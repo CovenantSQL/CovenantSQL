@@ -43,6 +43,7 @@ import (
 const (
 	metaTableUserInfo      = "____user"
 	metaTableProjectConfig = "____config"
+	metaTableSession       = "____session"
 	deletedTablePrefix     = "____deleted"
 )
 
@@ -813,7 +814,7 @@ func createProjectTable(c *gin.Context) {
 	}
 
 	if strings.EqualFold(r.Table, metaTableProjectConfig) || strings.EqualFold(r.Table, metaTableUserInfo) ||
-		strings.HasPrefix(r.Table, deletedTablePrefix) {
+		strings.EqualFold(r.Table, metaTableSession) || strings.HasPrefix(r.Table, deletedTablePrefix) {
 		abortWithError(c, http.StatusBadRequest, ErrReservedTableName)
 		return
 	}
@@ -1240,12 +1241,13 @@ func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.
 		key,
 	)
 
-	tblUser := db.AddTableWithName(model.ProjectUser{}, "____user").
+	tblUser := db.AddTableWithName(model.ProjectUser{}, metaTableUserInfo).
 		SetKeys(true, "ID")
 	tblUser.AddIndex("____idx_user_1", "", []string{"provider", "email"}).SetUnique(true)
-	tblConfig := db.AddTableWithName(model.ProjectConfig{}, "____config").
+	tblConfig := db.AddTableWithName(model.ProjectConfig{}, metaTableProjectConfig).
 		SetKeys(true, "ID")
 	tblConfig.AddIndex("____idx_config_1", "", []string{"type", "key"}).SetUnique(true)
+	db.AddTableWithName(model.Session{}, metaTableSession).SetKeys(false, "ID")
 
 	err = db.CreateTablesIfNotExists()
 

@@ -19,6 +19,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -250,12 +251,14 @@ func handleUserOAuthCallbackSuccess(
 			sessionExpireSeconds = int64(miscConfig.SessionAge.Seconds())
 		}
 
-		s, err := model.NewSession(c, sessionExpireSeconds)
+		s, err := model.NewSession(projectDB, sessionExpireSeconds)
 		if err != nil {
 			err = errors.Wrapf(err, "new user session failed")
 			status = http.StatusInternalServerError
 			return
 		}
+
+		c.Set("session", s)
 
 		s.Set("user", true)
 		s.Set("user_id", u.ID)
@@ -393,4 +396,77 @@ func getCurrentProjectDB(c *gin.Context) (db *gorp.DbMap, err error) {
 	}
 
 	return
+}
+
+func userSessionInject(c *gin.Context) {
+	projectDB, err := getCurrentProjectDB(c)
+
+	if err != nil {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrLoadProjectDatabaseFailed)
+		return
+	}
+
+	_, miscConfig, err := model.GetProjectMiscConfig(projectDB)
+	if err != nil || !miscConfig.IsEnabled() {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrProjectIsDisabled)
+		return
+	}
+
+	// load session
+	var token string
+
+	for i := 0; i != 4; i++ {
+		switch i {
+		case 0:
+			// header
+			token = c.GetHeader("X-CQL-Token")
+		case 1:
+			// cookie
+			token, _ = c.Cookie("token")
+		case 2:
+			// get query
+			token = c.Query("token")
+		case 3:
+			// embed in form
+			r := struct {
+				Token string `json:"token" form:"token"`
+			}{}
+			_ = c.ShouldBindQuery(&r)
+			token = r.Token
+		}
+
+		if token != "" {
+			if s, err := model.GetSession(projectDB, token); err == nil {
+				c.Set("session", s)
+				break
+			} else {
+				token = ""
+			}
+		}
+	}
+
+	if token == "" {
+		_ = model.NewEmptySession(c)
+	}
+
+	c.Next()
+
+	if !c.IsAborted() {
+		cfg := getConfig(c)
+
+		sessionExpireSeconds := int64(cfg.AdminAuth.OAuthExpires / time.Second)
+
+		if miscConfig.SessionAge > 0 {
+			// no session age being set
+			sessionExpireSeconds = int64(miscConfig.SessionAge.Seconds())
+		}
+
+		s := c.MustGet("session").(*model.Session)
+
+		if s.ID != "" {
+			_, _ = model.SaveSession(projectDB, s, sessionExpireSeconds)
+		}
+	}
 }

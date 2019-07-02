@@ -51,9 +51,6 @@ func initServer(cfg *config.Config) (server *http.Server, afterShutdown func(), 
 		return
 	}
 
-	// init session
-	initSession(e, cfg)
-
 	// init config
 	initConfig(e, cfg)
 
@@ -176,56 +173,5 @@ func initConfig(e *gin.Engine, cfg *config.Config) {
 	e.Use(func(c *gin.Context) {
 		c.Set("config", cfg)
 		c.Next()
-	})
-}
-
-func initSession(e *gin.Engine, cfg *config.Config) {
-	e.Use(func(c *gin.Context) {
-		// load session
-		var token string
-
-		for i := 0; i != 4; i++ {
-			switch i {
-			case 0:
-				// header
-				token = c.GetHeader("X-CQL-Token")
-			case 1:
-				// cookie
-				token, _ = c.Cookie("token")
-			case 2:
-				// get query
-				token = c.Query("token")
-			case 3:
-				// embed in form
-				r := struct {
-					Token string `json:"token" form:"token"`
-				}{}
-				_ = c.ShouldBindQuery(&r)
-				token = r.Token
-			}
-
-			if token != "" {
-				if _, err := model.GetSession(c, token); err == nil {
-					break
-				} else {
-					token = ""
-				}
-			}
-		}
-
-		if token == "" {
-			_ = model.NewEmptySession(c)
-		}
-
-		c.Next()
-
-		if !c.IsAborted() {
-			sessionExpireSeconds := int64(cfg.AdminAuth.OAuthExpires / time.Second)
-			s := c.MustGet("session").(*model.Session)
-
-			if s.ID != "" {
-				_, _ = model.SaveSession(c, s, sessionExpireSeconds)
-			}
-		}
 	})
 }

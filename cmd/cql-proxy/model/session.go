@@ -279,7 +279,7 @@ func NewEmptySession(c *gin.Context) (s *Session) {
 }
 
 // NewSession created and save new session to database.
-func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
+func NewSession(db *gorp.DbMap, expire int64) (s *Session, err error) {
 	id := uuid.Must(uuid.NewV4()).String()
 	now := time.Now().Unix()
 	s = &Session{
@@ -289,20 +289,18 @@ func NewSession(c *gin.Context, expire int64) (s *Session, err error) {
 		Store:   gin.H{},
 	}
 
-	err = GetDB(c).Insert(s)
+	err = db.Insert(s)
 	if err != nil {
 		err = errors.Wrapf(err, "new session failed")
 		return
 	}
 
-	c.Set("session", s)
-
 	return
 }
 
 // GetSession returns session object of specified session id.
-func GetSession(c *gin.Context, id string) (s *Session, err error) {
-	err = GetDB(c).SelectOne(&s,
+func GetSession(db *gorp.DbMap, id string) (s *Session, err error) {
+	err = db.SelectOne(&s,
 		`SELECT * FROM "session" WHERE "id" = ? LIMIT 1`, id)
 	if err != nil {
 		err = errors.Wrapf(err, "get session failed")
@@ -314,15 +312,13 @@ func GetSession(c *gin.Context, id string) (s *Session, err error) {
 		return
 	}
 
-	c.Set("session", s)
-
 	return
 }
 
 // SaveSession saves session object to database.
-func SaveSession(c *gin.Context, s *Session, expire int64) (r *Session, err error) {
+func SaveSession(db *gorp.DbMap, s *Session, expire int64) (r *Session, err error) {
 	if s == nil {
-		return NewSession(c, expire)
+		return NewSession(db, expire)
 	}
 
 	r = s
@@ -332,7 +328,7 @@ func SaveSession(c *gin.Context, s *Session, expire int64) (r *Session, err erro
 		return
 	}
 
-	_, err = GetDB(c).Update(r)
+	_, err = db.Update(r)
 	if err != nil {
 		err = errors.Wrapf(err, "update session failed")
 	}

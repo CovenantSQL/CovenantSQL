@@ -349,6 +349,10 @@ func ExpireSessions(db *gorp.DbMap) (expireCount int64, err error) {
 		return
 	}
 
+	if len(sessions) == 0 {
+		return
+	}
+
 	var args []interface{}
 
 	for _, s := range sessions {

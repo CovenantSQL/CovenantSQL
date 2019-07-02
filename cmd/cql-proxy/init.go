@@ -17,9 +17,7 @@
 package main
 
 import (
-	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -32,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/resolver"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/storage"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/task"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func initServer(cfg *config.Config) (server *http.Server, afterShutdown func(), err error) {
@@ -57,9 +54,6 @@ func initServer(cfg *config.Config) (server *http.Server, afterShutdown func(), 
 	// init task manager
 	tm := initTaskManager(e, cfg, db)
 
-	// init session manager
-	stopSM := initSessionManager(db)
-
 	// init rules manager
 	initRulesManager(e)
 
@@ -71,7 +65,6 @@ func initServer(cfg *config.Config) (server *http.Server, afterShutdown func(), 
 	}
 
 	afterShutdown = func() {
-		stopSM()
 		tm.Stop()
 	}
 
@@ -143,28 +136,6 @@ func initRulesManager(e *gin.Engine) (rm *resolver.RulesManager) {
 		c.Set("rules", rm)
 		c.Next()
 	})
-
-	return
-}
-
-func initSessionManager(db *gorp.DbMap) (cancel context.CancelFunc) {
-	var ctx context.Context
-	ctx, cancel = context.WithCancel(context.Background())
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(time.Minute):
-				expireCount, err := model.ExpireSessions(db)
-				log.WithFields(log.Fields{
-					"expire": expireCount,
-					"err":    err,
-				}).Info("expired sessions")
-			}
-		}
-	}()
 
 	return
 }

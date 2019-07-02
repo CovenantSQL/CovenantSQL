@@ -27,6 +27,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 type userOAuthCallbackPayload struct {
@@ -469,4 +470,13 @@ func userSessionInject(c *gin.Context) {
 			_, _ = model.SaveSession(projectDB, s, sessionExpireSeconds)
 		}
 	}
+
+	go func() {
+		// expire sessions
+		expireCount, err := model.ExpireSessions(projectDB)
+		log.WithFields(log.Fields{
+			"expire": expireCount,
+			"err":    err,
+		}).Info("expired sessions")
+	}()
 }

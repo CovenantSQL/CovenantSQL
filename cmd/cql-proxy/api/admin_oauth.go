@@ -24,6 +24,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func adminOAuthAuthorize(c *gin.Context) {
@@ -189,4 +190,12 @@ func adminSessionInject(c *gin.Context) {
 			_, _ = model.SaveSession(db, s, sessionExpireSeconds)
 		}
 	}
+
+	go func() {
+		expireCount, err := model.ExpireSessions(db)
+		log.WithFields(log.Fields{
+			"expire": expireCount,
+			"err":    err,
+		}).Info("expired sessions")
+	}()
 }

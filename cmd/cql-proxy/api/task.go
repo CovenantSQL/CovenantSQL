@@ -45,7 +45,7 @@ func listTasks(c *gin.Context) {
 	p, err := model.GetMainAccount(model.GetDB(c), developer)
 	if err != nil {
 		_ = c.Error(err)
-		abortWithError(c, http.StatusBadRequest, err)
+		abortWithError(c, http.StatusBadRequest, ErrNoMainAccount)
 		return
 	}
 

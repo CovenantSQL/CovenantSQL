@@ -27,6 +27,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	gorp "gopkg.in/gorp.v2"
 )
 
 // Session defines the session object for user/admin.
@@ -331,11 +332,27 @@ func SaveSession(c *gin.Context, s *Session, expire int64) (r *Session, err erro
 		return
 	}
 
-	r.Expire = time.Now().Unix() + expire
-
 	_, err = GetDB(c).Update(r)
 	if err != nil {
 		err = errors.Wrapf(err, "update session failed")
 	}
+	return
+}
+
+// ExpireSessions expires session object in database.
+func ExpireSessions(db *gorp.DbMap) (expireCount int64, err error) {
+	var sessions []*Session
+	_, err = db.Select(&sessions, `SELECT * FROM "session" WHERE "expire" <= ?`,
+		time.Now().Unix())
+	if err != nil {
+		err = errors.Wrapf(err, "get sessions to expire failed")
+		return
+	}
+
+	expireCount, err = db.Delete(sessions)
+	if err != nil {
+		err = errors.Wrapf(err, "remove expired sessions failed")
+	}
+
 	return
 }

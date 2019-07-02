@@ -349,7 +349,13 @@ func ExpireSessions(db *gorp.DbMap) (expireCount int64, err error) {
 		return
 	}
 
-	expireCount, err = db.Delete(sessions)
+	var args []interface{}
+
+	for _, s := range sessions {
+		args = append(args, s)
+	}
+
+	expireCount, err = db.Delete(args...)
 	if err != nil {
 		err = errors.Wrapf(err, "remove expired sessions failed")
 	}

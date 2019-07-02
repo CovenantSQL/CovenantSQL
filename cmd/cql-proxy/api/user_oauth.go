@@ -362,6 +362,17 @@ func getUserInfo(c *gin.Context) {
 	})
 }
 
+func userAuthLogout(c *gin.Context) {
+	err := model.DeleteSession(model.GetDB(c), getSession(c))
+	if err != nil {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrLogoutFailed)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, nil)
+}
+
 func getCurrentProjectDB(c *gin.Context) (db *gorp.DbMap, err error) {
 	project := getCurrentProject(c)
 

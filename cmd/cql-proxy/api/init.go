@@ -89,6 +89,8 @@ func AddRoutes(e *gin.Engine) {
 			v3AdminLogin.GET("/project/:db/config", getProjectConfig)
 			v3AdminLogin.GET("/project/:db/audits", getProjectAudits)
 			v3AdminLogin.GET("/project/:db/table", getProjectTables)
+
+			v3Admin.POST("/auth/logout", adminOAuthLogout)
 		}
 	}
 
@@ -104,6 +106,8 @@ func AddRoutes(e *gin.Engine) {
 	v3UserLogin.Use(userCheckRequireLogin)
 	{
 		v3UserLogin.GET("/userinfo", getUserInfo)
+
+		v3User.POST("/auth/logout", userAuthLogout)
 	}
 	v3UserPermissive := v3User.Group("/")
 	{

@@ -339,6 +339,15 @@ func SaveSession(c *gin.Context, s *Session, expire int64) (r *Session, err erro
 	return
 }
 
+// DeleteSession removes select session in database.
+func DeleteSession(db *gorp.DbMap, s *Session) (err error) {
+	_, err = db.Delete(s)
+	if err != nil {
+		err = errors.Wrapf(err, "remove session failed")
+	}
+	return
+}
+
 // ExpireSessions expires session object in database.
 func ExpireSessions(db *gorp.DbMap) (expireCount int64, err error) {
 	var sessions []*Session

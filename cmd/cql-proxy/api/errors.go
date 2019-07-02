@@ -141,4 +141,6 @@ var (
 	ErrDeleteProjectsFailed = errors.New("ERR_DELETE_PROJECTS_FAILED")
 	// ErrProjectIsDisabled defines error on accessing disabled project via user data api/user oauth api.
 	ErrProjectIsDisabled = errors.New("ERR_PROJECT_IS_DISABLED")
+	// ErrLogoutFailed defines error on failure session logout.
+	ErrLogoutFailed = errors.New("ERR_LOGOUT_FAILED")
 )

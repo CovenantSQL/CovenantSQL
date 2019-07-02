@@ -95,6 +95,17 @@ func adminOAuthCallback(c *gin.Context) {
 	})
 }
 
+func adminOAuthLogout(c *gin.Context) {
+	err := model.DeleteSession(model.GetDB(c), getSession(c))
+	if err != nil {
+		_ = c.Error(err)
+		abortWithError(c, http.StatusInternalServerError, ErrLogoutFailed)
+		return
+	}
+
+	responseWithData(c, http.StatusOK, nil)
+}
+
 func adminCheck(c *gin.Context) {
 	s := getSession(c)
 

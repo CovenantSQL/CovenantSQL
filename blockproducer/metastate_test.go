@@ -19,7 +19,6 @@ package blockproducer
 import (
 	"math"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -619,7 +618,7 @@ func TestMetaState(t *testing.T) {
 			pubKeyFile := "../test/node_standalone/public.keystore"
 			os.Remove(pubKeyFile)
 			defer os.Remove(pubKeyFile)
-			route.Once = sync.Once{}
+			route.Once.Reset()
 			route.InitKMS(pubKeyFile)
 			err = kms.InitLocalKeyPair(privKeyFile, []byte(""))
 			So(err, ShouldBeNil)

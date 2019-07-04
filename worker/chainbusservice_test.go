@@ -23,7 +23,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -163,7 +162,7 @@ func initNodeChainBusService() (cleanupFunc func(), server *rpc.Server, err erro
 
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	// reset the once
-	route.Once = sync.Once{}
+	route.Once.Reset()
 	route.InitKMS(clientPubKeyStoreFile)
 
 	var dht *route.DHTService

@@ -689,19 +689,21 @@ type DDL struct {
 	PartitionSpec *PartitionSpec
 	VindexSpec    *VindexSpec
 	VindexCols    []ColIdent
+	Options       string
 }
 
 // DDL strings.
 const (
-	CreateStr        = "create"
-	AlterStr         = "alter"
-	DropStr          = "drop"
-	RenameStr        = "rename"
-	DropIndexStr     = "drop index"
-	CreateIndexStr   = "create index"
-	CreateVindexStr  = "create vindex"
-	AddColVindexStr  = "add vindex"
-	DropColVindexStr = "drop vindex"
+	CreateStr             = "create"
+	AlterStr              = "alter"
+	DropStr               = "drop"
+	RenameStr             = "rename"
+	DropIndexStr          = "drop index"
+	CreateIndexStr        = "create index"
+	CreateVirtualTableStr = "create virtual table"
+	CreateVindexStr       = "create vindex"
+	AddColVindexStr       = "add vindex"
+	DropColVindexStr      = "drop vindex"
 
 	// Vindex DDL param to specify the owner of a vindex
 	VindexOwnerStr = "owner"
@@ -724,6 +726,8 @@ func (node *DDL) Format(buf *TrackedBuffer) {
 		buf.Myprintf("%s table%s %v", node.Action, exists, node.Table)
 	case CreateIndexStr:
 		buf.Myprintf("%s on %v", node.Action, node.Table)
+	case CreateVirtualTableStr:
+		buf.Myprintf("%s virtual table %v", node.Action, node.Table)
 	case DropIndexStr:
 		exists := ""
 		if node.IfExists {
@@ -1997,6 +2001,8 @@ const (
 	NotLikeStr          = "not like"
 	RegexpStr           = "regexp"
 	NotRegexpStr        = "not regexp"
+	MatchStr            = "match"
+	NotMatchStr         = "not match"
 )
 
 // Format formats the node.

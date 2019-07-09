@@ -57,6 +57,9 @@ docker_clean: status
 	docker rmi -f $(BUILDER):$(VERSION)
 	docker rmi -f $(IMAGE):$(VERSION)
 
+alpine_release: builder
+	temp_container=$$(docker create $(BUILDER):$(VERSION)) ; \
+	docker cp $${temp_container}:/go/src/github.com/CovenantSQL/CovenantSQL/bin - | gzip > app-bin.tgz
 
 save: status
 ifeq ($(SHIP_VERSION),)
@@ -102,6 +105,10 @@ unamestr := $(shell uname)
 
 ifeq ($(unamestr),Linux)
 	platform := linux
+else
+  ifeq ($(unamestr),Darwin)
+	platform := darwin
+  endif
 endif
 
 ifdef CQLVERSION
@@ -111,16 +118,22 @@ else
 endif
 
 tags := $(platform) sqlite_omit_load_extension
-testtags := $(tags) testbinary
+miner_tags := $(tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
+test_tags := $(tags) testbinary
+miner_test_tags := $(test_tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
+
+static_flags := -linkmode external -extldflags '-static'
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c
 
-ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B $$GOLDFLAGS
-ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M $$GOLDFLAGS
-ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C $$GOLDFLAGS
+ldflags_role_bp := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=B
+ldflags_role_miner := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=M
+ldflags_role_client := -X main.version=$(version) -X github.com/CovenantSQL/CovenantSQL/conf.RoleTag=C
 ldflags_role_client_simple_log := $(ldflags_role_client) -X github.com/CovenantSQL/CovenantSQL/utils/log.SimpleLog=Y
 
-GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(testtags)"
+GOTEST := CGO_ENABLED=1 go test $(test_flags) -tags "$(test_tags)"
+GOTEST_MINER := CGO_ENABLED=1 go test $(test_flags) -tags "$(miner_test_tags)"
 GOBUILD := CGO_ENABLED=1 go build -tags "$(tags)"
+GOBUILD_MINER := CGO_ENABLED=1 go build -tags "$(miner_tags)"
 
 bin/cqld.test:
 	$(GOTEST) \
@@ -134,23 +147,29 @@ bin/cqld:
 		-o bin/cqld \
 		github.com/CovenantSQL/CovenantSQL/cmd/cqld
 
+bin/cqld.static:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_bp) $(static_flags)" \
+		-o bin/cqld \
+		github.com/CovenantSQL/CovenantSQL/cmd/cqld
+
 bin/cql-minerd.test:
-	$(GOTEST) \
+	$(GOTEST_MINER) \
 		-ldflags "$(ldflags_role_miner)" \
 		-o bin/cql-minerd.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
 bin/cql-minerd:
-	$(GOBUILD) \
+	$(GOBUILD_MINER) \
 		-ldflags "$(ldflags_role_miner)" \
 		-o bin/cql-minerd \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
-bin/cql:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client_simple_log)" \
-		-o bin/cql \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql
+bin/cql-minerd.static:
+	$(GOBUILD_MINER) \
+		-ldflags "$(ldflags_role_miner) $(static_flags)" \
+		-o bin/cql-minerd \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-minerd
 
 bin/cql.test:
 	$(GOTEST) \
@@ -158,10 +177,27 @@ bin/cql.test:
 		-o bin/cql.test \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
+bin/cql:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_client_simple_log)" \
+		-o bin/cql \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql
+
+bin/cql.static:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_client_simple_log) $(static_flags)" \
+		-o bin/cql \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
 bin/cql-fuse:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client_simple_log)" \
+		-o bin/cql-fuse \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
+
+bin/cql-fuse.static:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_client_simple_log) $(static_flags)" \
 		-o bin/cql-fuse \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
 
@@ -171,9 +207,21 @@ bin/cql-mysql-adapter:
 		-o bin/cql-mysql-adapter \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
 
+bin/cql-mysql-adapter.static:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_client) $(static_flags)" \
+		-o bin/cql-mysql-adapter \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-mysql-adapter
+
 bin/cql-faucet:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
+		-o bin/cql-faucet \
+		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
+
+bin/cql-faucet.static:
+	$(GOBUILD) \
+		-ldflags "$(ldflags_role_client) $(static_flags)" \
 		-o bin/cql-faucet \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql-faucet
 
@@ -187,8 +235,21 @@ all: bp miner client
 
 build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
 
+# This should only called in alpine docker builder
+build-release-static: bin/cqld.static bin/cql-minerd.static bin/cql.static \
+	bin/cql-fuse.static bin/cql-mysql-adapter.static bin/cql-faucet.static
+
 release:
+ifeq ($(unamestr),Linux)
+	if [ -f /.dockerenv ]; then \
+		make -j$(JOBS) build-release-static; \
+	else \
+		make alpine_release; \
+	fi
+else
 	make -j$(JOBS) build-release
+	tar czvf app-bin.tgz bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-faucet
+endif
 
 android-release: status
 	docker build \

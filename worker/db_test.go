@@ -114,7 +114,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
-			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
+			So(res.Payload.Rows[0].Values[0], ShouldResemble, "test")
 
 			// test show full tables query
 			readQuery, err = buildQuery(types.ReadQuery, 1, 3, []string{
@@ -128,7 +128,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
-			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test"))
+			So(res.Payload.Rows[0].Values[0], ShouldResemble, "test")
 
 			// test show create table
 			readQuery, err = buildQuery(types.ReadQuery, 1, 4, []string{
@@ -142,8 +142,8 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
-			byteStr, isByteStr := res.Payload.Rows[0].Values[0].([]byte)
-			So(isByteStr, ShouldBeTrue)
+			byteStr, isStr := res.Payload.Rows[0].Values[0].(string)
+			So(isStr, ShouldBeTrue)
 			So(strings.ToUpper(string(byteStr)), ShouldContainSubstring, "CREATE")
 
 			// test show table
@@ -158,9 +158,9 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldHaveLength, 6)
-			So(res.Payload.Rows[0].Values[1], ShouldResemble, []byte("col1"))
+			So(res.Payload.Rows[0].Values[1], ShouldResemble, "col1")
 			So(res.Payload.Rows[1].Values, ShouldHaveLength, 6)
-			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
+			So(res.Payload.Rows[1].Values[1], ShouldResemble, "col2")
 
 			// test desc table
 			readQuery, err = buildQuery(types.ReadQuery, 1, 6, []string{
@@ -174,9 +174,9 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldHaveLength, 6)
-			So(res.Payload.Rows[0].Values[1], ShouldResemble, []byte("col1"))
+			So(res.Payload.Rows[0].Values[1], ShouldResemble, "col1")
 			So(res.Payload.Rows[1].Values, ShouldHaveLength, 6)
-			So(res.Payload.Rows[1].Values[1], ShouldResemble, []byte("col2"))
+			So(res.Payload.Rows[1].Values[1], ShouldResemble, "col2")
 
 			// test show index from table
 			readQuery, err = buildQuery(types.ReadQuery, 1, 7, []string{
@@ -190,7 +190,7 @@ func TestSingleDatabase(t *testing.T) {
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
-			So(res.Payload.Rows[0].Values[0], ShouldResemble, []byte("test_index"))
+			So(res.Payload.Rows[0].Values[0], ShouldResemble, "test_index")
 		})
 
 		Convey("test read write", func() {

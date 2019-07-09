@@ -416,8 +416,11 @@ func (p *nodeProfile) buildQuery(
 	}
 	return
 }
-
 func (p *nodeProfile) sendQuery(req *types.Request) (err error) {
+	return p.sendQueryEx(req, true)
+}
+
+func (p *nodeProfile) sendQueryEx(req *types.Request, genAck bool) (err error) {
 	tracker, resp, err := p.Chain.Query(req, p.IsLeader)
 	if err != nil {
 		return
@@ -430,6 +433,10 @@ func (p *nodeProfile) sendQuery(req *types.Request) (err error) {
 	}
 	tracker.UpdateResp(resp)
 
+	if !genAck {
+		return
+	}
+
 	ack, err := createRandomQueryAckWithResponse(&resp.Header, p)
 	if err != nil {
 		return
@@ -441,11 +448,11 @@ func (p *nodeProfile) sendQuery(req *types.Request) (err error) {
 }
 
 func (p *nodeProfile) query(
-	qt types.QueryType, qs []types.Query) (err error,
+	qt types.QueryType, qs []types.Query, genAck bool) (err error,
 ) {
 	req, err := p.buildQuery(qt, qs)
 	if err != nil {
 		return
 	}
-	return p.sendQuery(req)
+	return p.sendQueryEx(req, genAck)
 }

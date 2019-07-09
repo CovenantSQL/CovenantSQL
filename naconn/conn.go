@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -195,7 +196,7 @@ func DialEx(remote proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
-	iconn, err := net.Dial("tcp", nodeAddr)
+	iconn, err := net.DialTimeout("tcp", nodeAddr, conf.TCPDialTimeout)
 	if err != nil {
 		err = errors.Wrapf(err, "connect to node %s failed", nodeAddr)
 		return

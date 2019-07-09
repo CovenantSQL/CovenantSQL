@@ -197,9 +197,9 @@ func TestStorage(t *testing.T) {
 		t.Fatalf("error result count: %v, should be 3", len(data))
 	} else {
 		// compare rows
-		should1 := []interface{}{[]byte("k0"), nil}
-		should2 := []interface{}{[]byte("k1"), []byte("v1")}
-		should3 := []interface{}{[]byte("k3"), []byte("v3-2")}
+		should1 := []interface{}{"k0", nil}
+		should2 := []interface{}{"k1", "v1"}
+		should3 := []interface{}{"k3", "v3-2"}
 		t.Logf("Rows: %v", data)
 		if !reflect.DeepEqual(data[0], should1) {
 			t.Fatalf("error result row: %v, should: %v", data[0], should1)
@@ -229,9 +229,9 @@ func TestStorage(t *testing.T) {
 		t.Fatalf("error result count: %v, should be 3", len(data))
 	} else {
 		// compare rows
-		should1 := []interface{}{[]byte("k0")}
-		should2 := []interface{}{[]byte("k1")}
-		should3 := []interface{}{[]byte("k3")}
+		should1 := []interface{}{"k0"}
+		should2 := []interface{}{"k1"}
+		should3 := []interface{}{"k3"}
 		t.Logf("Rows: %v", data)
 		if !reflect.DeepEqual(data[0], should1) {
 			t.Fatalf("error result row: %v, should: %v", data[0], should1)
@@ -261,8 +261,8 @@ func TestStorage(t *testing.T) {
 		t.Fatalf("error result count: %v, should be 3", len(data))
 	} else {
 		// compare rows
-		should1 := []interface{}{[]byte("k1")}
-		should2 := []interface{}{[]byte("k3")}
+		should1 := []interface{}{"k1"}
+		should2 := []interface{}{"k3"}
 		t.Logf("Rows: %v", data)
 		if !reflect.DeepEqual(data[0], should1) {
 			t.Fatalf("error result row: %v, should: %v", data[0], should1)

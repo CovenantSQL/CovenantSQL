@@ -61,6 +61,10 @@
   branch = "master"
 
 [[override]]
+  name = "github.com/CovenantSQL/sqlparser"
+  branch = "master"
+
+[[override]]
   name = "github.com/zserge/metric"
   branch = "master"
 

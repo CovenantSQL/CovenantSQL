@@ -578,6 +578,42 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		So(sanitizedArgs, ShouldHaveLength, 0)
 		So(err, ShouldBeNil)
 
+		// contains ddl query
+		ddlQuery = "CREATE VIRTUAL TABLE test USING xxfunc(foo bar)"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(containsDDL, ShouldBeTrue)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// contains ddl query
+		ddlQuery = "CREATE VIRTUAL TABLE papers USING fts3(author, document, tokenize=porter)"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(containsDDL, ShouldBeTrue)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// contains ddl query
+		ddlQuery = "CREATE VIRTUAL TABLE papers USING fts3()"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(containsDDL, ShouldBeTrue)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
+		// contains ddl query
+		ddlQuery = "CREATE VIRTUAL TABLE mail USING fts3(subject VARCHAR(256) NOT NULL, body TEXT CHECK(length(body)<10240))"
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			ddlQuery, []types.NamedArg{})
+		So(containsDDL, ShouldBeTrue)
+		So(sanitizedQuery, ShouldEqual, ddlQuery)
+		So(sanitizedArgs, ShouldHaveLength, 0)
+		So(err, ShouldBeNil)
+
 		// test invalid query
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"CREATE 1", []types.NamedArg{})
@@ -615,6 +651,11 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		// counterpart to prove successful parsing of normal query
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"SELECT 1; SELECT func(); SELECT * FROM a", []types.NamedArg{})
+		So(err, ShouldBeNil)
+
+		// counterpart to prove successful parsing of normal query
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT count(*) FROM enrondata1 WHERE content MATCH 'linux'", []types.NamedArg{})
 		So(err, ShouldBeNil)
 
 		// counterpart with args

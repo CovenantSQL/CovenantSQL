@@ -24,26 +24,23 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6a48e665b3bb4e452b3c2d4af54be68d799c1bfb4054c8bf12bc33ee22747021"
+  digest = "1:04bef3559447d5e41c51da8539bb5e7b056d2ec7f8c9bdfce4348e7194cfe219"
   name = "github.com/CovenantSQL/beacon"
-  packages = [
-    ".",
-    "ipv6",
-  ]
+  packages = ["ipv6"]
   pruneopts = "UT"
   revision = "8402bfe07ece1f10324b445e5bf7be76082203ca"
 
 [[projects]]
   branch = "develop"
-  digest = "1:9691c7a98f7d559cf573a98dd19c26f0859d30343e59a6a30e91c3d187a8ad37"
+  digest = "1:3ec25d7ae86a9575c46227973066255919773ed86c92481175973afb4f7950ba"
   name = "github.com/CovenantSQL/go-sqlite3-encrypt"
   packages = ["."]
   pruneopts = "UT"
-  revision = "43e89c9e6ba4ec912425e667d6689fb3ef3c7d45"
+  revision = "dc98560308abfab316df54fbb58f4567f9e9745a"
 
 [[projects]]
   branch = "master"
-  digest = "1:91b1ab48b79ab08ff3687a2f59150d9911ae9b3b486fe98256fc828f4b00abe2"
+  digest = "1:0233f11b3ca1f265d158adb8027235b04d30f562d03d9bd58d0e0982d12379e1"
   name = "github.com/CovenantSQL/sqlparser"
   packages = [
     ".",
@@ -53,7 +50,7 @@
     "dependency/sqltypes",
   ]
   pruneopts = "UT"
-  revision = "d1a5098e1ccc60f277938e9cdeb810c0a3db8880"
+  revision = "c4a6cf6cebb6872b2d82503fcdbbe004ccfc2540"
 
 [[projects]]
   digest = "1:3e98d7591efd49c324016c20fa4409e7498f791bc764a7c016258e34584d9514"
@@ -634,14 +631,6 @@
   revision = "4b34438f7a67ee5f45cc6132e2bad873a20324e9"
 
 [[projects]]
-  digest = "1:d219400f09c151f0ada918bab650ef46f7ebdb1ff4fea923fdcb839481ec7ec1"
-  name = "gopkg.in/cheggaaa/pb.v1"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f907f6f5dd81f77c2bbc1cde92e4c5a04720cb11"
-  version = "v1.0.28"
-
-[[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -657,7 +646,6 @@
     "bazil.org/fuse/fs",
     "bazil.org/fuse/fs/fstestutil",
     "github.com/CovenantSQL/HashStablePack/marshalhash",
-    "github.com/CovenantSQL/beacon",
     "github.com/CovenantSQL/beacon/ipv6",
     "github.com/CovenantSQL/go-sqlite3-encrypt",
     "github.com/CovenantSQL/sqlparser",
@@ -709,7 +697,6 @@
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/sys/unix",
-    "gopkg.in/cheggaaa/pb.v1",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"

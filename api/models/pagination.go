@@ -77,14 +77,14 @@ func (p *Pagination) SetTotal(total int) {
 }
 
 // Limit returns the page size.
-// Attened to be used in SQL statements.
+// Intend to be used in SQL statements.
 func (p *Pagination) Limit() int {
 	p.normalize()
 	return p.Size
 }
 
 // Offset returns the size of skipped items of current page.
-// Attened to be used in SQL statements.
+// Intend to be used in SQL statements.
 func (p *Pagination) Offset() int {
 	p.normalize()
 	return (p.Page - 1) * p.Size

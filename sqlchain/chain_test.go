@@ -275,7 +275,9 @@ func TestMultiChain(t *testing.T) {
 
 	// Start all chain instances
 	for _, v := range chains {
-		v.chain.Start()
+		if err = v.chain.Start(); err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
 		defer func(c *Chain) {
 			// Stop chain main process before exit
 			_ = c.Stop()
@@ -356,11 +358,17 @@ func TestMultiChain(t *testing.T) {
 					default:
 						var err error
 						// Send a random query
-						err = cli.query(types.ReadQuery, []types.Query{
-							buildQuery(`SELECT v FROM t1 WHERE k=?`, rand.Intn(5)),
-						})
-						if err != nil {
-							t.Errorf("error occurred: %v", err)
+						if rand.Intn(10) != 0 {
+							err = cli.query(types.ReadQuery, []types.Query{
+								buildQuery(`SELECT v FROM t1 WHERE k=?`, rand.Intn(5)),
+							}, rand.Intn(10) != 0)
+							if err != nil {
+								t.Errorf("error occurred: %v", err)
+							}
+						} else {
+							err = cli.query(types.ReadQuery, []types.Query{
+								buildQuery(`XXX`),
+							}, false)
 						}
 					}
 				}

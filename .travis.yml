@@ -7,7 +7,7 @@ env:
     - REVIEWDOG_VERSION=0.9.11
 language: go
 go:
-  - '1.11.x'
+  - '1.12.x'
 
 os:
   - linux
@@ -30,14 +30,21 @@ before_script:
   - echo $TRAVIS_SECURE_ENV_VARS
   - ulimit -n 8192
 script:
+  - make release
+  - mkdir tmp && tar zxvf app-bin.tgz -C tmp
+  - ldd tmp/bin/cql* || true
+  - set -x
+  - mv -f tmp/bin/cql* bin/
+  - if [ $TRAVIS_PULL_REQUEST != false ] && [ "$OSTYPE" == "linux-gnu" ]; then ./test/testnet_client/run.sh; fi
   - >-
     golint ./... | grep -v 'vendor/' | grep -v 'server/' | grep -v 'utils/' | reviewdog -f=golint -reporter=github-pr-review || true
 
 before_deploy:
   - make clean
-  - make use_all_cores
-  - mkdir -p build
-  - tar czvf build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz bin/cql bin/cql-fuse bin/cql-minerd bin/cql-mysql-adapter
+  - make release
+  - mkdir build && tar zxvf app-bin.tgz -C build
+  - ldd build/bin/cql* || true
+  - mv app-bin.tgz build/CovenantSQL-$TRAVIS_TAG.$TRAVIS_OS_NAME-amd64.tar.gz
 
 deploy:
   provider: releases

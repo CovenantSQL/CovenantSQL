@@ -1,5 +1,34 @@
 # Changelog
 
+## [v0.7.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.7.0) (2019-06-12)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.6.0...v0.7.0)
+
+**Implemented enhancements:**
+
+- cql 增加一个 update 更新自己的命令（参考nvm） [\#343](https://github.com/CovenantSQL/CovenantSQL/issues/343)
+
+**Closed issues:**
+
+-    https://covenantsql.io/blog/quickstart-zh 文档不是最新的 [\#344](https://github.com/CovenantSQL/CovenantSQL/issues/344)
+- Can not use double quote in table name [\#113](https://github.com/CovenantSQL/CovenantSQL/issues/113)
+
+**Merged pull requests:**
+
+- Fix sqlchain head block timestamp metric inaccurate bug [\#355](https://github.com/CovenantSQL/CovenantSQL/pull/355) ([xq262144](https://github.com/xq262144))
+- Update sqlparser to support CREATE INDEX statement with dobule quoted name [\#354](https://github.com/CovenantSQL/CovenantSQL/pull/354) ([xq262144](https://github.com/xq262144))
+- Add timeout while synchronizing head blocks [\#352](https://github.com/CovenantSQL/CovenantSQL/pull/352) ([leventeliu](https://github.com/leventeliu))
+- Add wechat qr code in readme [\#351](https://github.com/CovenantSQL/CovenantSQL/pull/351) ([auxten](https://github.com/auxten))
+- Fix cql explorer bugs [\#350](https://github.com/CovenantSQL/CovenantSQL/pull/350) ([laodouya](https://github.com/laodouya))
+- Fix account type IsValid bug. [\#346](https://github.com/CovenantSQL/CovenantSQL/pull/346) ([laodouya](https://github.com/laodouya))
+- Add cql repeating logs while long process [\#345](https://github.com/CovenantSQL/CovenantSQL/pull/345) ([laodouya](https://github.com/laodouya))
+- Add AES-128-CBC PKCS\#7 end to end encryption and decryption [\#342](https://github.com/CovenantSQL/CovenantSQL/pull/342) ([auxten](https://github.com/auxten))
+- Collapse Readme on pure developer stuff [\#341](https://github.com/CovenantSQL/CovenantSQL/pull/341) ([auxten](https://github.com/auxten))
+- Support double quote ident for table/column name [\#339](https://github.com/CovenantSQL/CovenantSQL/pull/339) ([xq262144](https://github.com/xq262144))
+- Resolve DNS seeds in parallel [\#338](https://github.com/CovenantSQL/CovenantSQL/pull/338) ([744189447](https://github.com/744189447))
+- Add eventual mode in stable test [\#336](https://github.com/CovenantSQL/CovenantSQL/pull/336) ([laodouya](https://github.com/laodouya))
+- Update ci previous version to v0.6.0. [\#335](https://github.com/CovenantSQL/CovenantSQL/pull/335) ([laodouya](https://github.com/laodouya))
+
 ## [v0.6.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.6.0) (2019-05-15)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.5.0...v0.6.0)

@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
@@ -79,6 +80,10 @@ func (i *waitItem) run() {
 	)
 
 	// fetch log
+	caller := i.r.WaiterNewCallerFunc(i.r.peers.Leader)
+	if pcaller, ok := caller.(*rpc.PersistentCaller); ok && pcaller != nil {
+		defer pcaller.Close()
+	}
 	for {
 		select {
 		case <-i.stopCh:
@@ -88,7 +93,7 @@ func (i *waitItem) run() {
 
 		resp = new(kt.FetchResponse)
 
-		if err = i.r.getCaller(i.r.peers.Leader).Call(i.r.fetchRPCMethod, req, resp); err != nil {
+		if err = caller.Call(i.r.fetchRPCMethod, req, resp); err != nil {
 			log.WithFields(log.Fields{
 				"index":    i.index,
 				"instance": i.r.instanceID,

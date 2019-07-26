@@ -20,15 +20,7 @@ import (
 	"encoding/binary"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/proto"
-	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 )
-
-func (r *Runtime) getCaller(id proto.NodeID) Caller {
-	var caller Caller = rpc.NewPersistentCaller(id)
-	rawCaller, _ := r.callerMap.LoadOrStore(id, caller)
-	return rawCaller.(Caller)
-}
 
 func (r *Runtime) goFunc(f func()) {
 	r.wg.Add(1)

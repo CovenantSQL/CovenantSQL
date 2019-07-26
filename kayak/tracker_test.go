@@ -51,8 +51,15 @@ func TestTracker(t *testing.T) {
 				nodeID2,
 			},
 		}
-		r.SetCaller(nodeID1, &fakeTrackerCaller{c: c})
-		r.SetCaller(nodeID2, &fakeTrackerCaller{c: c})
+
+		fakeTrackerCallerMap := map[proto.NodeID]Caller{
+			nodeID1: &fakeTrackerCaller{c: c},
+			nodeID2: &fakeTrackerCaller{c: c},
+		}
+		r.TrackerNewCallerFunc = func(target proto.NodeID) Caller {
+			return fakeTrackerCallerMap[target]
+		}
+
 		t1 := newTracker(r, 1, 0)
 		t1.send()
 		_, meets, _ := t1.get(context.Background())

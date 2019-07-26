@@ -60,6 +60,8 @@ type pconn struct {
 	pCaller rpc.PCaller
 }
 
+const workerCount int = 2
+
 func newConn(cfg *Config) (c *conn, err error) {
 	// get local node id
 	var localNodeID proto.NodeID
@@ -88,6 +90,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 
 	if cfg.Mirror != "" {
 		c.leader = &pconn{
+			wg:      &sync.WaitGroup{},
 			parent:  c,
 			pCaller: mux.NewRawCaller(cfg.Mirror),
 		}
@@ -102,6 +105,8 @@ func newConn(cfg *Config) (c *conn, err error) {
 				caller = mux.NewPersistentCaller(peers.Leader)
 			}
 			c.leader = &pconn{
+				wg:      &sync.WaitGroup{},
+				ackCh:   make(chan *types.Ack, workerCount*4),
 				parent:  c,
 				pCaller: caller,
 			}
@@ -119,6 +124,8 @@ func newConn(cfg *Config) (c *conn, err error) {
 						caller = mux.NewPersistentCaller(node)
 					}
 					c.follower = &pconn{
+						wg:      &sync.WaitGroup{},
+						ackCh:   make(chan *types.Ack, workerCount*4),
 						parent:  c,
 						pCaller: caller,
 					}
@@ -132,12 +139,12 @@ func newConn(cfg *Config) (c *conn, err error) {
 		}
 
 		if c.leader != nil {
-			if err := c.leader.startAckWorkers(2); err != nil {
+			if err := c.leader.startAckWorkers(); err != nil {
 				return nil, errors.WithMessage(err, "leader startAckWorkers failed")
 			}
 		}
 		if c.follower != nil {
-			if err := c.follower.startAckWorkers(2); err != nil {
+			if err := c.follower.startAckWorkers(); err != nil {
 				return nil, errors.WithMessage(err, "follower startAckWorkers failed")
 			}
 		}
@@ -147,9 +154,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	return
 }
 
-func (c *pconn) startAckWorkers(workerCount int) (err error) {
-	c.wg = &sync.WaitGroup{}
-	c.ackCh = make(chan *types.Ack, workerCount*4)
+func (c *pconn) startAckWorkers() (err error) {
 	for i := 0; i < workerCount; i++ {
 		c.wg.Add(1)
 		go c.ackWorker()

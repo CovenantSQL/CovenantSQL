@@ -14,6 +14,7 @@ fi
 
 #Monitor
 nohup sar -uqrBWbdv -o ${LOG_DIR}/monitor_uqrBWbdv.log 5 2>&1 > ${LOG_DIR}/monitor_std.log &
+nohup dstat -almsrt --noheaders --noupdate --output  ${LOG_DIR}/dstat.log 5 2>&1 >/dev/null &
 
 #Prepare
 cp -r ${RUNNING_DIR}/docker-compose.yml ${WORKING_DIR}

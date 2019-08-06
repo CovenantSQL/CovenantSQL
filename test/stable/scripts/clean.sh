@@ -24,6 +24,7 @@ docker logs covenantsql_miner_3 2> ${LOG_DIR}/covenantsql_miner_3.log
 #Clean
 killall 500million
 killall sar
+killall python2
 
 zip -r logs.zip logs
 

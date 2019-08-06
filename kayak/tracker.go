@@ -23,6 +23,7 @@ import (
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
@@ -91,7 +92,11 @@ func (t *rpcTracker) send() {
 }
 
 func (t *rpcTracker) callSingle(idx int) {
-	err := t.r.getCaller(t.nodes[idx]).Call(t.method, t.req, nil)
+	caller := t.r.TrackerNewCallerFunc(t.nodes[idx])
+	if pcaller, ok := caller.(*rpc.PersistentCaller); ok && pcaller != nil {
+		defer pcaller.Close()
+	}
+	err := caller.Call(t.method, t.req, nil)
 	defer t.wg.Done()
 	t.errLock.Lock()
 	defer t.errLock.Unlock()

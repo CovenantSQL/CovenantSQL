@@ -109,7 +109,7 @@ func main() {
 
 	createSqliteTestTable(db, tableName)
 
-	pool := grpool.NewPool(64, 512)
+	pool := grpool.NewPool(8, 16)
 	defer pool.Release()
 	insertData(db, tableName, 500000000, pool)
 	pool.WaitAll()

@@ -48,14 +48,14 @@ import (
 
 // CmdConsole is cql console command entity.
 var CmdConsole = &Command{
-	UsageLine: "cql console [common params] [-command sqlcommand] [-file filename] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-explorer explorer_addr] [-adapter adapter_addr] [dsn]",
+	UsageLine: "cql console [common params] [-command sqlcommand] [-out outputfile] [-no-rc true/false] [-single-transaction] [-variable variables] [-explorer explorer_addr] [-adapter adapter_addr] [dsn]",
 	Short:     "run a console for interactive sql operation",
 	Long: `
 Console runs an interactive SQL console for CovenantSQL.
 e.g.
     cql console covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c
 
-There is also a -command param for SQL script, and a -file param for reading SQL in a file.
+There is also a -command param for SQL script, and you can add "< file.sql" at end of command for executing a SQL file.
 If those params are set, it will run SQL script and exit without staying console mode.
 e.g.
     cql console -command "create table test1(test2 int);" covenantsql://4119ef997dedc585bfbcfae00ab6b87b8486fab323a8e107ea1fd4fc4f7eba5c
@@ -72,7 +72,6 @@ var (
 	noRC              bool
 	singleTransaction bool
 	command           string
-	fileName          string
 )
 
 func init() {
@@ -85,7 +84,6 @@ func init() {
 	CmdConsole.Flag.BoolVar(&noRC, "no-rc", false, "Do not read start up file")
 	CmdConsole.Flag.BoolVar(&singleTransaction, "single-transaction", false, "Execute as a single transaction (if non-interactive)")
 	CmdConsole.Flag.StringVar(&command, "command", "", "Run only single command (SQL or usql internal command) and exit")
-	CmdConsole.Flag.StringVar(&fileName, "file", "", "Execute commands from file and exit")
 	CmdConsole.Flag.StringVar(&adapterAddr, "adapter", "", "Address to serve a database chain adapter, e.g. :7784")
 	CmdConsole.Flag.StringVar(&explorerAddr, "explorer", "", "Address serve a database chain explorer, e.g. :8546")
 }
@@ -261,7 +259,7 @@ func run(u *user.User) (err error) {
 	}
 
 	// create input/output
-	interactive := command != "" || fileName != ""
+	interactive := command != ""
 	l, err := rline.New(interactive, outFile, env.HistoryFile(u))
 	if err != nil {
 		return err
@@ -299,13 +297,6 @@ func run(u *user.User) (err error) {
 		h.Reset([]rune(command))
 		if err = h.Run(); err != nil && err != io.EOF {
 			ConsoleLog.WithError(err).Error("run command failed")
-			SetExitStatus(1)
-			return
-		}
-	} else if fileName != "" {
-		// file
-		if err = h.Include(fileName, false); err != nil {
-			ConsoleLog.WithError(err).Error("run file failed")
 			SetExitStatus(1)
 			return
 		}

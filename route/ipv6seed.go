@@ -47,8 +47,7 @@ type IPv6SeedClient struct{}
 // GetBPFromDNSSeed gets BP info from the IPv6 domain
 func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err error) {
 	// Public key
-	pubKeyBuf := make([]byte, asymmetric.PublicKeyBytesLen)
-	pubKeyBuf[0] = asymmetric.PublicKeyFormatHeader
+	var pubKeyBuf []byte
 	var pubBuf, nonceBuf, addrBuf, nodeIDBuf []byte
 	var pubErr, nonceErr, addrErr, nodeIDErr error
 	wg := new(sync.WaitGroup)
@@ -95,10 +94,19 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 		return
 	}
 
-	if len(pubBuf) != asymmetric.PublicKeyBytesLen-1 {
+	// For bug that trim the public header before or equal cql 0.7.0
+	if len(pubBuf) == asymmetric.PublicKeyBytesLen-1 {
+		pubKeyBuf = make([]byte, asymmetric.PublicKeyBytesLen)
+		pubKeyBuf[0] = asymmetric.PublicKeyFormatHeader
+		copy(pubKeyBuf[1:], pubBuf)
+	} else if len(pubBuf) == 48 {
+		pubKeyBuf, err = crypto.RemovePKCSPadding(pubBuf)
+		if err != nil {
+			return
+		}
+	} else {
 		return nil, errors.Errorf("error public key bytes len: %d", len(pubBuf))
 	}
-	copy(pubKeyBuf[1:], pubBuf)
 	var pubKey asymmetric.PublicKey
 	err = pubKey.UnmarshalBinary(pubKeyBuf)
 	if err != nil {
@@ -143,9 +151,7 @@ func (isc *IPv6SeedClient) GenBPIPv6(node *proto.Node, domain string) (out strin
 		out += fmt.Sprintf("%02d.%s%s	1	IN	AAAA	%s\n", i, ID, domain, ip)
 	}
 
-	// Public key, with leading 1 byte type trimmed
-	//  see: asymmetric.PublicKeyFormatHeader
-	pubKeyIps, err := ipv6.ToIPv6(node.PublicKey.Serialize()[1:])
+	pubKeyIps, err := ipv6.ToIPv6(crypto.AddPKCSPadding(node.PublicKey.Serialize()))
 	if err != nil {
 		return "", err
 	}

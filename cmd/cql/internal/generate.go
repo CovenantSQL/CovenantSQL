@@ -57,10 +57,16 @@ or input a passphrase by
 	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
+const (
+	TestnetCN     = "cn"
+	TestnetSydney = "w"
+)
+
 var (
 	privateKeyParam string
 	source          string
 	minerListenAddr string
+	testnetRegion   string
 )
 
 func init() {
@@ -70,7 +76,9 @@ func init() {
 	CmdGenerate.Flag.StringVar(&source, "source", "",
 		"Generate config using the specified config template")
 	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "",
-		"Generate miner config with specified miner address")
+		"Generate miner config with specified miner address. Conflict with -source param")
+	CmdGenerate.Flag.StringVar(&testnetRegion, "testnet", TestnetCN,
+		"Generate config using the specified testnet region: cn or w. Default cn. Conflict with -source param")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -172,6 +180,11 @@ func runGenerate(cmd *Command, args []string) {
 		if minerListenAddr != "" {
 			testnet.SetMinerConfig(rawConfig)
 			rawConfig.ListenAddr = "0.0.0.0:" + port
+		}
+
+		if testnetRegion == TestnetSydney {
+			rawConfig.DNSSeed.BPCount = 3
+			rawConfig.DNSSeed.Domain = "testnetw.gridb.io"
 		}
 	} else {
 		// Load from template file

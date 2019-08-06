@@ -140,4 +140,38 @@ func TestGenTestNetDomain(t *testing.T) {
 			}
 		}
 	})
+	Convey("generate testnet sydney domain", t, func() {
+		log.SetLevel(log.DebugLevel)
+		var (
+			baseDir     = utils.GetProjectSrcDir()
+			testnetConf = utils.FJ(baseDir, "./conf/testnet/testnet-sydney-bp.yaml")
+		)
+
+		conf, err := conf.LoadConfig(testnetConf)
+		So(err, ShouldBeNil)
+		var i int
+		for _, node := range conf.KnownNodes {
+			if node.Role == proto.Leader || node.Role == proto.Follower {
+				if node.Addr[:4] != fmt.Sprintf("bp%02d", i) {
+					t.Errorf("BP order in yaml should follow 00,01...")
+				}
+				bpDomain := fmt.Sprintf("bp%02d.testnetw.gridb.io", i)
+				i++
+				out, err := isc.GenBPIPv6(&node, bpDomain)
+				if err != nil {
+					t.Errorf("gen ipv6 failed: %v", err)
+					return
+				}
+				fmt.Print(out)
+
+				m, err := isc.GetBPFromDNSSeed(bpDomain)
+				So(err, ShouldBeNil)
+				So(len(m), ShouldEqual, 1)
+				So(m[*node.ID.ToRawNodeID()].ID, ShouldResemble, node.ID)
+				So(m[*node.ID.ToRawNodeID()].Addr, ShouldResemble, node.Addr)
+				So(m[*node.ID.ToRawNodeID()].PublicKey.Serialize(), ShouldResemble, node.PublicKey.Serialize())
+				So(m[*node.ID.ToRawNodeID()].Nonce, ShouldResemble, node.Nonce)
+			}
+		}
+	})
 }

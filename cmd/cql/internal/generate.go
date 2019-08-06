@@ -57,10 +57,16 @@ or input a passphrase by
 	DebugFlag:  flag.NewFlagSet("Debug params", flag.ExitOnError),
 }
 
+const (
+	testnetCN = "cn"
+	testnetW  = "w"
+)
+
 var (
 	privateKeyParam string
 	source          string
 	minerListenAddr string
+	testnetRegion   string
 )
 
 func init() {
@@ -70,7 +76,9 @@ func init() {
 	CmdGenerate.Flag.StringVar(&source, "source", "",
 		"Generate config using the specified config template")
 	CmdGenerate.Flag.StringVar(&minerListenAddr, "miner", "",
-		"Generate miner config with specified miner address")
+		"Generate miner config with specified miner address. Conflict with -source param")
+	CmdGenerate.Flag.StringVar(&testnetRegion, "testnet", testnetCN,
+		"Generate config using the specified testnet region: cn or w. Default cn. Conflict with -source param")
 
 	addCommonFlags(CmdGenerate)
 }
@@ -167,14 +175,22 @@ func runGenerate(cmd *Command, args []string) {
 	var rawConfig *conf.Config
 
 	if source == "" {
+		fmt.Printf("Generating testnet %s config\n", testnetRegion)
+
 		// Load testnet config
 		rawConfig = testnet.GetTestNetConfig()
 		if minerListenAddr != "" {
 			testnet.SetMinerConfig(rawConfig)
 			rawConfig.ListenAddr = "0.0.0.0:" + port
 		}
+
+		if testnetRegion == testnetW {
+			rawConfig.DNSSeed.BPCount = 3
+			rawConfig.DNSSeed.Domain = "testnetw.gridb.io"
+		}
 	} else {
 		// Load from template file
+		fmt.Printf("Generating config base on %s templete\n", source)
 		sourceConfig, err := ioutil.ReadFile(source)
 		if err != nil {
 			ConsoleLog.WithError(err).Error("read config template failed")

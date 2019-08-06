@@ -308,8 +308,20 @@ func TestRuntime(t *testing.T) {
 		fs2 := newFakeService(rt2)
 		m.register(node2, fs2)
 
-		rt1.SetCaller(node2, newFakeCaller(m, node2))
-		rt2.SetCaller(node1, newFakeCaller(m, node1))
+		fakeCaller2Node1 := newFakeCaller(m, node1)
+		fakeCaller2Node2 := newFakeCaller(m, node2)
+		rt1.WaiterNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node2
+		}
+		rt1.TrackerNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node2
+		}
+		rt2.WaiterNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node1
+		}
+		rt2.TrackerNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node1
+		}
 
 		err = rt1.Start()
 		So(err, ShouldBeNil)
@@ -620,8 +632,20 @@ func BenchmarkRuntime(b *testing.B) {
 		fs2 := newFakeService(rt2)
 		m.register(node2, fs2)
 
-		rt1.SetCaller(node2, newFakeCaller(m, node2))
-		rt2.SetCaller(node1, newFakeCaller(m, node1))
+		fakeCaller2Node1 := newFakeCaller(m, node1)
+		fakeCaller2Node2 := newFakeCaller(m, node2)
+		rt1.WaiterNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node2
+		}
+		rt1.TrackerNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node2
+		}
+		rt2.WaiterNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node1
+		}
+		rt2.TrackerNewCallerFunc = func(proto.NodeID) kayak.Caller {
+			return fakeCaller2Node1
+		}
 
 		err = rt1.Start()
 		So(err, ShouldBeNil)

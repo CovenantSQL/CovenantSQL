@@ -75,8 +75,9 @@ type Runtime struct {
 	minCommitFollowers int
 
 	/// RPC related
-	// callerMap caches the caller for peering nodes.
-	callerMap sync.Map // map[proto.NodeID]Caller
+	// new caller functions: wrap for mocking testable purpose.
+	TrackerNewCallerFunc NewCallerFunc
+	WaiterNewCallerFunc  NewCallerFunc
 	// service name for mux service.
 	serviceName string
 	// rpc method for apply requests.
@@ -223,9 +224,11 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 		minCommitFollowers:   minCommitFollowers,
 
 		// rpc related
-		serviceName:    cfg.ServiceName,
-		applyRPCMethod: cfg.ServiceName + "." + cfg.ApplyMethodName,
-		fetchRPCMethod: cfg.ServiceName + "." + cfg.FetchMethodName,
+		TrackerNewCallerFunc: defaultNewCallerFunc,
+		WaiterNewCallerFunc:  defaultNewCallerFunc,
+		serviceName:          cfg.ServiceName,
+		applyRPCMethod:       cfg.ServiceName + "." + cfg.ApplyMethodName,
+		fetchRPCMethod:       cfg.ServiceName + "." + cfg.FetchMethodName,
 
 		// commits related
 		prepareThreshold: cfg.PrepareThreshold,

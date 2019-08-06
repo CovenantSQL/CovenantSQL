@@ -58,8 +58,8 @@ or input a passphrase by
 }
 
 const (
-	testnetCN     = "cn"
-	testnetSydney = "w"
+	testnetCN = "cn"
+	testnetW  = "w"
 )
 
 var (
@@ -184,7 +184,7 @@ func runGenerate(cmd *Command, args []string) {
 			rawConfig.ListenAddr = "0.0.0.0:" + port
 		}
 
-		if testnetRegion == testnetSydney {
+		if testnetRegion == testnetW {
 			rawConfig.DNSSeed.BPCount = 3
 			rawConfig.DNSSeed.Domain = "testnetw.gridb.io"
 		}

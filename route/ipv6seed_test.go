@@ -140,11 +140,11 @@ func TestGenTestNetDomain(t *testing.T) {
 			}
 		}
 	})
-	Convey("generate testnet sydney domain", t, func() {
+	Convey("generate testnet w domain", t, func() {
 		log.SetLevel(log.DebugLevel)
 		var (
 			baseDir     = utils.GetProjectSrcDir()
-			testnetConf = utils.FJ(baseDir, "./conf/testnet/testnet-sydney-bp.yaml")
+			testnetConf = utils.FJ(baseDir, "./conf/testnet/w/testnet-w-bp.yaml")
 		)
 
 		conf, err := conf.LoadConfig(testnetConf)

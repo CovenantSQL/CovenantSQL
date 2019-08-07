@@ -623,12 +623,13 @@ func (c *Chain) syncHead() (err error) {
 				return
 			}
 
-			atomic.AddUint32(&succCount, 1)
 			if resp.Block == nil {
 				ile.Debug("fetch block request reply: no such block")
 				// If block is nil, resp.Height returns the current head height of the remote peer
 				if resp.Height <= req.Height {
 					atomic.AddUint32(&initiatingCount, 1)
+				} else {
+					atomic.AddUint32(&succCount, 1)
 				}
 				return
 			}

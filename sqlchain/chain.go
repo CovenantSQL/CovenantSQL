@@ -575,15 +575,19 @@ func (c *Chain) syncHead() (err error) {
 		child, cancel = context.WithTimeout(c.rt.ctx, c.rt.tick)
 		wg            = &sync.WaitGroup{}
 
-		totalCount, succCount uint32
+		totalCount, succCount, initiatingCount uint32
 	)
 	defer func() {
 		wg.Wait()
 		cancel()
 
 		if totalCount > 0 && succCount == 0 {
-			// Set error if all RPC calls are failed
-			err = errors.New("all remote peers are unreachable")
+			if initiatingCount == totalCount {
+				err = ErrInitiating
+			} else {
+				// Set error if all RPC calls are failed
+				err = errors.New("all remote peers are unreachable")
+			}
 		}
 	}()
 
@@ -607,21 +611,20 @@ func (c *Chain) syncHead() (err error) {
 				resp = &MuxFetchBlockResp{}
 			)
 
+			atomic.AddUint32(&totalCount, 1)
 			if err := c.cl.CallNodeWithContext(
 				child, node, route.SQLCFetchBlock.String(), req, resp,
 			); err != nil {
-				ile.WithError(err).Error("failed to fetch block from peer")
-				if strings.Contains(err.Error(), ErrUnknownMuxRequest.Error()) {
-					// TODO(leventeliu): this omits initiating peers. Need redesign.
+				if !strings.Contains(err.Error(), ErrUnknownMuxRequest.Error()) {
+					ile.WithError(err).Error("failed to fetch block from peer")
 					return
 				}
-				atomic.AddUint32(&totalCount, 1)
+				atomic.AddUint32(&initiatingCount, 1)
 				return
 			}
-			atomic.AddUint32(&totalCount, 1)
 
+			atomic.AddUint32(&succCount, 1)
 			if resp.Block == nil {
-				atomic.AddUint32(&succCount, 1)
 				ile.Debug("fetch block request reply: no such block")
 				return
 			}
@@ -632,7 +635,6 @@ func (c *Chain) syncHead() (err error) {
 			}).Debug("fetch block request reply: found block")
 			select {
 			case c.blocks <- resp.Block:
-				atomic.AddUint32(&succCount, 1)
 			case <-child.Done():
 				le.WithError(child.Err()).Info("abort head block synchronizing")
 				return
@@ -655,7 +657,7 @@ func (c *Chain) runCurrentTurn(now time.Time, d time.Duration) {
 	defer func() {
 		c.stat()
 		c.pruneBlockCache()
-		c.rt.setNextTurn()
+		c.rt.IncNextTurn()
 		c.ai.advance(c.rt.getMinValidHeight())
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
@@ -724,10 +726,14 @@ func (c *Chain) sync() (err error) {
 		}
 		for c.rt.getNextTurn() <= height {
 			if err = c.syncHead(); err != nil {
-				le.WithError(err).Errorf("failed to sync block at height %d", height)
-				return
+				if err != ErrInitiating {
+					le.WithError(err).Errorf("failed to sync block at height %d", height)
+					return
+				}
+				c.rt.SetNextTurn(height + 1)
+			} else {
+				c.rt.IncNextTurn()
 			}
-			c.rt.setNextTurn()
 		}
 	}
 	return
@@ -836,11 +842,13 @@ func (c *Chain) processBlocks(ctx context.Context) {
 func (c *Chain) Start() (err error) {
 	c.rt.goFunc(c.processBlocks)
 	if err = c.sync(); err != nil {
+		c.logEntryWithHeadState().WithError(err).Error("failed to start, chain process terminated")
 		_ = c.Stop()
 		return
 	}
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
+	c.logEntryWithHeadState().Info("started successfully")
 	return
 }
 

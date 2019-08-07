@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.8.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.8.0) (2019-08-07)
+
+[Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.7.0...v0.8.0)
+
+**Merged pull requests:**
+
+- Add generate choose testnet region ability [\#366](https://github.com/CovenantSQL/CovenantSQL/pull/366) ([laodouya](https://github.com/laodouya))
+- Add sydney bp, fix IPv6 seed for public key bug [\#365](https://github.com/CovenantSQL/CovenantSQL/pull/365) ([auxten](https://github.com/auxten))
+- Remove -file param in cql console command. [\#363](https://github.com/CovenantSQL/CovenantSQL/pull/363) ([laodouya](https://github.com/laodouya))
+- Use goroutine specified rpc caller to avoid concurrent issue  [\#361](https://github.com/CovenantSQL/CovenantSQL/pull/361) ([leventeliu](https://github.com/leventeliu))
+- CQL-Proxy And CQL-ETH-Bridge [\#359](https://github.com/CovenantSQL/CovenantSQL/pull/359) ([xq262144](https://github.com/xq262144))
+- Fix dep vender hash difference. [\#358](https://github.com/CovenantSQL/CovenantSQL/pull/358) ([laodouya](https://github.com/laodouya))
+- Update SQLite to 3.28.0 with Full Text Search supported [\#356](https://github.com/CovenantSQL/CovenantSQL/pull/356) ([auxten](https://github.com/auxten))
+
 ## [v0.7.0](https://github.com/CovenantSQL/CovenantSQL/tree/v0.7.0) (2019-06-12)
 
 [Full Changelog](https://github.com/CovenantSQL/CovenantSQL/compare/v0.6.0...v0.7.0)

@@ -670,7 +670,7 @@ func (c *Chain) runCurrentTurn(now time.Time, d time.Duration) {
 
 	le.Debug("run current turn")
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {
-		le.Error("a block will be skipped")
+		le.Debug("a block will be skipped")
 	}
 	if !c.rt.isMyTurn() {
 		return

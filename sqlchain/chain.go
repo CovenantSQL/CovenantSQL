@@ -693,7 +693,9 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			return
 		default:
 			if err := c.syncHead(); err != nil {
-				c.logEntry().WithError(err).Error("failed to sync head")
+				if err != ErrInitiating {
+					c.logEntry().WithError(err).Error("failed to sync head")
+				}
 				continue
 			}
 			if t, d := c.rt.nextTick(); d > 0 {

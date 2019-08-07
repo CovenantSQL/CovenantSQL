@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -45,7 +44,7 @@ func TestIsPermitted(t *testing.T) {
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
-	Once = sync.Once{}
+	Once.Reset()
 	InitKMS(PubKeyStorePath)
 
 	Convey("test IsPermitted", t, func() {

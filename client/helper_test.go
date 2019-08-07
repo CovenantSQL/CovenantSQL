@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"sync/atomic"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -221,7 +220,7 @@ func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err err
 		return
 	}
 	// reset the once
-	route.Once = sync.Once{}
+	route.Once.Reset()
 	route.InitKMS(clientPubKeyStoreFile)
 
 	var dht *route.DHTService

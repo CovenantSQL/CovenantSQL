@@ -57,7 +57,8 @@ func TestCaller_CallNode(t *testing.T) {
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
-	route.Once = sync.Once{}
+	route.Once.Reset()
+	_ = GetSessionPoolInstance().Close()
 	route.InitKMS(publicKeyStore)
 
 	addr := conf.GConf.ListenAddr // see ../test/node_standalone/config.yaml
@@ -188,7 +189,8 @@ func TestNewPersistentCaller(t *testing.T) {
 	conf.GConf, _ = conf.LoadConfig(dupConfFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
-	route.Once = sync.Once{}
+	route.Once.Reset()
+	_ = GetSessionPoolInstance().Close()
 	route.InitKMS(publicKeyStore)
 
 	addr := conf.GConf.ListenAddr // see ../test/node_standalone/config.yaml
@@ -334,7 +336,8 @@ func BenchmarkPersistentCaller_CallKayakLog(b *testing.B) {
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
-	route.Once = sync.Once{}
+	route.Once.Reset()
+	_ = GetSessionPoolInstance().Close()
 	route.InitKMS(publicKeyStore)
 
 	addr := conf.GConf.ListenAddr
@@ -410,7 +413,8 @@ func BenchmarkPersistentCaller_Call(b *testing.B) {
 	conf.GConf, _ = conf.LoadConfig(confFile)
 	log.Debugf("GConf: %#v", conf.GConf)
 	// reset the once
-	route.Once = sync.Once{}
+	route.Once.Reset()
+	_ = GetSessionPoolInstance().Close()
 	route.InitKMS(publicKeyStore)
 
 	addr := conf.GConf.ListenAddr // see ../test/node_standalone/config.yaml

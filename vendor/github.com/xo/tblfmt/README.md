@@ -105,6 +105,33 @@ Which can produce output like the following:
 
 Please see the [GoDoc listing][godoc] for the full API.
 
+## Testing
+
+Run using standard `go test`:
+
+```sh
+$ go test -v
+```
+
+A few environment variables control how testing is done:
+
+- `PSQL_CONN=<connection>` - specify local connection string to use with the `psql` tool for compatibility testing
+- `DETERMINISTIC=1` - use a deterministic random seed for the big "random" test
+
+Used like the following:
+
+```sh
+# retrieve the latest postgres docker image
+$ docker pull postgres:latest
+
+# run a postgres database with docker
+$ docker run --rm -d -p 127.0.0.1:5432:5432 -e 'POSTGRES_PASSWORD=P4ssw0rd' --name postgres postgres
+
+# do determininstic test and using psql:
+$ export DETERMINISTIC=1 PSQL_CONN=postgres://postgres:P4ssw0rd@localhost/?sslmode=disable
+$ go test -v
+```
+
 ## TODO
 
 1. add center alignment output

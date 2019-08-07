@@ -21,7 +21,7 @@ Smux ( **S**imple **MU**ltiple**X**ing) is a multiplexing library for Golang. It
 
 ## Features
 
-1. Tiny, less than 600 LOC.
+1. Tiny, less than 1000 LOC.
 2. ***Token bucket*** controlled receiving, which provides smoother bandwidth graph(see picture below).
 3. Session-wide receive buffer, shared among streams, tightly controlled overall memory usage.
 4. Minimized header(8Bytes), maximized payload. 
@@ -33,15 +33,41 @@ Smux ( **S**imple **MU**ltiple**X**ing) is a multiplexing library for Golang. It
 
 For complete documentation, see the associated [Godoc](https://godoc.org/github.com/xtaci/smux).
 
+## Benchmark
+```
+$ go test -v -run=^$ -bench .
+goos: darwin
+goarch: amd64
+pkg: github.com/xtaci/smux
+BenchmarkMSB-4           	30000000	        51.8 ns/op
+BenchmarkAcceptClose-4   	   50000	     36783 ns/op
+BenchmarkConnSmux-4      	   30000	     58335 ns/op	2246.88 MB/s	    1208 B/op	      19 allocs/op
+BenchmarkConnTCP-4       	   50000	     25579 ns/op	5124.04 MB/s	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/xtaci/smux	7.811s
+```
+
 ## Specification
 
 ```
 VERSION(1B) | CMD(1B) | LENGTH(2B) | STREAMID(4B) | DATA(LENGTH)  
+
+VALUES FOR LATEST VERSION:
+VERSION:
+    1
+    
+CMD:
+    cmdSYN(0)
+    cmdFIN(1)
+    cmdPSH(2)
+    cmdNOP(3)
+    
+STREAMID:
+    client use odd numbers starts from 1
+    server use even numbers starts from 0
 ```
 
 ## Usage
-
-The API of smux are mostly taken from [yamux](https://github.com/hashicorp/yamux)
 
 ```go
 
@@ -66,6 +92,8 @@ func client() {
 
     // Stream implements io.ReadWriteCloser
     stream.Write([]byte("ping"))
+    stream.Close()
+    session.Close()
 }
 
 func server() {
@@ -90,6 +118,8 @@ func server() {
     // Listen for a message
     buf := make([]byte, 4)
     stream.Read(buf)
+    stream.Close()
+    session.Close()
 }
 
 ```

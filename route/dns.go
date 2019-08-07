@@ -25,6 +25,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
@@ -38,7 +39,7 @@ var (
 	// resolver holds the singleton instance
 	resolver *Resolver
 	// Once is exported just for unit test
-	Once sync.Once
+	Once utils.Once
 )
 
 var (

@@ -1,4 +1,4 @@
 #!/bin/sh
 
-dep ensure
+make dep
 dep status -dot | dot -Tpng -o analysisVendor.png && open analysisVendor.png

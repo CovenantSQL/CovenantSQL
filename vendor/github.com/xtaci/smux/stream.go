@@ -1,7 +1,6 @@
 package smux
 
 import (
-	"bytes"
 	"io"
 	"net"
 	"sync"
@@ -13,15 +12,27 @@ import (
 
 // Stream implements net.Conn
 type Stream struct {
-	id            uint32
-	rstflag       int32
-	sess          *Session
-	buffer        *bytes.Buffer
-	bufferLock    sync.Mutex
-	frameSize     int
-	chReadEvent   chan struct{} // notify a read event
-	die           chan struct{} // flag the stream has closed
-	dieLock       sync.Mutex
+	id   uint32
+	sess *Session
+
+	buffers [][]byte
+	heads   [][]byte // slice heads kept for recycle
+
+	bufferLock sync.Mutex
+	frameSize  int
+
+	// notify a read event
+	chReadEvent chan struct{}
+
+	// flag the stream has closed
+	die     chan struct{}
+	dieOnce sync.Once
+
+	// FIN
+	chFinEvent   chan struct{}
+	finEventOnce sync.Once
+
+	// deadlines
 	readDeadline  atomic.Value
 	writeDeadline atomic.Value
 }
@@ -34,7 +45,7 @@ func newStream(id uint32, frameSize int, sess *Session) *Stream {
 	s.frameSize = frameSize
 	s.sess = sess
 	s.die = make(chan struct{})
-	s.buffer = new(bytes.Buffer)
+	s.chFinEvent = make(chan struct{})
 	return s
 }
 
@@ -46,41 +57,52 @@ func (s *Stream) ID() uint32 {
 // Read implements net.Conn
 func (s *Stream) Read(b []byte) (n int, err error) {
 	if len(b) == 0 {
-		select {
-		case <-s.die:
-			return 0, errors.New(errBrokenPipe)
-		default:
-			return 0, nil
+		return 0, nil
+	}
+
+	for {
+		s.bufferLock.Lock()
+		if len(s.buffers) > 0 {
+			n = copy(b, s.buffers[0])
+			s.buffers[0] = s.buffers[0][n:]
+			if len(s.buffers[0]) == 0 {
+				s.buffers[0] = nil
+				s.buffers = s.buffers[1:]
+				// full recycle
+				defaultAllocator.Put(s.heads[0])
+				s.heads = s.heads[1:]
+			}
 		}
-	}
+		s.bufferLock.Unlock()
 
-	var deadline <-chan time.Time
-	if d, ok := s.readDeadline.Load().(time.Time); ok && !d.IsZero() {
-		timer := time.NewTimer(time.Until(d))
-		defer timer.Stop()
-		deadline = timer.C
-	}
+		if n > 0 {
+			s.sess.returnTokens(n)
+			return n, nil
+		}
 
-READ:
-	s.bufferLock.Lock()
-	n, _ = s.buffer.Read(b)
-	s.bufferLock.Unlock()
+		var timer *time.Timer
+		var deadline <-chan time.Time
+		if d, ok := s.readDeadline.Load().(time.Time); ok && !d.IsZero() {
+			timer = time.NewTimer(time.Until(d))
+			deadline = timer.C
+		}
 
-	if n > 0 {
-		s.sess.returnTokens(n)
-		return n, nil
-	} else if atomic.LoadInt32(&s.rstflag) == 1 {
-		_ = s.Close()
-		return 0, io.EOF
-	}
-
-	select {
-	case <-s.chReadEvent:
-		goto READ
-	case <-deadline:
-		return n, errTimeout
-	case <-s.die:
-		return 0, errors.New(errBrokenPipe)
+		select {
+		case <-s.chReadEvent:
+			if timer != nil {
+				timer.Stop()
+			}
+		case <-s.chFinEvent:
+			return 0, errors.WithStack(io.EOF)
+		case <-s.sess.chSocketReadError:
+			return 0, s.sess.socketReadError.Load().(error)
+		case <-s.sess.chProtoError:
+			return 0, s.sess.protoError.Load().(error)
+		case <-deadline:
+			return n, errors.WithStack(errTimeout)
+		case <-s.die:
+			return 0, errors.WithStack(io.ErrClosedPipe)
+		}
 	}
 }
 
@@ -93,9 +115,10 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 		deadline = timer.C
 	}
 
+	// check if stream has closed
 	select {
 	case <-s.die:
-		return 0, errors.New(errBrokenPipe)
+		return 0, errors.WithStack(io.ErrClosedPipe)
 	default:
 	}
 
@@ -113,7 +136,7 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 		n, err := s.sess.writeFrameInternal(frame, deadline)
 		sent += n
 		if err != nil {
-			return sent, err
+			return sent, errors.WithStack(err)
 		}
 	}
 
@@ -122,18 +145,19 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 
 // Close implements net.Conn
 func (s *Stream) Close() error {
-	s.dieLock.Lock()
-
-	select {
-	case <-s.die:
-		s.dieLock.Unlock()
-		return errors.New(errBrokenPipe)
-	default:
+	var once bool
+	var err error
+	s.dieOnce.Do(func() {
 		close(s.die)
-		s.dieLock.Unlock()
+		once = true
+	})
+
+	if once {
+		_, err = s.sess.writeFrame(newFrame(cmdFIN, s.id))
 		s.sess.streamClosed(s.id)
-		_, err := s.sess.writeFrame(newFrame(cmdFIN, s.id))
 		return err
+	} else {
+		return errors.WithStack(io.ErrClosedPipe)
 	}
 }
 
@@ -164,25 +188,16 @@ func (s *Stream) SetWriteDeadline(t time.Time) error {
 // A zero time value disables the deadlines.
 func (s *Stream) SetDeadline(t time.Time) error {
 	if err := s.SetReadDeadline(t); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	if err := s.SetWriteDeadline(t); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	return nil
 }
 
-// session closes the stream
-func (s *Stream) sessionClose() {
-	s.dieLock.Lock()
-	defer s.dieLock.Unlock()
-
-	select {
-	case <-s.die:
-	default:
-		close(s.die)
-	}
-}
+// session closes
+func (s *Stream) sessionClose() { s.dieOnce.Do(func() { close(s.die) }) }
 
 // LocalAddr satisfies net.Conn interface
 func (s *Stream) LocalAddr() net.Addr {
@@ -204,10 +219,11 @@ func (s *Stream) RemoteAddr() net.Addr {
 	return nil
 }
 
-// receiveBytes receive from the reader and write into the buffer
-func (s *Stream) receiveBytes(r io.Reader, sz int64) (written int64, err error) {
+// pushBytes append buf to buffers
+func (s *Stream) pushBytes(buf []byte) (written int, err error) {
 	s.bufferLock.Lock()
-	written, err = io.CopyN(s.buffer, r, sz)
+	s.buffers = append(s.buffers, buf)
+	s.heads = append(s.heads, buf)
 	s.bufferLock.Unlock()
 	return
 }
@@ -215,8 +231,12 @@ func (s *Stream) receiveBytes(r io.Reader, sz int64) (written int64, err error) 
 // recycleTokens transform remaining bytes to tokens(will truncate buffer)
 func (s *Stream) recycleTokens() (n int) {
 	s.bufferLock.Lock()
-	n = s.buffer.Len()
-	s.buffer.Reset()
+	for k := range s.buffers {
+		n += len(s.buffers[k])
+		defaultAllocator.Put(s.heads[k])
+	}
+	s.buffers = nil
+	s.heads = nil
 	s.bufferLock.Unlock()
 	return
 }
@@ -229,15 +249,9 @@ func (s *Stream) notifyReadEvent() {
 	}
 }
 
-// mark this stream has been reset
-func (s *Stream) markRST() {
-	atomic.StoreInt32(&s.rstflag, 1)
+// mark this stream has been closed in protocol
+func (s *Stream) fin() {
+	s.finEventOnce.Do(func() {
+		close(s.chFinEvent)
+	})
 }
-
-var errTimeout error = &timeoutError{}
-
-type timeoutError struct{}
-
-func (e *timeoutError) Error() string   { return "i/o timeout" }
-func (e *timeoutError) Timeout() bool   { return true }
-func (e *timeoutError) Temporary() bool { return true }

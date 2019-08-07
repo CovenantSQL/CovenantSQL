@@ -626,6 +626,10 @@ func (c *Chain) syncHead() (err error) {
 			atomic.AddUint32(&succCount, 1)
 			if resp.Block == nil {
 				ile.Debug("fetch block request reply: no such block")
+				// If block is nil, resp.Height returns the current head height of the remote peer
+				if resp.Height <= req.Height {
+					atomic.AddUint32(&initiatingCount, 1)
+				}
 				return
 			}
 
@@ -695,8 +699,8 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			if err := c.syncHead(); err != nil {
 				if err != ErrInitiating {
 					c.logEntry().WithError(err).Error("failed to sync head")
+					continue
 				}
-				continue
 			}
 			if t, d := c.rt.nextTick(); d > 0 {
 				time.Sleep(d)
@@ -1216,4 +1220,8 @@ func (c *Chain) updateMetrics() {
 	}
 
 	c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(b.Timestamp().String())
+}
+
+func (c *Chain) getCurrentHeight() int32 {
+	return c.rt.getHead().Height
 }

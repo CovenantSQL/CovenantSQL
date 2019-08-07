@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -56,7 +55,7 @@ const (
 )
 
 var (
-	dbCount = mw.NewCounter("5m1m")
+	dbCount = new(expvar.Int)
 )
 
 func init() {

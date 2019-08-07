@@ -730,7 +730,9 @@ func (c *Chain) sync() (err error) {
 					le.WithError(err).Errorf("failed to sync block at height %d", height)
 					return
 				}
+				// Skip sync and reset error
 				c.rt.SetNextTurn(height + 1)
+				err = nil
 			} else {
 				c.rt.IncNextTurn()
 			}

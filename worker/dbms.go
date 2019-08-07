@@ -24,7 +24,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -57,7 +56,7 @@ const (
 )
 
 var (
-	dbCount = mw.NewGauge("5m1m")
+	dbCount = mw.NewCounter("5m1m")
 )
 
 func init() {
@@ -68,7 +67,6 @@ func init() {
 type DBMS struct {
 	cfg        *DBMSConfig
 	dbMap      sync.Map
-	dbCount    int64
 	kayakMux   *DBKayakMuxService
 	chainMux   *sqlchain.MuxService
 	rpc        *DBMSRPCService
@@ -472,7 +470,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 	err = dbms.addMeta(instance.DatabaseID, db)
 
 	// update metrics
-	dbCount.Add(float64(atomic.AddInt64(&dbms.dbCount, 1)))
+	dbCount.Add(1)
 
 	return
 }
@@ -492,7 +490,7 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	}
 
 	// update metrics
-	dbCount.Add(float64(atomic.AddInt64(&dbms.dbCount, -1)))
+	dbCount.Add(-1)
 
 	// remove meta
 	return dbms.removeMeta(dbID)

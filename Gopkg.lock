@@ -169,11 +169,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:48c0fa64e80c089a88d30ab5b826c106af79eb3c65d48e2280f22aa4d61d7a84"
+  digest = "1:45f82b0ba49aeb6088777b5780d9484f79d4472a8e2c577d4bb13904e90419d3"
   name = "github.com/gohxs/readline"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a780388e6e7cb475327da556ecfda0edbb374d80"
+  revision = "f20a41472b0d99999a4b6fc379307acc9cef61c3"
+  source = "github.com/CovenantSQL/readline"
 
 [[projects]]
   digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"

@@ -35,6 +35,7 @@ func NewTerminal(cfg *Config) (*Terminal, error) {
 		sizeChan: make(chan string, 1),
 	}
 
+	t.wg.Add(1)
 	go t.ioloop()
 	return t, nil
 }
@@ -110,7 +111,6 @@ func (t *Terminal) KickRead() {
 }
 
 func (t *Terminal) ioloop() {
-	t.wg.Add(1)
 	defer func() {
 		t.wg.Done()
 		close(t.outchan)

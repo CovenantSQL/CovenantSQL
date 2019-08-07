@@ -20,6 +20,8 @@ package main
 
 import (
 	"context"
+	"github.com/CovenantSQL/CovenantSQL/metric"
+	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -96,5 +98,29 @@ func TestCQLD(t *testing.T) {
 		err = rpc.RequestBP(route.MCCFetchLastIrreversibleBlock.String(), req, resp)
 		So(err, ShouldBeNil)
 		So(resp.Count, ShouldEqual, lastBlockCount)
+	})
+
+	Convey("Test cqld run", t, func() {
+		configFile = FJ(testWorkingDir, "./node_standalone/config.yaml")
+		configFile = utils.HomeDirExpand(configFile)
+		var err error
+		conf.GConf, err = conf.LoadConfig(configFile)
+		So(err, ShouldBeNil)
+		kms.InitBP()
+		// BP Never Generate new key pair
+		conf.GConf.GenerateKeyPair = false
+		// init log
+		initLogs()
+		err = metric.InitMetricWeb(metricWeb)
+		So(err, ShouldBeNil)
+		_ = utils.StartProfile(cpuProfile, memProfile)
+		defer utils.StopProfile()
+		proc, err := os.FindProcess(os.Getpid())
+		So(err, ShouldBeNil)
+		time.AfterFunc(5*time.Second, func() {
+			proc.Signal(os.Interrupt)
+		})
+		err = runNode(conf.GConf.ThisNodeID, conf.GConf.ListenAddr)
+		So(err, ShouldBeNil)
 	})
 }

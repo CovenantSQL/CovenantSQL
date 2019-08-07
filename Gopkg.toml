@@ -46,6 +46,7 @@
 
 [[override]]
   name = "github.com/gohxs/readline"
+  source = "github.com/CovenantSQL/readline"
   branch = "master"
 
 [[override]]

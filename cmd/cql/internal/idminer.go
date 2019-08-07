@@ -132,7 +132,8 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	ConsoleLog.Infof("cpu: %#v\n", cpuCount)
 	stopCh := make(chan struct{})
 	nonceCh := make(chan mine.NonceInfo, cpuCount)
-	progressCh := make(chan int, 100)
+	progressBuffer := 100
+	progressCh := make(chan int, progressBuffer)
 	var wg sync.WaitGroup
 
 	rand.Seed(time.Now().UnixNano())
@@ -204,6 +205,13 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 
 	nonce := <-nonceCh
 	close(stopCh)
+	// clean progressCh
+	for i := 0; i < progressBuffer; i++ {
+		select {
+		case <-progressCh:
+		default:
+		}
+	}
 	wg.Wait()
 	fmt.Printf("\n")
 

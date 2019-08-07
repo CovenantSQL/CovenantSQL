@@ -71,7 +71,7 @@ func runDrop(cmd *Command, args []string) {
 		return
 	}
 
-	txHash, err := client.Drop(dsn)
+	_, err := client.Drop(dsn)
 	if err != nil {
 		// drop database failed
 		ConsoleLog.WithField("db", dsn).WithError(err).Error("drop database failed")
@@ -79,14 +79,14 @@ func runDrop(cmd *Command, args []string) {
 		return
 	}
 
-	if waitTxConfirmation {
-		err = wait(txHash)
-		if err != nil {
-			ConsoleLog.WithField("db", dsn).WithError(err).Error("drop database failed")
-			SetExitStatus(1)
-			return
-		}
-	}
+	//if waitTxConfirmation {
+	//	err = wait(txHash)
+	//	if err != nil {
+	//		ConsoleLog.WithField("db", dsn).WithError(err).Error("drop database failed")
+	//		SetExitStatus(1)
+	//		return
+	//	}
+	//}
 
 	// drop database success
 	ConsoleLog.Infof("drop database %#v success", dsn)

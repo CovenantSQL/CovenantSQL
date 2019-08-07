@@ -640,6 +640,7 @@ func (c *Chain) syncHead() (err error) {
 			}).Debug("fetch block request reply: found block")
 			select {
 			case c.blocks <- resp.Block:
+				atomic.AddUint32(&succCount, 1)
 			case <-child.Done():
 				le.WithError(child.Err()).Info("abort head block synchronizing")
 				return

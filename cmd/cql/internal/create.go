@@ -186,6 +186,7 @@ func runCreate(cmd *Command, args []string) {
 			SetExitStatus(1)
 			return
 		}
+		fmt.Printf("\nThe database is accecpted by blockproducer, DSN: %#v\n", dsn)
 
 		var ctx, cancel = context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
 		defer cancel()
@@ -197,7 +198,7 @@ func runCreate(cmd *Command, args []string) {
 		}
 	}
 
-	fmt.Printf("\nThe newly created database is: %#v\n", dsn)
+	fmt.Printf("\nThe database is created on miners, DSN: %#v\n", dsn)
 	storeOneDSN(dsn)
 	fmt.Printf("The connecting string beginning with 'covenantsql://' could be used as a dsn for `cql console`\n or any command, or be used in website like https://web.covenantsql.io\n")
 }

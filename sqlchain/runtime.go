@@ -196,11 +196,18 @@ func (r *runtime) getNextTurn() int32 {
 	return r.nextTurn
 }
 
-// setNextTurn prepares the runtime state for the next turn.
-func (r *runtime) setNextTurn() {
+// IncNextTurn prepares the runtime state for the next turn.
+func (r *runtime) IncNextTurn() {
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 	r.nextTurn++
+}
+
+// SetNextTurn sets the runtime state to the given turn.
+func (r *runtime) SetNextTurn(turn int32) {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+	r.nextTurn = turn
 }
 
 // stop sends a signal to the Runtime stop channel by closing it.

@@ -24,11 +24,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
-	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -57,7 +55,7 @@ const (
 )
 
 var (
-	dbCount = mw.NewGauge("5m1m")
+	dbCount = new(expvar.Int)
 )
 
 func init() {
@@ -68,7 +66,6 @@ func init() {
 type DBMS struct {
 	cfg        *DBMSConfig
 	dbMap      sync.Map
-	dbCount    int64
 	kayakMux   *DBKayakMuxService
 	chainMux   *sqlchain.MuxService
 	rpc        *DBMSRPCService
@@ -375,7 +372,6 @@ func (dbms *DBMS) initDatabases(
 ) {
 	currentInstance := make(map[proto.DatabaseID]bool)
 	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(profiles))
 
 	for id, profile := range profiles {
 		currentInstance[id] = true
@@ -390,15 +386,10 @@ func (dbms *DBMS) initDatabases(
 				log.WithFields(log.Fields{
 					"id": instance.DatabaseID,
 				}).WithError(err).Error("failed to create database instance")
-				errCh <- errors.Wrapf(err, "failed to create database %s", instance.DatabaseID)
 			}
 		}()
 	}
 	wg.Wait()
-	close(errCh)
-	for err := range errCh {
-		return err // omit any other error after this instance
-	}
 
 	// calculate to drop databases
 	toDropInstance := make(map[proto.DatabaseID]bool)
@@ -478,7 +469,7 @@ func (dbms *DBMS) Create(instance *types.ServiceInstance, cleanup bool) (err err
 	err = dbms.addMeta(instance.DatabaseID, db)
 
 	// update metrics
-	dbCount.Add(float64(atomic.AddInt64(&dbms.dbCount, 1)))
+	dbCount.Add(1)
 
 	return
 }
@@ -498,7 +489,7 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	}
 
 	// update metrics
-	dbCount.Add(float64(atomic.AddInt64(&dbms.dbCount, -1)))
+	dbCount.Add(-1)
 
 	// remove meta
 	return dbms.removeMeta(dbID)

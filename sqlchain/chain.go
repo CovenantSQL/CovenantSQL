@@ -575,15 +575,19 @@ func (c *Chain) syncHead() (err error) {
 		child, cancel = context.WithTimeout(c.rt.ctx, c.rt.tick)
 		wg            = &sync.WaitGroup{}
 
-		totalCount, succCount uint32
+		totalCount, succCount, initiatingCount uint32
 	)
 	defer func() {
 		wg.Wait()
 		cancel()
 
 		if totalCount > 0 && succCount == 0 {
-			// Set error if all RPC calls are failed
-			err = errors.New("all remote peers are unreachable")
+			if initiatingCount == totalCount {
+				err = ErrInitiating
+			} else {
+				// Set error if all RPC calls are failed
+				err = errors.New("all remote peers are unreachable")
+			}
 		}
 	}()
 
@@ -607,22 +611,26 @@ func (c *Chain) syncHead() (err error) {
 				resp = &MuxFetchBlockResp{}
 			)
 
+			atomic.AddUint32(&totalCount, 1)
 			if err := c.cl.CallNodeWithContext(
 				child, node, route.SQLCFetchBlock.String(), req, resp,
 			); err != nil {
-				ile.WithError(err).Error("failed to fetch block from peer")
-				if strings.Contains(err.Error(), ErrUnknownMuxRequest.Error()) {
-					// TODO(leventeliu): this omits initiating peers. Need redesign.
+				if !strings.Contains(err.Error(), ErrUnknownMuxRequest.Error()) {
+					ile.WithError(err).Error("failed to fetch block from peer")
 					return
 				}
-				atomic.AddUint32(&totalCount, 1)
+				atomic.AddUint32(&initiatingCount, 1)
 				return
 			}
-			atomic.AddUint32(&totalCount, 1)
 
 			if resp.Block == nil {
-				atomic.AddUint32(&succCount, 1)
 				ile.Debug("fetch block request reply: no such block")
+				// If block is nil, resp.Height returns the current head height of the remote peer
+				if resp.Height <= req.Height {
+					atomic.AddUint32(&initiatingCount, 1)
+				} else {
+					atomic.AddUint32(&succCount, 1)
+				}
 				return
 			}
 
@@ -655,7 +663,7 @@ func (c *Chain) runCurrentTurn(now time.Time, d time.Duration) {
 	defer func() {
 		c.stat()
 		c.pruneBlockCache()
-		c.rt.setNextTurn()
+		c.rt.IncNextTurn()
 		c.ai.advance(c.rt.getMinValidHeight())
 		// Info the block processing goroutine that the chain height has grown, so please return
 		// any stashed blocks for further check.
@@ -668,7 +676,7 @@ func (c *Chain) runCurrentTurn(now time.Time, d time.Duration) {
 
 	le.Debug("run current turn")
 	if c.rt.getHead().Height < c.rt.getNextTurn()-1 {
-		le.Error("a block will be skipped")
+		le.Debug("a block will be skipped")
 	}
 	if !c.rt.isMyTurn() {
 		return
@@ -691,8 +699,10 @@ func (c *Chain) mainCycle(ctx context.Context) {
 			return
 		default:
 			if err := c.syncHead(); err != nil {
-				c.logEntry().WithError(err).Error("failed to sync head")
-				continue
+				if err != ErrInitiating {
+					c.logEntry().WithError(err).Error("failed to sync head")
+					continue
+				}
 			}
 			if t, d := c.rt.nextTick(); d > 0 {
 				time.Sleep(d)
@@ -724,10 +734,16 @@ func (c *Chain) sync() (err error) {
 		}
 		for c.rt.getNextTurn() <= height {
 			if err = c.syncHead(); err != nil {
-				le.WithError(err).Errorf("failed to sync block at height %d", height)
-				return
+				if err != ErrInitiating {
+					le.WithError(err).Errorf("failed to sync block at height %d", height)
+					return
+				}
+				// Skip sync and reset error
+				c.rt.SetNextTurn(height + 1)
+				err = nil
+			} else {
+				c.rt.IncNextTurn()
 			}
-			c.rt.setNextTurn()
 		}
 	}
 	return
@@ -836,11 +852,13 @@ func (c *Chain) processBlocks(ctx context.Context) {
 func (c *Chain) Start() (err error) {
 	c.rt.goFunc(c.processBlocks)
 	if err = c.sync(); err != nil {
+		c.logEntryWithHeadState().WithError(err).Error("failed to start, chain process terminated")
 		_ = c.Stop()
 		return
 	}
 	c.rt.goFunc(c.mainCycle)
 	c.rt.startService(c)
+	c.logEntryWithHeadState().Info("started successfully")
 	return
 }
 
@@ -1204,4 +1222,8 @@ func (c *Chain) updateMetrics() {
 	}
 
 	c.expVars.Get(mwMinerChainBlockTimestamp).(*expvar.String).Set(b.Timestamp().String())
+}
+
+func (c *Chain) getCurrentHeight() int32 {
+	return c.rt.getHead().Height
 }

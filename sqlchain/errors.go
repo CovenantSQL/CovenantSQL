@@ -42,4 +42,7 @@ var (
 	// ErrResponseSeqNotMatch indicates that a response sequence id doesn't match the original one
 	// in the index.
 	ErrResponseSeqNotMatch = errors.New("response sequence id doesn't match")
+	// ErrInitiating indicates that a sqlchain is in initiate state and is not available for sync
+	// requests.
+	ErrInitiating = errors.New("sqlchain is in initiate")
 )

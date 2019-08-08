@@ -292,7 +292,7 @@ func WaitBPDatabaseCreation(
 			}
 			fmt.Printf("\rQuerying SQLChain Profile %vs", count*int(period.Seconds()))
 		case <-ctx.Done():
-			err = ctx.Err()
+			err = errors.New(err.Error() + ctx.Err().Error())
 			return
 		}
 	}

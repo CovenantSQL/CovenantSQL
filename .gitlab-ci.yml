@@ -13,7 +13,7 @@ variables:
   CACHE_DIR: /CovenantSQL_bins
   PIPELINE_CACHE: $CACHE_DIR/$CI_PIPELINE_IID
   BIN_CACHE: $CACHE_DIR/$CI_PIPELINE_IID/bin
-  PREV_VERSION: v0.6.0
+  PREV_VERSION: v0.8.0
   # gitlabci bins: 192.168.2.100:/data/CovenantSQL_bins
 
 before_script:

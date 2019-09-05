@@ -8,7 +8,6 @@ pprof.txt
 idminer
 .travis.yml
 coverage.txt
-analysisVendor.png
 vendor/**/.gitignore
 *.keystore*
 node_*/

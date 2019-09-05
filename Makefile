@@ -266,12 +266,7 @@ clean:
 	rm -f *.cover.out
 	rm -f coverage.txt
 
-dep:
-	dep ensure -v
-	rm -rfv ./vendor/github.com/ethereum/go-ethereum/crypto/secp256k1/libsecp256k1/
-	cp -av "$${GOPATH}/src/github.com/ethereum/go-ethereum/crypto/secp256k1/libsecp256k1/" ./vendor/github.com/ethereum/go-ethereum/crypto/secp256k1/libsecp256k1/
-
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd \
 	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy \
-	release android-release dep
+	release android-release

@@ -1,4 +1,4 @@
-FROM golang:alpine3.9
+FROM golang:alpine3.10
 MAINTAINER auxten
 
 RUN apk add build-base

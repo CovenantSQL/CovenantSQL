@@ -1,4 +1,4 @@
-FROM golang:1.12
+FROM golang:1.13
 MAINTAINER auxten
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN go get github.com/mattn/goveralls
 RUN go get github.com/haya14busa/goverage
+RUN go get -x github.com/wadey/gocovmerge
 RUN go get golang.org/x/lint/golint
 RUN go get github.com/haya14busa/reviewdog/cmd/reviewdog
 

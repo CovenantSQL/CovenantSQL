@@ -220,15 +220,6 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 	return
 }
 
-// UpdatePeers defines peers update query interface.
-func (db *Database) UpdatePeers(peers *proto.Peers) (err error) {
-	if err = db.kayakRuntime.UpdatePeers(peers); err != nil {
-		return
-	}
-
-	return db.chain.UpdatePeers(peers)
-}
-
 // Query defines database query interface.
 func (db *Database) Query(request *types.Request) (response *types.Response, err error) {
 	// Just need to verify signature in db.saveAck

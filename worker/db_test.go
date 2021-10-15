@@ -367,8 +367,6 @@ func TestSingleDatabase(t *testing.T) {
 			// test update peers
 			peers, err = getPeers(2)
 			So(err, ShouldBeNil)
-			err = db.UpdatePeers(peers)
-			So(err, ShouldBeNil)
 		})
 
 		Reset(func() {

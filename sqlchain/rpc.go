@@ -17,6 +17,9 @@
 package sqlchain
 
 import (
+	"fmt"
+
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -38,6 +41,7 @@ type AdviseNewBlockResp struct {
 // FetchBlockReq defines a request of the FetchBlock RPC method.
 type FetchBlockReq struct {
 	Height int32
+	node   proto.NodeID
 }
 
 // FetchBlockResp defines a response of the FetchBlock RPC method.
@@ -56,6 +60,10 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 // FetchBlock is the RPC method to fetch a known block from the target server.
 func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
 	resp.Height = req.Height
+	if _, found := s.chain.rt.getPeers().Find(req.node); !found {
+		err = fmt.Errorf("node %s not in miner list", req.node)
+		return
+	}
 	resp.Block, err = s.chain.FetchBlock(req.Height)
 	if err == nil && resp.Block == nil {
 		resp.Height = s.chain.getCurrentHeight()

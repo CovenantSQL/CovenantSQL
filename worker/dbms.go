@@ -495,19 +495,6 @@ func (dbms *DBMS) Drop(dbID proto.DatabaseID) (err error) {
 	return dbms.removeMeta(dbID)
 }
 
-// Update apply the new peers config to dbms.
-func (dbms *DBMS) Update(instance *types.ServiceInstance) (err error) {
-	var db *Database
-	var exists bool
-
-	if db, exists = dbms.getMeta(instance.DatabaseID); !exists {
-		return ErrNotExists
-	}
-
-	// update peers
-	return db.UpdatePeers(instance.Peers)
-}
-
 // Query handles query request in dbms.
 func (dbms *DBMS) Query(req *types.Request) (res *types.Response, err error) {
 	var db *Database

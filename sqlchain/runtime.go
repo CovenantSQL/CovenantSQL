@@ -56,7 +56,7 @@ type runtime struct {
 	queryTTL int32
 	// blockCacheTTL sets the cached block numbers.
 	blockCacheTTL int32
-	// muxServer is the multiplexing service of sql-chain PRC.
+	// muxServer is the multiplexing service of sql-chain RPC.
 	muxService *MuxService
 
 	// peersMutex protects following peers-relative fields.
@@ -233,26 +233,6 @@ func (r *runtime) nextTick() (t time.Time, d time.Duration) {
 
 	if d > r.tick {
 		d = r.tick
-	}
-
-	return
-}
-
-func (r *runtime) updatePeers(peers *proto.Peers) (err error) {
-	r.peersMutex.Lock()
-	defer r.peersMutex.Unlock()
-	index, found := peers.Find(r.server)
-
-	if found {
-		r.index = index
-		r.total = int32(len(peers.Servers))
-		r.peers = peers
-		r.server = peers.Servers[index]
-	} else {
-		// Just clear the server list, and the database instance should call chain.Stop() later
-		r.index = -1
-		r.total = 0
-		r.peers.Servers = r.peers.Servers[:0]
 	}
 
 	return

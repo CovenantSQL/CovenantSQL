@@ -26,11 +26,8 @@ require (
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gin-contrib/cors v1.3.0
-	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.4.0
+	github.com/gin-gonic/gin v1.7.0
 	github.com/go-gorp/gorp v2.0.1-0.20180226155812-4df78490a9aa+incompatible
-	github.com/go-playground/locales v0.12.1 // indirect
-	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
@@ -46,9 +43,7 @@ require (
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/testing v0.0.0-20190723135506-ce30eb24acd2 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/leodido/go-urn v1.1.0 // indirect
 	github.com/lufia/iostat v0.0.0-20170605150913-9f7362b77ad3
-	github.com/mattn/go-isatty v0.0.8 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/philhofer/fwd v1.0.0 // indirect
@@ -72,14 +67,14 @@ require (
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20190106185902-35a74f039c6a
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tchap/go-patricia v2.3.0+incompatible
-	github.com/ugorji/go v1.1.4
+	github.com/ugorji/go/codec v1.1.7
 	github.com/xo/dburl v0.0.0-20190203050942-98997a05b24f
 	github.com/xo/tblfmt v0.0.0-20190609041254-28c54ec42ce8 // indirect
 	github.com/xo/usql v0.7.4
 	github.com/xtaci/smux v1.3.4-0.20190522035559-79b3c96b84d1
 	github.com/zserge/metric v0.1.1-0.20190429132510-b0b64cb7bfea
 	go.opencensus.io v0.22.0 // indirect
-	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20210820121016-41cdb8703e55
@@ -90,7 +85,7 @@ require (
 	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 replace github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62 => github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b

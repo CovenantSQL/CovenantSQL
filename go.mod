@@ -9,21 +9,17 @@ require (
 	github.com/CovenantSQL/beacon v0.0.0-20190521023351-8402bfe07ece
 	github.com/CovenantSQL/go-sqlite3-encrypt v1.9.1-0.20190621093938-dc98560308ab
 	github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6
-	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/apoydence/onpar v0.0.0-20190519213022-ee068f8ea4d1 // indirect
-	github.com/aristanetworks/goarista v0.0.0-20190607111240-52c2a7864a08 // indirect
 	github.com/btcsuite/btcd v0.0.0-20190614013741-962a206e94e9
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/davecgh/go-spew v1.1.1
-	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/derekstavis/go-qs v0.0.0-20180720192143-9eef69e6c4e7
 	github.com/dghubble/go-twitter v0.0.0-20190512073027-53f972dc4b06 // indirect
 	github.com/dghubble/gologin v2.1.0+incompatible
 	github.com/dghubble/oauth1 v0.5.0
 	github.com/dghubble/sling v1.2.0
-	github.com/ethereum/go-ethereum v1.8.27
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gin-contrib/cors v1.3.0
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -61,7 +57,6 @@ require (
 	github.com/prometheus/procfs v0.0.2
 	github.com/rakyll/statik v0.1.6
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
-	github.com/rs/cors v1.6.0 // indirect
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726 // indirect
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed // indirect
@@ -89,7 +84,6 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.29.0
 	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
-	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.2.2
 )
 

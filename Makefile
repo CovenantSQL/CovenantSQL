@@ -38,7 +38,7 @@ builder: status
 	docker build \
 		--tag $(BUILDER):$(VERSION) \
 		--tag $(BUILDER):latest \
-		--build-arg BUILD_ARG=release \
+		--build-arg BUILD_ARG="-j$(JOBS) build-release-static" \
 		-f docker/builder.Dockerfile \
 		.
 

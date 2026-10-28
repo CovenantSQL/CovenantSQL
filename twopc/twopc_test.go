@@ -267,7 +267,7 @@ func (r *RaftNode) Prepare(ctx context.Context, wb twopc.WriteBatch) (err error)
 	}
 
 	if resp.ErrCode > 0 {
-		err = fmt.Errorf(resp.ErrString)
+		err = errors.New(resp.ErrString)
 	}
 
 	return err
@@ -316,7 +316,7 @@ func (r *RaftNode) Commit(ctx context.Context, wb twopc.WriteBatch) (result inte
 	}
 
 	if resp.ErrCode > 0 {
-		err = fmt.Errorf(resp.ErrString)
+		err = errors.New(resp.ErrString)
 	}
 
 	return
@@ -364,7 +364,7 @@ func (r *RaftNode) Rollback(ctx context.Context, wb twopc.WriteBatch) (err error
 	}
 
 	if resp.ErrCode > 0 {
-		err = fmt.Errorf(resp.ErrString)
+		err = errors.New(resp.ErrString)
 	}
 
 	return err

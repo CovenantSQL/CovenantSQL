@@ -17,12 +17,12 @@
 package asymmetric
 
 import (
-	"crypto/elliptic"
 	"errors"
 	"math/big"
 
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
-	ec "github.com/btcsuite/btcd/btcec"
+	ec "github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
@@ -38,9 +38,8 @@ var (
 
 // For test Signature.Sign mock.
 func init() {
-	priv, _ := ec.NewPrivateKey(ec.S256())
-	ss, _ := (*ec.PrivateKey)(priv).Sign(([]byte)("00000000000000000000000000000000"))
-	bypassS = (*Signature)(ss)
+	priv, _, _ := GenSecp256k1KeyPair()
+	bypassS, _ = priv.Sign(([]byte)("00000000000000000000000000000000"))
 	verifyCache, _ = lru.New(256)
 }
 
@@ -52,23 +51,29 @@ type Signature struct {
 
 // Serialize converts a signature to stirng.
 func (s *Signature) Serialize() []byte {
-	return (*ec.Signature)(s).Serialize()
+	var r, ss ec.ModNScalar
+	r.SetByteSlice(s.R.Bytes())
+	ss.SetByteSlice(s.S.Bytes())
+	return ecdsa.NewSignature(&r, &ss).Serialize()
 }
 
-// ParseSignature recovers the signature from a sigStr using koblitz curve.
+// ParseSignature recovers the signature from a DER encoded sigStr.
 func ParseSignature(sigStr []byte) (*Signature, error) {
-	return ParseDERSignature(sigStr, ec.S256())
-}
-
-// ParseDERSignature recovers the signature from a sigStr.
-func ParseDERSignature(sigStr []byte, curve elliptic.Curve) (*Signature, error) {
-	sig, err := ec.ParseDERSignature(sigStr, curve)
-	return (*Signature)(sig), err
+	sig, err := ecdsa.ParseDERSignature(sigStr)
+	if err != nil {
+		return nil, err
+	}
+	r, s := sig.R(), sig.S()
+	rb, sb := r.Bytes(), s.Bytes()
+	return &Signature{
+		R: new(big.Int).SetBytes(rb[:]),
+		S: new(big.Int).SetBytes(sb[:]),
+	}, nil
 }
 
 // IsEqual return true if two signature is equal.
 func (s *Signature) IsEqual(signature *Signature) bool {
-	return (*ec.Signature)(s).IsEqual((*ec.Signature)(signature))
+	return s.R.Cmp(signature.R) == 0 && s.S.Cmp(signature.S) == 0
 }
 
 // Sign generates an ECDSA signature for the provided hash (which should be the result of hashing
@@ -103,12 +108,12 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 		return false
 	}
 
-	cacheKey := make([]byte, 64+len(hash)+ec.PubKeyBytesLenUncompressed)
+	signeeBytes := signee.btcecPubKey().SerializeUncompressed()
+	cacheKey := make([]byte, 64+len(hash)+len(signeeBytes))
 	signature := cacheKey[:64]
 	copy(signature, utils.PaddedBigBytes(s.R, 32))
 	copy(signature[32:], utils.PaddedBigBytes(s.S, 32))
 	copy(cacheKey[64:64+len(hash)], hash)
-	signeeBytes := (*ec.PublicKey)(signee).SerializeUncompressed()
 	copy(cacheKey[64+len(hash):], signeeBytes)
 
 	if _, ok := verifyCache.Get(string(cacheKey)); ok {

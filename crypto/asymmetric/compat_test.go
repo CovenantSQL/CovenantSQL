@@ -24,8 +24,9 @@ import (
 )
 
 // Golden vectors recorded from the btcsuite/btcd/btcec v1 based implementation.
-// Keys, signatures and shared secrets are persisted on chain and exchanged
-// between nodes, so their encodings must never change.
+// Keys and signatures are persisted on chain and exchanged between nodes, and
+// nodes on either side of an upgrade must derive the same ECDH shared secrets,
+// so none of these may change.
 
 const secp256k1N = "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
 

@@ -43,7 +43,7 @@ require (
 	github.com/sirupsen/logrus v1.10.2
 	github.com/smartystreets/goconvey v0.0.0-20170602164621-9e8dc3f972df
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20190106185902-35a74f039c6a
-	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/tchap/go-patricia v2.3.0+incompatible
 	github.com/ugorji/go v1.1.4
 	github.com/xo/dburl v0.0.0-20190203050942-98997a05b24f

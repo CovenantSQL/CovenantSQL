@@ -59,6 +59,11 @@ func (s *Signature) Serialize() []byte {
 
 // ParseSignature recovers the signature from a DER encoded sigStr.
 func ParseSignature(sigStr []byte) (*Signature, error) {
+	// btcec v1 ignored any bytes after the length declared in the DER header, while
+	// ecdsa.ParseDERSignature rejects them. Keep accepting the signatures v1 accepted.
+	if len(sigStr) >= 2 && int(sigStr[1])+2 < len(sigStr) {
+		sigStr = sigStr[:int(sigStr[1])+2]
+	}
 	sig, err := ecdsa.ParseDERSignature(sigStr)
 	if err != nil {
 		return nil, err

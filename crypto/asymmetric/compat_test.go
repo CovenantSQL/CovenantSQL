@@ -185,6 +185,19 @@ func TestCompatSignatures(t *testing.T) {
 		if parsedHigh.R.Cmp(r) != 0 || parsedHigh.S.Cmp(highS) != 0 {
 			t.Errorf("parse high S signature %s: got (%x, %x), want (%x, %x)", v.highSDER, parsedHigh.R, parsedHigh.S, r, highS)
 		}
+
+		// Bytes after the DER encoded length are ignored.
+		for _, extra := range []int{1, 4, 30} {
+			in := append(mustHex(t, v.sigDER), make([]byte, extra)...)
+			parsedTrailing, err := ParseSignature(in)
+			if err != nil {
+				t.Fatalf("parse signature %s with %d trailing bytes: %v", v.sigDER, extra, err)
+			}
+			if !parsedTrailing.IsEqual(sig) {
+				t.Errorf("parse signature %s with %d trailing bytes: got (%x, %x), want (%x, %x)",
+					v.sigDER, extra, parsedTrailing.R, parsedTrailing.S, r, s)
+			}
+		}
 	}
 }
 

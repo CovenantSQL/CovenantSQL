@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -83,7 +84,7 @@ func (cs *CollectServer) UploadMetrics(req *proto.UploadMetricsReq, resp *proto.
 		//mf := new(dto.MetricFamily)
 		//dec := expfmt.NewDecoder(bufReader, expfmt.FmtProtoCompact)
 		//err = dec.Decode(mf)
-		tp := expfmt.TextParser{}
+		tp := expfmt.NewTextParser(model.LegacyValidation)
 		mf, err := tp.TextToMetricFamilies(bufReader)
 		if err != nil {
 			log.Warnf("decode MetricFamily failed: %s", err)

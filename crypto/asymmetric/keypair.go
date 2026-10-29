@@ -25,7 +25,7 @@ import (
 	"time"
 
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
-	ec "github.com/btcsuite/btcd/btcec"
+	ec "github.com/btcsuite/btcd/btcec/v2"
 
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -38,18 +38,18 @@ const PrivateKeyBytesLen = ec.PrivKeyBytesLen
 const PublicKeyBytesLen = ec.PubKeyBytesLenCompressed
 
 // PublicKeyFormatHeader is the default header of PublicKey.Serialize()
-//  see: github.com/btcsuite/btcd/btcec/pubkey.go#L63
+//  see: github.com/btcsuite/btcd/btcec/v2/pubkey.go#L19
 const PublicKeyFormatHeader byte = 0x2
 
 var parsedPublicKeyCache sync.Map
 
-// PrivateKey wraps an ec.PrivateKey as a convenience mainly for signing things with the the
-// private key without having to directly import the ecdsa package.
-type PrivateKey ec.PrivateKey
+// PrivateKey wraps an ecdsa.PrivateKey on the secp256k1 curve as a convenience mainly for
+// signing things with the the private key without having to directly import the ecdsa package.
+type PrivateKey ecdsa.PrivateKey
 
-// PublicKey wraps an ec.PublicKey as a convenience mainly verifying signatures with the the
-// public key without having to directly import the ecdsa package.
-type PublicKey ec.PublicKey
+// PublicKey wraps an ecdsa.PublicKey on the secp256k1 curve as a convenience mainly verifying
+// signatures with the the public key without having to directly import the ecdsa package.
+type PublicKey ecdsa.PublicKey
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message.
 func (k PublicKey) Msgsize() (s int) {
@@ -107,7 +107,15 @@ func (k *PublicKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // IsEqual return true if two keys are equal.
 func (k *PublicKey) IsEqual(public *PublicKey) bool {
-	return (*ec.PublicKey)(k).IsEqual((*ec.PublicKey)(public))
+	return k.X.Cmp(public.X) == 0 && k.Y.Cmp(public.Y) == 0
+}
+
+// btcecPubKey converts k to the btcec representation.
+func (k *PublicKey) btcecPubKey() *ec.PublicKey {
+	var x, y ec.FieldVal
+	x.SetByteSlice(k.X.Bytes())
+	y.SetByteSlice(k.Y.Bytes())
+	return ec.NewPublicKey(&x, &y)
 }
 
 // Serialize is a function that converts a public key
@@ -119,13 +127,16 @@ func (k *PublicKey) IsEqual(public *PublicKey) bool {
 // BenchmarkParsePublicKey-12                 50000             39819 ns/op            2401 B/op         35 allocs/op
 // BenchmarkParsePublicKey-12               1000000              1039 ns/op             384 B/op          9 allocs/op.
 func (k *PublicKey) Serialize() []byte {
-	return (*ec.PublicKey)(k).SerializeCompressed()
+	return k.btcecPubKey().SerializeCompressed()
 }
 
 // ParsePubKey recovers the public key from pubKeyStr.
 func ParsePubKey(pubKeyStr []byte) (*PublicKey, error) {
-	key, err := ec.ParsePubKey(pubKeyStr, ec.S256())
-	return (*PublicKey)(key), err
+	key, err := ec.ParsePubKey(pubKeyStr)
+	if err != nil {
+		return nil, err
+	}
+	return (*PublicKey)(key.ToECDSA()), nil
 }
 
 // PrivKeyFromBytes returns a private and public key for `curve' based on the private key passed
@@ -154,7 +165,7 @@ func (private *PrivateKey) Serialize() []byte {
 
 // PubKey return the public key.
 func (private *PrivateKey) PubKey() *PublicKey {
-	return (*PublicKey)((*ec.PrivateKey)(private).PubKey())
+	return (*PublicKey)(&private.PublicKey)
 }
 
 // paddedAppend appends the src byte slice to dst, returning the new slice. If the length of the
@@ -173,13 +184,13 @@ func GenSecp256k1KeyPair() (
 	publicKey *PublicKey,
 	err error) {
 
-	privateKeyEc, err := ec.NewPrivateKey(ec.S256())
+	privateKeyEc, err := ec.NewPrivateKey()
 	if err != nil {
 		log.WithError(err).Error("private key generation failed")
 		return nil, nil, err
 	}
-	publicKey = (*PublicKey)(privateKeyEc.PubKey())
-	privateKey = (*PrivateKey)(privateKeyEc)
+	privateKey = (*PrivateKey)(privateKeyEc.ToECDSA())
+	publicKey = privateKey.PubKey()
 	return
 }
 

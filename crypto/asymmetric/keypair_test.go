@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	ec "github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	yaml "gopkg.in/yaml.v2"
 
@@ -37,20 +36,13 @@ func TestGenSecp256k1Keypair(t *testing.T) {
 		t.Fatal("failed to generate private key")
 	}
 
-	in := []byte("Hey there dude. How are you doing? This is a test.")
-
-	out, err := ec.Encrypt((*ec.PublicKey)(publicKey), in)
+	hash := []byte("00000000000000000000000000000000")
+	sig, err := privateKey.Sign(hash)
 	if err != nil {
-		t.Fatal("failed to encrypt:", err)
+		t.Fatal("failed to sign:", err)
 	}
-
-	dec, err := ec.Decrypt((*ec.PrivateKey)(privateKey), out)
-	if err != nil {
-		t.Fatal("failed to decrypt:", err)
-	}
-
-	if !bytes.Equal(in, dec) {
-		t.Error("decrypted data doesn't match original")
+	if !sig.Verify(hash, publicKey) {
+		t.Error("signature doesn't verify with generated public key")
 	}
 }
 

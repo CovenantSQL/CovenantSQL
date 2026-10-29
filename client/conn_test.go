@@ -292,7 +292,7 @@ func TestConnAndSeqAllocation(t *testing.T) {
 				vi := v.(uint64)
 				if vi >= s {
 					// invalid
-					t.Fatalf(ErrInvalidRequestSeq.Error())
+					t.Fatal(ErrInvalidRequestSeq.Error())
 				}
 			} else {
 				seqMap.Store(c, s)

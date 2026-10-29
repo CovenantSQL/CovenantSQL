@@ -21,10 +21,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"errors"
-
-	ec "github.com/btcsuite/btcd/btcec"
-
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 )
 
 var errInvalidPadding = errors.New("invalid PKCS#7 padding")
@@ -47,20 +43,4 @@ func RemovePKCSPadding(src []byte) ([]byte, error) {
 	}
 
 	return src[:length-padLength], nil
-}
-
-// EncryptAndSign (inputPublicKey, inData) MAIN PROCEDURE:
-//	1. newPrivateKey, newPubKey := genSecp256k1Keypair()
-//	2. encKey, HMACKey := SHA512(ECDH(newPrivateKey, inputPublicKey))
-//	3. PaddedIn := PKCSPadding(in)
-//	4. OutBytes := IV + newPubKey + AES-256-CBC(encKey, PaddedIn) + HMAC-SHA-256(HMACKey)
-func EncryptAndSign(inputPublicKey *asymmetric.PublicKey, inData []byte) ([]byte, error) {
-	return ec.Encrypt((*ec.PublicKey)(inputPublicKey), inData)
-}
-
-// DecryptAndCheck (inputPrivateKey, inData) MAIN PROCEDURE:
-//  1. Decrypt the inData
-//  2. Verify the HMAC.
-func DecryptAndCheck(inputPrivateKey *asymmetric.PrivateKey, inData []byte) ([]byte, error) {
-	return ec.Decrypt((*ec.PrivateKey)(inputPrivateKey), inData)
 }

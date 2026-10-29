@@ -16,14 +16,17 @@
 
 package asymmetric
 
-import ec "github.com/btcsuite/btcd/btcec"
+import ec "github.com/btcsuite/btcd/btcec/v2"
 
-// GenECDHSharedSecret is just a wrapper of ec.GenerateSharedSecret which
-// generates a shared secret based on a private key and a
+// GenECDHSharedSecret generates a shared secret based on a private key and a
 // public key using Diffie-Hellman key exchange (ECDH) (RFC 4753).
 // RFC5903 Section 9 states we should only return x.
 // Key Feature:
 // 		GenECDHSharedSecret(BPub, APriv) == GenECDHSharedSecret(APub, BPriv).
+//
+// Unlike ec.GenerateSharedSecret, x is not padded to 32 bytes, to stay compatible
+// with secrets derived by btcec v1.
 func GenECDHSharedSecret(privateKey *PrivateKey, publicKey *PublicKey) []byte {
-	return ec.GenerateSharedSecret((*ec.PrivateKey)(privateKey), (*ec.PublicKey)(publicKey))
+	x, _ := ec.S256().ScalarMult(publicKey.X, publicKey.Y, privateKey.D.Bytes())
+	return x.Bytes()
 }

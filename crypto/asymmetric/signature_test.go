@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
 
@@ -86,7 +85,7 @@ func TestSign(t *testing.T) {
 		}
 
 		serializedSig := sig.Serialize()
-		targetSig, err := ParseDERSignature(serializedSig, btcec.S256())
+		targetSig, err := ParseSignature(serializedSig)
 		if err != nil {
 			t.Errorf("%s could not serialized: %v", test.name, err)
 			continue

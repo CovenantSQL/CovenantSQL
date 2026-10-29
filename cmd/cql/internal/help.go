@@ -86,7 +86,7 @@ func printParamHelp(flagSet *flag.FlagSet) {
 
 func printCommandHelp(cmd *Command) {
 	_, _ = fmt.Fprintf(os.Stdout, "usage: %s\n", cmd.UsageLine)
-	_, _ = fmt.Fprintf(os.Stdout, cmd.Long)
+	_, _ = fmt.Fprint(os.Stdout, cmd.Long)
 
 	if cmd.Flag != nil {
 		printParamHelp(cmd.Flag)
@@ -164,6 +164,6 @@ Use "cql help <command>" for more information about a command.
 	CmdHelp.DebugFlag.PrintDefaults()
 
 	fmt.Fprint(output, helpTail)
-	fmt.Fprintf(os.Stdout, output.String())
+	fmt.Fprint(os.Stdout, output.String())
 	Exit()
 }

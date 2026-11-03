@@ -6,7 +6,6 @@ pprof.txt
 *.profile
 *.key
 idminer
-.travis.yml
 coverage.txt
 vendor/**/.gitignore
 *.keystore*

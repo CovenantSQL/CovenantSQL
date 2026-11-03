@@ -6,11 +6,8 @@
     <a href="https://goreportcard.com/report/github.com/CovenantSQL/CovenantSQL">
         <img src="https://goreportcard.com/badge/github.com/CovenantSQL/CovenantSQL?style=flat-square"
             alt="Go Report Card"></a>
-    <a href="https://codecov.io/gh/CovenantSQL/CovenantSQL">
-        <img src="https://codecov.io/gh/CovenantSQL/CovenantSQL/branch/develop/graph/badge.svg"
-            alt="Coverage"></a>
-    <a href="https://travis-ci.org/CovenantSQL/CovenantSQL">
-        <img src="https://travis-ci.org/CovenantSQL/CovenantSQL.png?branch=develop"
+    <a href="https://github.com/CovenantSQL/CovenantSQL/actions/workflows/ci.yml">
+        <img src="https://github.com/CovenantSQL/CovenantSQL/actions/workflows/ci.yml/badge.svg?branch=develop"
             alt="Build Status"/></a>
     <a href="https://opensource.org/licenses/Apache-2.0">
         <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"

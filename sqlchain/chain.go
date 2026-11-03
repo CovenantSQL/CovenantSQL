@@ -750,35 +750,47 @@ func (c *Chain) sync() (err error) {
 }
 
 func (c *Chain) processBlocks(ctx context.Context) {
-	var (
-		cld, ccl = context.WithCancel(ctx)
-		wg       = &sync.WaitGroup{}
-	)
+	var stash []*types.Block
 
-	returnStash := func(stash []*types.Block) {
-		defer wg.Done()
-		for i, block := range stash {
-			select {
-			case c.blocks <- block:
-			case <-cld.Done():
-				c.logEntry().WithFields(log.Fields{
-					"remaining": len(stash) - i,
-				}).WithError(cld.Err()).Debug("abort stash returning")
-				return
+	// processBlock pushes the block of the current height and stashes newer blocks.
+	processBlock := func(block *types.Block) {
+		height := c.rt.getHeightFromTime(block.Timestamp())
+		c.logEntryWithHeadState().WithFields(log.Fields{
+			"block_height": height,
+			"block_hash":   block.BlockHash().String(),
+		}).Debug("processing new block")
+
+		if height > c.rt.getNextTurn()-1 {
+			// Stash newer blocks for later check
+			stash = append(stash, block)
+		} else {
+			// Process block
+			if height < c.rt.getNextTurn()-1 {
+				// TODO(leventeliu): check and add to fork list.
+			} else {
+				if err := c.CheckAndPushNewBlock(block); err != nil {
+					c.logEntryWithHeadState().WithError(err).Error("failed to check and push new block")
+				}
 			}
 		}
 	}
 
-	defer func() {
-		ccl()
-		wg.Wait()
-	}()
-
-	var stash []*types.Block
 	for {
 		le := c.logEntryWithHeadState()
 		select {
 		case h := <-c.heights:
+			// Check the stashed blocks first: the block this peer produces in its turn is
+			// stashed until the turn ends, and the billing below must include it.
+			c.logEntryWithHeadState().WithFields(log.Fields{
+				"height": h,
+				"stashs": len(stash),
+			}).Debug("read new height from channel")
+			stashed := stash
+			stash = nil
+			for _, block := range stashed {
+				processBlock(block)
+			}
+
 			// Trigger billing
 			index, total := c.rt.getIndexTotal()
 			period := int32(c.updatePeriod)
@@ -811,36 +823,8 @@ func (c *Chain) processBlocks(ctx context.Context) {
 					le.WithError(err).Warning("send tx failed")
 				}
 			}
-			// Return all stashed blocks to pending channel
-			c.logEntryWithHeadState().WithFields(log.Fields{
-				"height": h,
-				"stashs": len(stash),
-			}).Debug("read new height from channel")
-			if stash != nil {
-				wg.Add(1)
-				go returnStash(stash)
-				stash = nil
-			}
 		case block := <-c.blocks:
-			height := c.rt.getHeightFromTime(block.Timestamp())
-			le.WithFields(log.Fields{
-				"block_height": height,
-				"block_hash":   block.BlockHash().String(),
-			}).Debug("processing new block")
-
-			if height > c.rt.getNextTurn()-1 {
-				// Stash newer blocks for later check
-				stash = append(stash, block)
-			} else {
-				// Process block
-				if height < c.rt.getNextTurn()-1 {
-					// TODO(leventeliu): check and add to fork list.
-				} else {
-					if err := c.CheckAndPushNewBlock(block); err != nil {
-						le.WithError(err).Error("failed to check and push new block")
-					}
-				}
-			}
+			processBlock(block)
 		case <-ctx.Done():
 			c.logEntryWithHeadState().WithError(ctx.Err()).Debug("abort block processing")
 			return

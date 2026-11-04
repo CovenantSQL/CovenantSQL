@@ -19,7 +19,7 @@ package observer
 import (
 	"io/ioutil"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )

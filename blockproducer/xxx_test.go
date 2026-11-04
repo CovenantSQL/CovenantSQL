@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -44,7 +43,6 @@ var (
 
 func setup() {
 	var err error
-	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 
 	// Create temp dir for test data

@@ -196,8 +196,6 @@ func setup() {
 		panic(err)
 	}
 
-	rand.Seed(time.Now().UnixNano())
-
 	if runtime.GOOS == "linux" {
 		// Set NOFILE limit
 		if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {

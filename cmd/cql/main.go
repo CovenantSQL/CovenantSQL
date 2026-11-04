@@ -19,9 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql/internal"
 )
@@ -51,9 +49,6 @@ func init() {
 
 func main() {
 	internal.Version = version
-
-	// set random
-	rand.Seed(time.Now().UnixNano())
 
 	flag.Usage = internal.MainUsage
 	flag.Parse()

@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
@@ -169,8 +168,6 @@ func thisNode() *proto.Node {
 }
 
 func setup() {
-	rand.Seed(time.Now().UnixNano())
-
 	var err error
 	if tempDir, err = os.MkdirTemp("", "covenantsql"); err != nil {
 		panic(err)

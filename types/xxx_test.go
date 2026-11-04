@@ -200,7 +200,6 @@ func buildResponse(header *SignedRequestHeader, cols []string, types []string, r
 }
 
 func setup() {
-	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 	f, err := os.CreateTemp("", "keystore")
 

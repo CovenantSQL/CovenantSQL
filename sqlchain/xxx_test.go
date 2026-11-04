@@ -325,8 +325,6 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err err
 }
 
 func setup() {
-	// Setup RNG
-	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 
 	// Create temp dir

@@ -17,12 +17,10 @@
 package sqlite
 
 import (
-	"math/rand"
 	"os"
 	"runtime"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -41,8 +39,6 @@ func setup() {
 	if testingDataDir, err = os.MkdirTemp("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
-
-	rand.Seed(time.Now().UnixNano())
 
 	if runtime.GOOS == "linux" {
 		if err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lmt); err != nil {

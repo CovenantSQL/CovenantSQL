@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -120,8 +119,6 @@ func initLogs() {
 
 func main() {
 	flag.Parse()
-	// set random
-	rand.Seed(time.Now().UnixNano())
 	log.SetStringLevel(logLevel, log.InfoLevel)
 
 	if showVersion {

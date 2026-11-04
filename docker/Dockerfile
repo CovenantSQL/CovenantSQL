@@ -1,5 +1,5 @@
 # Stage: all runner
-FROM alpine:3.9
+FROM alpine:3.24
 
 ARG COMMIT
 ARG VERSION

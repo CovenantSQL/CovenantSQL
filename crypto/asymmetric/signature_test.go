@@ -113,6 +113,15 @@ func TestSign(t *testing.T) {
 	}
 }
 
+func TestSignInvalidKey(t *testing.T) {
+	for _, key := range [][]byte{make([]byte, 32), ec.S256().N.Bytes()} {
+		priv, _ := PrivKeyFromBytes(key)
+		if _, err := priv.Sign([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")); err == nil {
+			t.Errorf("signed with the key %x", key)
+		}
+	}
+}
+
 func TestSignature_Verify(t *testing.T) {
 	hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 	sig, err := priv.Sign(hash)

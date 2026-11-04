@@ -42,7 +42,10 @@ const (
 )
 
 // IPv6SeedClient is IPv6 DNS seed client
-type IPv6SeedClient struct{}
+type IPv6SeedClient struct {
+	// lookupIP resolves the seed host names, net.LookupIP if nil.
+	lookupIP func(host string) ([]net.IP, error)
+}
 
 // GetBPFromDNSSeed gets BP info from the IPv6 domain
 func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap, err error) {
@@ -53,8 +56,9 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 	wg := new(sync.WaitGroup)
 	wg.Add(4)
 
-	f := func(host string) ([]net.IP, error) {
-		return net.LookupIP(host)
+	f := isc.lookupIP
+	if f == nil {
+		f = net.LookupIP
 	}
 	// Public key
 	go func() {

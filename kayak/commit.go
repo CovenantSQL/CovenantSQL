@@ -18,6 +18,7 @@ package kayak
 
 import (
 	"context"
+	"runtime/trace"
 	"sync/atomic"
 
 	"github.com/pkg/errors"
@@ -26,7 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/timer"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 func (r *Runtime) leaderCommitResult(ctx context.Context, tm *timer.Timer, reqPayload interface{}, prepareLog *kt.Log) (res *commitFuture) {

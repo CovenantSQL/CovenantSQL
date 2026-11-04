@@ -204,7 +204,7 @@ WHERE type = "index" AND tbl_name = "%s"
 							}
 						}
 						return true, nil
-					})
+					}, n.Exprs)
 
 					return
 				}

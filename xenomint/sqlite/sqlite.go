@@ -105,6 +105,9 @@ func NewSqlite(filename string) (s *SQLite3, err error) {
 	if dsn, err = storage.NewDSN(filename); err != nil {
 		return
 	}
+	// Every replica of a database executes the same queries, so none of them may
+	// see the current time: 'now' in any form gives NULL.
+	dsn.AddParam("vfs", "nocurrenttime")
 
 	dsnRO := dsn.Clone()
 	dsnRO.AddParam("_journal_mode", "WAL")

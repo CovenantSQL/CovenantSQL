@@ -454,14 +454,18 @@ func (c *Chain) syncHeads() {
 		for c.getNextHeight() <= nowHeight {
 			// TODO(leventeliu): use the test mode flag to bypass the long-running synchronizing
 			// on startup by now, need better solution here.
-			if conf.GConf.StartupSyncHoles {
-				log.WithFields(log.Fields{
-					"local":       c.getLocalBPInfo(),
-					"next_height": c.getNextHeight(),
-					"now_height":  nowHeight,
-				}).Debug("synchronizing head blocks")
-				c.blockingSyncCurrentHead(c.ctx, conf.BPStartupRequiredReachableCount)
+			if !conf.GConf.StartupSyncHoles {
+				// Nothing to synchronize, so skip the passed periods at once: stepping through
+				// them one by one takes minutes on a chain whose genesis is years ago.
+				c.setNextHeight(nowHeight + 1)
+				continue
 			}
+			log.WithFields(log.Fields{
+				"local":       c.getLocalBPInfo(),
+				"next_height": c.getNextHeight(),
+				"now_height":  nowHeight,
+			}).Debug("synchronizing head blocks")
+			c.blockingSyncCurrentHead(c.ctx, conf.BPStartupRequiredReachableCount)
 			c.increaseNextHeight()
 		}
 	}
@@ -977,6 +981,12 @@ func (c *Chain) increaseNextHeight() {
 	c.Lock()
 	defer c.Unlock()
 	c.nextHeight++
+}
+
+func (c *Chain) setNextHeight(h uint32) {
+	c.Lock()
+	defer c.Unlock()
+	c.nextHeight = h
 }
 
 // heightOfTime calculates the heightOfTime with this sql-chain config of a given time reading.

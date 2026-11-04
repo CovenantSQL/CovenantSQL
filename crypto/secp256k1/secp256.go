@@ -19,12 +19,18 @@
 //
 // The libsecp256k1 directory holds COPYING, include/, src/*.h, src/secp256k1.c and
 // src/precomputed_ecmult*.c of libsecp256k1 v0.8.0, unmodified. To update it, replace them with
-// the same files of a newer release.
+// the same files of a newer release, and add the global symbols it adds to prefix.h.
+//
+// prefix.h renames the global symbols of libsecp256k1 to start with cql_, so that a program can
+// link this package together with another copy of libsecp256k1, such as the one in go-ethereum's
+// crypto/secp256k1. Without it, the program fails to link with multiple definitions of
+// secp256k1_context_create and the others.
 package secp256k1
 
 /*
 // Use the x86_64 assembly, as the upstream build does by default.
 #cgo amd64 CFLAGS: -DUSE_ASM_X86_64=1
+#include "prefix.h"
 #include "libsecp256k1/src/secp256k1.c"
 #include "libsecp256k1/src/precomputed_ecmult.c"
 #include "libsecp256k1/src/precomputed_ecmult_gen.c"
@@ -47,11 +53,11 @@ var (
 var context *C.secp256k1_context
 
 func init() {
-	context = C.secp256k1_context_create(C.SECP256K1_CONTEXT_NONE)
+	context = C.cql_secp256k1_context_create(C.SECP256K1_CONTEXT_NONE)
 	// libsecp256k1 recommends randomizing the context to protect signing from side channels.
 	seed := make([]byte, 32)
 	rand.Read(seed)
-	if C.secp256k1_context_randomize(context, cBytes(seed)) != 1 {
+	if C.cql_secp256k1_context_randomize(context, cBytes(seed)) != 1 {
 		panic("secp256k1: could not randomize the context")
 	}
 }
@@ -71,11 +77,11 @@ func Sign(msg, seckey []byte) ([]byte, error) {
 	}
 	var sig C.secp256k1_ecdsa_signature
 	// With the default nonce function, which is RFC 6979, signing fails only for an invalid key.
-	if C.secp256k1_ecdsa_sign(context, &sig, cBytes(msg), cBytes(seckey), nil, nil) != 1 {
+	if C.cql_secp256k1_ecdsa_sign(context, &sig, cBytes(msg), cBytes(seckey), nil, nil) != 1 {
 		return nil, ErrInvalidKey
 	}
 	out := make([]byte, 64)
-	C.secp256k1_ecdsa_signature_serialize_compact(context, cBytes(out), &sig)
+	C.cql_secp256k1_ecdsa_signature_serialize_compact(context, cBytes(out), &sig)
 	return out, nil
 }
 
@@ -90,7 +96,7 @@ func VerifySignature(pubkey, msg, signature []byte) bool {
 		sig C.secp256k1_ecdsa_signature
 		key C.secp256k1_pubkey
 	)
-	return C.secp256k1_ecdsa_signature_parse_compact(context, &sig, cBytes(signature)) == 1 &&
-		C.secp256k1_ec_pubkey_parse(context, &key, cBytes(pubkey), C.size_t(len(pubkey))) == 1 &&
-		C.secp256k1_ecdsa_verify(context, &sig, cBytes(msg), &key) == 1
+	return C.cql_secp256k1_ecdsa_signature_parse_compact(context, &sig, cBytes(signature)) == 1 &&
+		C.cql_secp256k1_ec_pubkey_parse(context, &key, cBytes(pubkey), C.size_t(len(pubkey))) == 1 &&
+		C.cql_secp256k1_ecdsa_verify(context, &sig, cBytes(msg), &key) == 1
 }

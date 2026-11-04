@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      UNITTESTTAGS: linux sqlite_omit_load_extension
+      UNITTESTTAGS: linux sqlite_omit_load_extension sqlite_omit_localtime
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

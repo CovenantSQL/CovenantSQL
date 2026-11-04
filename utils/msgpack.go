@@ -29,6 +29,13 @@ var msgPackHandle = &codec.MsgpackHandle{
 	WriteExt: true,
 }
 
+func init() {
+	// The codec package sets up a handle on its first use, and marks it as set
+	// up before it is, so codecs created concurrently for the first time read
+	// it half set up. Use it once before any connection does.
+	codec.NewEncoderBytes(new([]byte), msgPackHandle)
+}
+
 // RegisterInterfaceToMsgPack binds interface decode/encode to specified implementation.
 func RegisterInterfaceToMsgPack(intf, impl reflect.Type) (err error) {
 	return msgPackHandle.Intf2Impl(intf, impl)

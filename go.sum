@@ -16,8 +16,8 @@ github.com/CovenantSQL/beacon v0.0.0-20190521023351-8402bfe07ece h1:gEt5nz/88hnQ
 github.com/CovenantSQL/beacon v0.0.0-20190521023351-8402bfe07ece/go.mod h1:8qPonlOGD4WOYlgy6KVusp7+O5/GlKRl0wBr2OjBu60=
 github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b h1:zWvopMYMisIF8L9e+n1i7fEE1R3j3Tv9KCEBUzInXz8=
 github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b/go.mod h1:Q5OpbKCAKpQoQ4RWXxBOeLVxBgi3ZdKkn1++Qmjii3k=
-github.com/CovenantSQL/go-sqlite3-encrypt v1.9.1-0.20190621093938-dc98560308ab h1:95A/DXB5dp5y+Lu/cHxI8FclMhcjXHGG48TzocGJUsw=
-github.com/CovenantSQL/go-sqlite3-encrypt v1.9.1-0.20190621093938-dc98560308ab/go.mod h1:EH9sjhhyDGHNIj/Wx59f7CURbVp1C1x/eRVi07WPsvg=
+github.com/CovenantSQL/go-sqlite3-encrypt v1.10.0 h1:7T2VkgIOAEtPFacffCSF0KEW+cIHTPuDNTiDZTud+oU=
+github.com/CovenantSQL/go-sqlite3-encrypt v1.10.0/go.mod h1:q/FkjaNy87PElsnrDIoU0MqYrpDryqP5hiJVip/Zpy8=
 github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6 h1:a3BgrZT+0Po7xggIN789+lJHySEPpUpHCT2YbPdUPwU=
 github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6/go.mod h1:0nyvStvq7NsxxLPM+rxTIeKq8CDFBmk9XI6NG9Iqet8=
 github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=

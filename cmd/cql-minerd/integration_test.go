@@ -490,7 +490,7 @@ func TestFullProcess(t *testing.T) {
 		_, err = db.Exec("CREATE TABLE test_time (test timestamp)")
 		So(err, ShouldBeNil)
 
-		_, err = db.Exec("INSERT INTO test_time VALUES(DATE('NOW'))")
+		_, err = db.Exec("INSERT INTO test_time VALUES(DATE('2000-01-01'))")
 		So(err, ShouldBeNil)
 
 		row = db.QueryRow("SELECT * FROM test_time LIMIT 1")

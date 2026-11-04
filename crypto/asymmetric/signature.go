@@ -25,7 +25,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -93,14 +92,18 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 	}
 	seckey := utils.PaddedBigBytes(private.D, private.Params().BitSize/8)
 	defer zeroBytes(seckey)
-	sb, e := secp256k1.Sign(hash, seckey)
-	s := &Signature{
-		R: new(big.Int).SetBytes(sb[:32]),
-		S: new(big.Int).SetBytes(sb[32:64]),
+	var key ec.PrivateKey
+	defer key.Zero()
+	if len(seckey) != PrivateKeyBytesLen || key.Key.SetByteSlice(seckey) || key.Key.IsZero() {
+		return nil, errors.New("invalid private key")
 	}
-	//s, e := (*ec.PrivateKey)(private).Sign(hash)
-
-	return (*Signature)(s), e
+	sig := ecdsa.Sign(&key, hash)
+	r, s := sig.R(), sig.S()
+	rb, sb := r.Bytes(), s.Bytes()
+	return &Signature{
+		R: new(big.Int).SetBytes(rb[:]),
+		S: new(big.Int).SetBytes(sb[:]),
+	}, nil
 }
 
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true
@@ -124,12 +127,30 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	if _, ok := verifyCache.Get(string(cacheKey)); ok {
 		return true
 	}
-	valid := secp256k1.VerifySignature(signeeBytes, hash, signature)
+	valid := verifySignature(signeeBytes, hash, signature)
 	if valid {
 		verifyCache.Add(string(cacheKey), nil)
 	}
 	return valid
-	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)
+}
+
+// verifySignature reports whether signature, R and S as 32-byte big-endian numbers, is a valid
+// signature of the 32-byte hash by the serialized public key pubKey. It rejects an S above half
+// the group order, which Sign never produces, so that a valid signature can't be turned into
+// another valid one by negating S.
+func verifySignature(pubKey, hash, signature []byte) bool {
+	if len(hash) != 32 {
+		return false
+	}
+	var r, s ec.ModNScalar
+	if r.SetByteSlice(signature[:32]) || s.SetByteSlice(signature[32:]) || s.IsOverHalfOrder() {
+		return false
+	}
+	key, err := ec.ParsePubKey(pubKey)
+	if err != nil {
+		return false
+	}
+	return ecdsa.NewSignature(&r, &s).Verify(hash, key)
 }
 
 // MarshalBinary does the serialization.

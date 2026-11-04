@@ -20,12 +20,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain/adapter/storage"
@@ -74,7 +73,7 @@ type confWrapper struct {
 func LoadConfig(configPath string) (config *Config, err error) {
 	var workingRoot string
 	var configBytes []byte
-	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
+	if configBytes, err = os.ReadFile(configPath); err != nil {
 		log.WithError(err).Error("read config file failed")
 	}
 	configWrapper := &confWrapper{}
@@ -118,7 +117,7 @@ func LoadConfig(configPath string) (config *Config, err error) {
 			// load client CA
 			caCertPool := x509.NewCertPool()
 			var caCert []byte
-			if caCert, err = ioutil.ReadFile(clientCAPath); err != nil {
+			if caCert, err = os.ReadFile(clientCAPath); err != nil {
 				return
 			}
 			caCertPool.AppendCertsFromPEM(caCert)
@@ -191,7 +190,7 @@ func loadCert(pemFile string) (cert *x509.Certificate, err error) {
 	// only the first pem section is parsed and identified as certificate.
 	var certBytes []byte
 
-	if certBytes, err = ioutil.ReadFile(pemFile); err != nil {
+	if certBytes, err = os.ReadFile(pemFile); err != nil {
 		return
 	}
 

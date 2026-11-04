@@ -17,16 +17,13 @@
 package utils
 
 import (
-	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
 func testSetup() {
-	rand.Seed(time.Now().UnixNano())
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }

@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # Major updates often need code changes, so they keep their own pull requests.
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: monthly

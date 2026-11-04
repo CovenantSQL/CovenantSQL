@@ -18,7 +18,6 @@ package client
 
 import (
 	"database/sql"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -100,7 +99,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 	}
 
 	var rootDir string
-	if rootDir, err = ioutil.TempDir("", "dbms_test_"); err != nil {
+	if rootDir, err = os.MkdirTemp("", "dbms_test_"); err != nil {
 		return
 	}
 
@@ -192,7 +191,7 @@ func startTestService() (stopTestService func(), tempDir string, err error) {
 }
 
 func initNode() (cleanupFunc func(), tempDir string, server *rpc.Server, err error) {
-	if tempDir, err = ioutil.TempDir("", "db_test_"); err != nil {
+	if tempDir, err = os.MkdirTemp("", "db_test_"); err != nil {
 		return
 	}
 	log.WithField("d", tempDir).Debug("created temp dir")

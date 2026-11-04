@@ -17,7 +17,6 @@
 package utils
 
 import (
-	"io/ioutil"
 	"os"
 	"os/user"
 	"testing"
@@ -30,9 +29,9 @@ func TestCopyFile(t *testing.T) {
 		bytes := []byte("abc")
 		defer os.Remove("testcopy")
 		defer os.Remove("testcopy2")
-		ioutil.WriteFile("testcopy", bytes, 0600)
+		os.WriteFile("testcopy", bytes, 0600)
 		CopyFile("testcopy", "testcopy2")
-		bytes2, _ := ioutil.ReadFile("testcopy2")
+		bytes2, _ := os.ReadFile("testcopy2")
 		So(bytes2, ShouldResemble, bytes)
 
 		n, err := CopyFile("testcopy", "testcopy")

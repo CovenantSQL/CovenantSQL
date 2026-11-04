@@ -18,14 +18,11 @@ package rpc
 
 import (
 	"fmt"
-	"io/ioutil"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -221,10 +218,8 @@ func thisNode() *proto.Node {
 }
 
 func setup() {
-	rand.Seed(time.Now().UnixNano())
-
 	var err error
-	if tempDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	if tempDir, err = os.MkdirTemp("", "covenantsql"); err != nil {
 		panic(err)
 	}
 	if conf.GConf, err = conf.LoadConfig(confFile); err != nil {

@@ -20,7 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -109,7 +109,7 @@ func TestBadType(t *testing.T) {
 }
 
 func TestStorage(t *testing.T) {
-	fl, err := ioutil.TempFile("", "sqlite3-")
+	fl, err := os.CreateTemp("", "sqlite3-")
 
 	if err != nil {
 		t.Fatalf("error occurred: %v", err)

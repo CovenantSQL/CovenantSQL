@@ -17,7 +17,6 @@
 package xenomint
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -193,11 +192,9 @@ func setup() {
 		lmt syscall.Rlimit
 	)
 
-	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
+	if testingDataDir, err = os.MkdirTemp("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
-
-	rand.Seed(time.Now().UnixNano())
 
 	if runtime.GOOS == "linux" {
 		// Set NOFILE limit

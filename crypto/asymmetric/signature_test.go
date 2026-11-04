@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
-	"time"
 
 	ec "github.com/btcsuite/btcd/btcec/v2"
 	. "github.com/smartystreets/goconvey/convey"
@@ -38,8 +37,6 @@ var (
 )
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
-
 	var err error
 	priv, pub, err = GenSecp256k1KeyPair()
 	if err != nil {

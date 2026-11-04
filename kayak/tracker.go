@@ -18,13 +18,13 @@ package kayak
 
 import (
 	"context"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 // rpcTracker defines the rpc call tracker

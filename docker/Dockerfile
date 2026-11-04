@@ -1,5 +1,5 @@
 # Stage: all runner
-FROM alpine:3.9
+FROM alpine:3.24
 
 ARG COMMIT
 ARG VERSION
@@ -16,6 +16,8 @@ ENV VERSION=${VERSION}
 ENV COVENANT_ROLE=miner
 ENV COVENANT_CONF=config.yaml
 
+# icu-libs brings the ICU data that the binaries read, so the Alpine version
+# has to stay the same as in builder.Dockerfile.
 RUN apk --no-cache add ca-certificates icu-libs musl
 
 WORKDIR /app

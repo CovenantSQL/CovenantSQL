@@ -20,11 +20,11 @@ import (
 	"context"
 	"io"
 	"log"
+	"runtime/trace"
 
 	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 func (r *Runtime) newLog(ctx context.Context, logType kt.LogType, data []byte) (l *kt.Log, err error) {

@@ -18,7 +18,6 @@ package worker
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -53,7 +52,7 @@ func TestSingleDatabase(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		var rootDir string
-		rootDir, err = ioutil.TempDir("", "db_test_")
+		rootDir, err = os.MkdirTemp("", "db_test_")
 		So(err, ShouldBeNil)
 
 		// create mux service
@@ -390,7 +389,7 @@ func TestInitFailed(t *testing.T) {
 		defer cleanup()
 
 		var rootDir string
-		rootDir, err = ioutil.TempDir("", "db_test_")
+		rootDir, err = os.MkdirTemp("", "db_test_")
 		So(err, ShouldBeNil)
 
 		defer os.RemoveAll(rootDir)
@@ -447,7 +446,7 @@ func TestDatabaseRecycle(t *testing.T) {
 		defer cleanup()
 
 		var rootDir string
-		rootDir, err = ioutil.TempDir("", "db_test_")
+		rootDir, err = os.MkdirTemp("", "db_test_")
 		So(err, ShouldBeNil)
 
 		// create mux service

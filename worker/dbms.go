@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"expvar"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -130,7 +129,7 @@ func (dbms *DBMS) readMeta() (meta *DBMSMeta, err error) {
 
 	var fileContent []byte
 
-	if fileContent, err = ioutil.ReadFile(filePath); err != nil {
+	if fileContent, err = os.ReadFile(filePath); err != nil {
 		// if not exists
 		if os.IsNotExist(err) {
 			// new without meta
@@ -166,7 +165,7 @@ func (dbms *DBMS) writeMeta() (err error) {
 	}
 
 	filePath := filepath.Join(dbms.cfg.RootDir, DBMetaFileName)
-	err = ioutil.WriteFile(filePath, buf.Bytes(), 0644)
+	err = os.WriteFile(filePath, buf.Bytes(), 0644)
 
 	return
 }

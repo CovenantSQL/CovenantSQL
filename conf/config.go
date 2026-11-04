@@ -17,11 +17,11 @@
 package conf
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"time"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -151,7 +151,7 @@ var GConf *Config
 
 // LoadConfig loads config from configPath.
 func LoadConfig(configPath string) (config *Config, err error) {
-	configBytes, err := ioutil.ReadFile(configPath)
+	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
 		log.WithError(err).Error("read config file failed")
 		return

@@ -19,7 +19,7 @@ package mirror
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -70,7 +70,7 @@ func NewService(database string, server *rpc.Server) (s *Service, err error) {
 	)
 
 	// load current progress
-	if rawProgress, err := ioutil.ReadFile(dbProgressPath); err != nil {
+	if rawProgress, err := os.ReadFile(dbProgressPath); err != nil {
 		// not exists
 		progress = 0
 		log.WithError(err).Warning("read progress file failed")
@@ -221,7 +221,7 @@ func (s *Service) getProgress() int32 {
 
 func (s *Service) saveProgress() {
 	progressFile := filepath.Join(conf.GConf.WorkingRoot, string(s.dbID)+progressFileSuffix)
-	_ = ioutil.WriteFile(progressFile, []byte(fmt.Sprintf("%d", s.getProgress())), 0644)
+	_ = os.WriteFile(progressFile, []byte(fmt.Sprintf("%d", s.getProgress())), 0644)
 }
 
 func (s *Service) stop() {

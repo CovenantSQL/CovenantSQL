@@ -17,7 +17,6 @@
 package observer
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -33,7 +32,7 @@ func TestLoadConfig(t *testing.T) {
 			err     error
 			cfg     *Config
 		)
-		tmp, err = ioutil.TempDir("", "covenantsql")
+		tmp, err = os.MkdirTemp("", "covenantsql")
 		So(err, ShouldBeNil)
 		Reset(func() {
 			err = os.RemoveAll(tmp)
@@ -45,7 +44,7 @@ func TestLoadConfig(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("Given a empty config file", func() {
-			err = ioutil.WriteFile(fl, nil, 0644)
+			err = os.WriteFile(fl, nil, 0644)
 			So(err, ShouldBeNil)
 			Convey("The LoadConfig func should return a nil config", func() {
 				cfg, err = loadConfig(fl)
@@ -54,7 +53,7 @@ func TestLoadConfig(t *testing.T) {
 			})
 		})
 		Convey("Given a config file without observer section", func() {
-			err = ioutil.WriteFile(fl, []byte(
+			err = os.WriteFile(fl, []byte(
 				`UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"
@@ -162,7 +161,7 @@ KnownNodes:
 			})
 		})
 		Convey("Given a config file with observer section", func() {
-			err = ioutil.WriteFile(fl, []byte(
+			err = os.WriteFile(fl, []byte(
 				`Observer:
   Databases:
   - ID: xxxxx1
@@ -181,7 +180,7 @@ KnownNodes:
 			})
 		})
 		Convey("Given a full config file", func() {
-			err = ioutil.WriteFile(fl, []byte(
+			err = os.WriteFile(fl, []byte(
 				`UseTestMasterKey: true
 WorkingRoot: "./"
 PubKeyStoreFile: "public.keystore"

@@ -17,7 +17,6 @@
 package utils
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -28,11 +27,11 @@ func TestRemoveAll(t *testing.T) {
 	Convey("test remove files", t, func() {
 		var names []string
 		tempPattern := "_tempfile_test_never_duplicate_*"
-		f, err := ioutil.TempFile(".", tempPattern)
+		f, err := os.CreateTemp(".", tempPattern)
 		So(err, ShouldBeNil)
 		names = append(names, f.Name())
 		_ = f.Close()
-		f, err = ioutil.TempFile(".", tempPattern)
+		f, err = os.CreateTemp(".", tempPattern)
 		So(err, ShouldBeNil)
 		names = append(names, f.Name())
 		_ = f.Close()

@@ -21,13 +21,12 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/conf/testnet"
@@ -191,7 +190,7 @@ func runGenerate(cmd *Command, args []string) {
 	} else {
 		// Load from template file
 		fmt.Printf("Generating config base on %s templete\n", source)
-		sourceConfig, err := ioutil.ReadFile(source)
+		sourceConfig, err := os.ReadFile(source)
 		if err != nil {
 			ConsoleLog.WithError(err).Error("read config template failed")
 			SetExitStatus(1)
@@ -302,7 +301,7 @@ func runGenerate(cmd *Command, args []string) {
 		return
 	}
 	configFilePath := path.Join(workingRoot, "config.yaml")
-	err = ioutil.WriteFile(configFilePath, out, 0644)
+	err = os.WriteFile(configFilePath, out, 0644)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("unexpected error")
 		SetExitStatus(1)

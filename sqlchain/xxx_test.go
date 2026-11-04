@@ -17,7 +17,6 @@
 package sqlchain
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -326,13 +325,11 @@ func createTestPeers(num int) (nis []cpuminer.NonceInfo, p *proto.Peers, err err
 }
 
 func setup() {
-	// Setup RNG
-	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
 
 	// Create temp dir
 	var err error
-	testDataDir, err = ioutil.TempDir("", "covenantsql")
+	testDataDir, err = os.MkdirTemp("", "covenantsql")
 
 	if err != nil {
 		panic(err)

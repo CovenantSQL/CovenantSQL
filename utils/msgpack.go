@@ -30,9 +30,10 @@ var msgPackHandle = &codec.MsgpackHandle{
 }
 
 func init() {
-	// The codec package sets up a handle on its first use, and marks it as set
-	// up before it is, so codecs created concurrently for the first time read
-	// it half set up. Use it once before any connection does.
+	// github.com/ugorji/go before v1.1.6 sets up a handle on its first use, and
+	// marks it as set up before it is, so encoders, decoders and RPC codecs
+	// created concurrently for the first time can read it half set up. Use it
+	// once before anything else does. This can go with v1.1.6 or later.
 	codec.NewEncoderBytes(new([]byte), msgPackHandle)
 }
 

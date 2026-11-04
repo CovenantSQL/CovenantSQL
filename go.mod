@@ -6,7 +6,7 @@ require (
 	bazil.org/fuse v0.0.0-20180421153158-65cc252bf669
 	github.com/CovenantSQL/HashStablePack v2.0.1-0.20190327095521-90c11134d028+incompatible
 	github.com/CovenantSQL/beacon v0.0.0-20190521023351-8402bfe07ece
-	github.com/CovenantSQL/go-sqlite3-encrypt v1.9.1-0.20261104042621-b98a26f1eee2
+	github.com/CovenantSQL/go-sqlite3-encrypt v1.10.0
 	github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6
 	github.com/btcsuite/btcd/btcec/v2 v2.5.1
 	github.com/btcsuite/btcd/btcutil v1.2.0

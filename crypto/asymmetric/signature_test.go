@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"testing"
 
+	ec "github.com/btcsuite/btcd/btcec/v2"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
 
@@ -90,6 +91,15 @@ func TestSign(t *testing.T) {
 		if !reflect.DeepEqual(sig, targetSig) {
 			t.Errorf("%s unexpected serialized bytes - got: %x, want: %x", test.name,
 				targetSig, sig)
+		}
+	}
+}
+
+func TestSignInvalidKey(t *testing.T) {
+	for _, key := range [][]byte{make([]byte, 32), ec.S256().N.Bytes()} {
+		priv, _ := PrivKeyFromBytes(key)
+		if _, err := priv.Sign([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")); err == nil {
+			t.Errorf("signed with the key %x", key)
 		}
 	}
 }

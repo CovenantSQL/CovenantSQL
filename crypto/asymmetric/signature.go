@@ -93,14 +93,14 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 	}
 	seckey := utils.PaddedBigBytes(private.D, private.Params().BitSize/8)
 	defer zeroBytes(seckey)
-	sb, e := secp256k1.Sign(hash, seckey)
-	s := &Signature{
+	sb, err := secp256k1.Sign(hash, seckey)
+	if err != nil {
+		return nil, err
+	}
+	return &Signature{
 		R: new(big.Int).SetBytes(sb[:32]),
 		S: new(big.Int).SetBytes(sb[32:64]),
-	}
-	//s, e := (*ec.PrivateKey)(private).Sign(hash)
-
-	return (*Signature)(s), e
+	}, nil
 }
 
 // Verify calls ecdsa.Verify to verify the signature of hash using the public key. It returns true

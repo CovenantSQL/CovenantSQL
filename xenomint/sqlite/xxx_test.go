@@ -17,7 +17,6 @@
 package sqlite
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"runtime"
@@ -39,7 +38,7 @@ func setup() {
 		lmt syscall.Rlimit
 	)
 
-	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
+	if testingDataDir, err = os.MkdirTemp("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
 

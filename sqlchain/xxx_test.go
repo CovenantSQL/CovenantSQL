@@ -17,7 +17,6 @@
 package sqlchain
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -332,7 +331,7 @@ func setup() {
 
 	// Create temp dir
 	var err error
-	testDataDir, err = ioutil.TempDir("", "covenantsql")
+	testDataDir, err = os.MkdirTemp("", "covenantsql")
 
 	if err != nil {
 		panic(err)

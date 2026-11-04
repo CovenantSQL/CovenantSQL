@@ -18,7 +18,7 @@ package mux
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -173,7 +173,7 @@ func TestNewPersistentCaller(t *testing.T) {
 
 	var d string
 	var err error
-	if d, err = ioutil.TempDir("", "rpcutil_test_"); err != nil {
+	if d, err = os.MkdirTemp("", "rpcutil_test_"); err != nil {
 		return
 	}
 

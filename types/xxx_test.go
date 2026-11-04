@@ -17,7 +17,6 @@
 package types
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
@@ -203,7 +202,7 @@ func buildResponse(header *SignedRequestHeader, cols []string, types []string, r
 func setup() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Read(genesisHash[:])
-	f, err := ioutil.TempFile("", "keystore")
+	f, err := os.CreateTemp("", "keystore")
 
 	if err != nil {
 		panic(err)

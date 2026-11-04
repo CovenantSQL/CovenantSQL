@@ -19,7 +19,6 @@ package mirror
 import (
 	"context"
 	"database/sql"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -191,7 +190,7 @@ func waitForMirrorComplete(ctx context.Context, dbID string, tick time.Duration,
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(tick):
-			progressData, _ := ioutil.ReadFile(progressFile)
+			progressData, _ := os.ReadFile(progressFile)
 			progressCount, _ := strconv.Atoi(string(progressData))
 			log.WithFields(log.Fields{
 				"lastUpdate":     lastUpdate.String(),

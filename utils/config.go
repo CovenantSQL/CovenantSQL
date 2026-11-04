@@ -19,14 +19,14 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // DupConf duplicate conf file using random new listen addr to avoid failure on concurrent test cases.
 func DupConf(confFile string, newConfFile string) (err error) {
 	// replace port in confFile
 	var fileBytes []byte
-	if fileBytes, err = ioutil.ReadFile(confFile); err != nil {
+	if fileBytes, err = os.ReadFile(confFile); err != nil {
 		return
 	}
 
@@ -37,5 +37,5 @@ func DupConf(confFile string, newConfFile string) (err error) {
 
 	newConfBytes := bytes.Replace(fileBytes, []byte(":2230"), []byte(fmt.Sprintf(":%v", ports[0])), -1)
 
-	return ioutil.WriteFile(newConfFile, newConfBytes, 0644)
+	return os.WriteFile(newConfFile, newConfBytes, 0644)
 }

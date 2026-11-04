@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/binary"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -83,7 +82,7 @@ func BenchmarkDBWrite(b *testing.B) {
 		strg  xi.Storage
 		state *x.State
 	)
-	f, _ := ioutil.TempFile("", "f")
+	f, _ := os.CreateTemp("", "f")
 	_ = f.Close()
 	_ = os.Remove(f.Name())
 
@@ -251,7 +250,7 @@ func BenchmarkSignSignature(b *testing.B) {
 		}
 	})
 
-	f, _ := ioutil.TempFile("", "f")
+	f, _ := os.CreateTemp("", "f")
 	_ = f.Close()
 	_ = os.Remove(f.Name())
 	defer os.Remove(f.Name())

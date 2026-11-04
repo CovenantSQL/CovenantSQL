@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -202,7 +201,7 @@ func getPublicFromConfig() *asymmetric.PublicKey {
 func storeDSN(dsnArray []string) {
 	dsnFilePath := path.Join(conf.GConf.WorkingRoot, ".dsn")
 	dsns := strings.Join(dsnArray, "\n")
-	err := ioutil.WriteFile(dsnFilePath, []byte(dsns), 0644)
+	err := os.WriteFile(dsnFilePath, []byte(dsns), 0644)
 	if err != nil {
 		ConsoleLog.WithError(err).Error("store dsn file failed")
 		return
@@ -211,7 +210,7 @@ func storeDSN(dsnArray []string) {
 
 func loadDSN() []string {
 	dsnFilePath := path.Join(conf.GConf.WorkingRoot, ".dsn")
-	dsns, err := ioutil.ReadFile(dsnFilePath)
+	dsns, err := os.ReadFile(dsnFilePath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			ConsoleLog.WithError(err).Error("load dsn file failed")

@@ -17,7 +17,7 @@
 package conf
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"time"
 
@@ -151,7 +151,7 @@ var GConf *Config
 
 // LoadConfig loads config from configPath.
 func LoadConfig(configPath string) (config *Config, err error) {
-	configBytes, err := ioutil.ReadFile(configPath)
+	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
 		log.WithError(err).Error("read config file failed")
 		return

@@ -19,7 +19,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -143,7 +142,7 @@ func TestNewBusService(t *testing.T) {
 
 func initNodeChainBusService() (cleanupFunc func(), server *rpc.Server, err error) {
 	var d string
-	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
+	if d, err = os.MkdirTemp("", "db_test_"); err != nil {
 		return
 	}
 

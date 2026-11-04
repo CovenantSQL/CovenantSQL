@@ -17,7 +17,6 @@
 package blockproducer
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -49,7 +48,7 @@ func setup() {
 	rand.Read(genesisHash[:])
 
 	// Create temp dir for test data
-	if testingDataDir, err = ioutil.TempDir("", "CovenantSQL"); err != nil {
+	if testingDataDir, err = os.MkdirTemp("", "CovenantSQL"); err != nil {
 		panic(err)
 	}
 

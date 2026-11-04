@@ -19,7 +19,6 @@ package kms
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
 	"os"
 
 	"github.com/btcsuite/btcd/btcutil/base58"
@@ -117,7 +116,7 @@ func DecodePrivateKey(keyBytes []byte, masterKey []byte) (key *asymmetric.Privat
 
 // LoadPrivateKey loads private key from keyFilePath, and verifies the hash head.
 func LoadPrivateKey(keyFilePath string, masterKey []byte) (key *asymmetric.PrivateKey, err error) {
-	fileContent, err := ioutil.ReadFile(keyFilePath)
+	fileContent, err := os.ReadFile(keyFilePath)
 	if err != nil {
 		log.WithField("path", keyFilePath).WithError(err).Error("read key file failed")
 		return
@@ -148,7 +147,7 @@ func SavePrivateKey(keyFilePath string, key *asymmetric.PrivateKey, masterKey []
 		return
 	}
 
-	return ioutil.WriteFile(keyFilePath, keyBytes, 0600)
+	return os.WriteFile(keyFilePath, keyBytes, 0600)
 }
 
 // InitLocalKeyPair initializes local private key.

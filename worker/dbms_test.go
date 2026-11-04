@@ -17,7 +17,6 @@
 package worker
 
 import (
-	"io/ioutil"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -52,7 +51,7 @@ func TestDBMS(t *testing.T) {
 		publicKey = privateKey.PubKey()
 
 		var rootDir string
-		rootDir, err = ioutil.TempDir("", "dbms_test_")
+		rootDir, err = os.MkdirTemp("", "dbms_test_")
 		So(err, ShouldBeNil)
 
 		cfg := &DBMSConfig{

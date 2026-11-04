@@ -55,6 +55,21 @@ func TestStorage(t *testing.T) {
 			err = os.Remove(fmt.Sprint(fl, "-wal"))
 			So(err == nil || os.IsNotExist(err), ShouldBeTrue)
 		})
+		Convey("The current time should be unknown to every connection", func() {
+			for _, db := range []*sql.DB{st.Writer(), st.Reader(), st.DirtyReader()} {
+				var now sql.NullString
+				err = db.QueryRow(`SELECT date(?)`, "now").Scan(&now)
+				So(err, ShouldBeNil)
+				So(now.Valid, ShouldBeFalse)
+				err = db.QueryRow(`SELECT datetime()`).Scan(&now)
+				So(err, ShouldBeNil)
+				So(now.Valid, ShouldBeFalse)
+				var fixed string
+				err = db.QueryRow(`SELECT date('2000-01-02')`).Scan(&fixed)
+				So(err, ShouldBeNil)
+				So(fixed, ShouldEqual, "2000-01-02")
+			}
+		})
 		Convey("When a basic KV table is created", func(c C) {
 			// Create basic table for testing
 			_, err = st.Writer().Exec(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`)

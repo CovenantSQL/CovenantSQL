@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      UNITTESTTAGS: linux sqlite_omit_load_extension
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27'
+      - name: Install ICU
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libicu-dev
+      - name: Build
+        run: make -j"$(nproc)" all
+      - name: Test
+        run: ./alltest.sh

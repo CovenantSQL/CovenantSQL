@@ -1,6 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/CovenantSQL/CovenantSQL?style=flat-square)](https://goreportcard.com/report/github.com/CovenantSQL/CovenantSQL)
-[![Coverage](https://codecov.io/gh/CovenantSQL/CovenantSQL/branch/develop/graph/badge.svg)](https://codecov.io/gh/CovenantSQL/CovenantSQL/tree/develop/rpc)
-[![Build Status](https://travis-ci.org/CovenantSQL/CovenantSQL.png?branch=develop)](https://travis-ci.org/CovenantSQL/CovenantSQL)
+[![Build Status](https://github.com/CovenantSQL/CovenantSQL/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CovenantSQL/CovenantSQL/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CovenantSQL/CovenantSQL)
 

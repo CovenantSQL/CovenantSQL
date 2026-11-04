@@ -29,7 +29,6 @@ require (
 	github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e
 	github.com/jordwest/mock-conn v0.0.0-20180617021051-4896c6bd1641
 	github.com/lufia/iostat v0.0.0-20170605150913-9f7362b77ad3
-	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.25.0
@@ -50,12 +49,12 @@ require (
 	github.com/xo/usql v0.7.4
 	github.com/xtaci/smux v1.3.4-0.20190522035559-79b3c96b84d1
 	github.com/zserge/metric v0.1.1-0.20190429132510-b0b64cb7bfea
+	go.yaml.in/yaml/v2 v2.4.5
 	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sys v0.49.0
 	gopkg.in/go-playground/validator.v9 v9.29.0
 	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -137,6 +136,7 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62 => github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b

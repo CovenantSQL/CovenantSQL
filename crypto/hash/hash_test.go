@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	yaml "gopkg.in/yaml.v2"
+	yaml "go.yaml.in/yaml/v2"
 )
 
 // mainNetGenesisHash is the hash of the first block in the block chain for the

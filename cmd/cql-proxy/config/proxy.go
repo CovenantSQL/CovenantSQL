@@ -22,8 +22,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	yaml "go.yaml.in/yaml/v2"
 	validator "gopkg.in/go-playground/validator.v9"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )

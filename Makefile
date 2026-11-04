@@ -118,9 +118,9 @@ else
 endif
 
 tags := $(platform) sqlite_omit_load_extension
-miner_tags := $(tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
+miner_tags := $(tags) sqlite_vtable sqlite_fts5 sqlite_icu
 test_tags := $(tags) testbinary
-miner_test_tags := $(test_tags) sqlite_vtable sqlite_fts5 sqlite_icu sqlite_json
+miner_test_tags := $(test_tags) sqlite_vtable sqlite_fts5 sqlite_icu
 
 static_flags := -linkmode external -extldflags '-static'
 test_flags := -coverpkg github.com/CovenantSQL/CovenantSQL/... -cover -race -c

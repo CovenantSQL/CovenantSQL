@@ -19,12 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+	"runtime/trace"
 	"time"
 
 	graphite "github.com/cyberdelia/go-metrics-graphite"
@@ -38,7 +38,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	_ "github.com/CovenantSQL/CovenantSQL/utils/log/debug"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 	"github.com/CovenantSQL/CovenantSQL/worker"
 )
 
@@ -120,8 +119,6 @@ func initLogs() {
 
 func main() {
 	flag.Parse()
-	// set random
-	rand.Seed(time.Now().UnixNano())
 	log.SetStringLevel(logLevel, log.InfoLevel)
 
 	if showVersion {

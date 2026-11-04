@@ -17,7 +17,7 @@
 package observer
 
 import (
-	"io/ioutil"
+	"os"
 
 	yaml "go.yaml.in/yaml/v2"
 
@@ -44,7 +44,7 @@ func loadConfig(path string) (config *Config, err error) {
 		content []byte
 		wrapper = &configWrapper{}
 	)
-	if content, err = ioutil.ReadFile(path); err != nil {
+	if content, err = os.ReadFile(path); err != nil {
 		log.WithError(err).Error("failed to read config file")
 		return
 	}

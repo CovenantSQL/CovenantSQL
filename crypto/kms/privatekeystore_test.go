@@ -19,7 +19,6 @@ package kms
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -86,7 +85,7 @@ func TestLoadPrivateKey(t *testing.T) {
 	Convey("not key file2", t, func() {
 		defer os.Remove("./.notkey")
 		enc, _ := symmetric.EncryptWithPassword([]byte("aa"), []byte(password), []byte(salt))
-		ioutil.WriteFile("./.notkey", enc, 0600)
+		os.WriteFile("./.notkey", enc, 0600)
 		lk, err := LoadPrivateKey("./.notkey", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)
 		So(lk, ShouldBeNil)
@@ -94,7 +93,7 @@ func TestLoadPrivateKey(t *testing.T) {
 	Convey("hash not match", t, func() {
 		defer os.Remove("./.HashNotMatch")
 		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password), []byte(salt))
-		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
+		os.WriteFile("./.HashNotMatch", enc, 0600)
 		lk, err := LoadPrivateKey("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
 		So(lk, ShouldBeNil)
@@ -109,7 +108,7 @@ func TestLoadPrivateKey(t *testing.T) {
 		rawData := append(keyHash, serializedKey...)
 		encKey, _ := symmetric.EncryptWithPassword(rawData, []byte(password), []byte(salt))
 		invalidBase58EncKey := base58.CheckEncode(encKey, invalidPrivateKeyStoreVersion)
-		ioutil.WriteFile("./.Base58VersionNotMatch", []byte(invalidBase58EncKey), 0600)
+		os.WriteFile("./.Base58VersionNotMatch", []byte(invalidBase58EncKey), 0600)
 		lk, err := LoadPrivateKey("./.Base58VersionNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrInvalidBase58Version)
 		So(lk, ShouldBeNil)
@@ -117,7 +116,7 @@ func TestLoadPrivateKey(t *testing.T) {
 	Convey("invalid base58 checksum", t, func() {
 		defer os.Remove("./.Base58InvalidChecksum")
 		invalidBase58Str := "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-		ioutil.WriteFile("./.Base58InvalidChecksum", []byte(invalidBase58Str), 0600)
+		os.WriteFile("./.Base58InvalidChecksum", []byte(invalidBase58Str), 0600)
 		lk, err := LoadPrivateKey("./.Base58InvalidChecksum", []byte(password))
 		So(err, ShouldEqual, base58.ErrChecksum)
 		So(lk, ShouldBeNil)
@@ -157,14 +156,14 @@ func TestInitLocalKeyPair_error(t *testing.T) {
 	Convey("hash not match", t, func() {
 		defer os.Remove("./.HashNotMatch")
 		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 64), []byte(password), []byte(salt))
-		ioutil.WriteFile("./.HashNotMatch", enc, 0600)
+		os.WriteFile("./.HashNotMatch", enc, 0600)
 		err := InitLocalKeyPair("./.HashNotMatch", []byte(password))
 		So(err, ShouldEqual, ErrHashNotMatch)
 	})
 	Convey("ErrNotKeyFile", t, func() {
 		defer os.Remove("./.ErrNotKeyFile")
 		enc, _ := symmetric.EncryptWithPassword(bytes.Repeat([]byte("a"), 65), []byte(password), []byte(salt))
-		ioutil.WriteFile("./.ErrNotKeyFile", enc, 0600)
+		os.WriteFile("./.ErrNotKeyFile", enc, 0600)
 		err := InitLocalKeyPair("./.ErrNotKeyFile", []byte(password))
 		So(err, ShouldEqual, ErrNotKeyFile)
 	})

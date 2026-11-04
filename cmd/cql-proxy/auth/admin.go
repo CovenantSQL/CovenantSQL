@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -153,7 +152,7 @@ func (a *AdminAuth) HandleLogin(ctx context.Context, state string, auth string) 
 		}
 
 		var respBytes []byte
-		respBytes, err = ioutil.ReadAll(io.LimitReader(resp.Body, MaxGithubResponseSize))
+		respBytes, err = io.ReadAll(io.LimitReader(resp.Body, MaxGithubResponseSize))
 		if err != nil {
 			err = errors.Wrapf(err, "read github response failed")
 			return

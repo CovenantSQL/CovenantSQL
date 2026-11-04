@@ -18,7 +18,7 @@ package main
 
 import (
 	"expvar"
-	"io/ioutil"
+	"io"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -64,7 +64,7 @@ func collectDiskUsage() (err error) {
 		return
 	}
 
-	duResult, err := ioutil.ReadAll(duOutput)
+	duResult, err := io.ReadAll(duOutput)
 	if err != nil {
 		log.WithError(err).Error("get disk usage result failed")
 		return

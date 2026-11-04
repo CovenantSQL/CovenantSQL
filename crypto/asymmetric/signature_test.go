@@ -24,7 +24,6 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
-	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
@@ -38,8 +37,6 @@ var (
 )
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
-
 	var err error
 	priv, pub, err = GenSecp256k1KeyPair()
 	if err != nil {

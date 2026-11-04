@@ -18,7 +18,6 @@ package conf
 
 import (
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -145,7 +144,7 @@ func TestConf(t *testing.T) {
 		hConfig, _ := yaml.Marshal(h)
 		log.Debugf("hash: \n %s", hConfig)
 		log.Debugf("config:\n%s", sConfig)
-		ioutil.WriteFile(testFile, sConfig, 0600)
+		os.WriteFile(testFile, sConfig, 0600)
 		configNew, err := LoadConfig(testFile)
 		So(err, ShouldBeNil)
 		So(configNew.BP.NodeID, ShouldResemble, config.BP.NodeID)
@@ -155,7 +154,7 @@ func TestConf(t *testing.T) {
 		configNew, err = LoadConfig("notExistFile")
 		So(err, ShouldNotBeNil)
 
-		ioutil.WriteFile(testFile, []byte("xx:1"), 0600)
+		os.WriteFile(testFile, []byte("xx:1"), 0600)
 		_, err = LoadConfig(testFile)
 		So(err, ShouldNotBeNil)
 	})

@@ -17,7 +17,6 @@
 package worker
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -185,7 +184,7 @@ func (s *stubBPService) Init() {
 
 func initNode() (cleanupFunc func(), server *rpc.Server, err error) {
 	var d string
-	if d, err = ioutil.TempDir("", "db_test_"); err != nil {
+	if d, err = os.MkdirTemp("", "db_test_"); err != nil {
 		return
 	}
 

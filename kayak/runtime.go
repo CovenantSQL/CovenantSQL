@@ -19,6 +19,7 @@ package kayak
 import (
 	"context"
 	"math"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,7 +30,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 	"github.com/CovenantSQL/CovenantSQL/utils/timer"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 const (

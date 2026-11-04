@@ -17,7 +17,6 @@
 package kms
 
 import (
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -141,7 +140,7 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 		utils.RemoveAll(dbFile + "*")
 		defer utils.RemoveAll(dbFile + "*")
 		var err error
-		err = ioutil.WriteFile(dbFile, []byte("UNKNOWN_DATA_MUST_NOT_BE_A_SQLITE_DATABASE"), 0600)
+		err = os.WriteFile(dbFile, []byte("UNKNOWN_DATA_MUST_NOT_BE_A_SQLITE_DATABASE"), 0600)
 		So(err, ShouldBeNil)
 		st, err := os.Stat(dbFile)
 		So(err, ShouldBeNil)
@@ -161,9 +160,9 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 		defer utils.RemoveAll(dbFile + "*")
 
 		var err error
-		err = ioutil.WriteFile(dbFile, []byte("backup_1"), 0600)
+		err = os.WriteFile(dbFile, []byte("backup_1"), 0600)
 		So(err, ShouldBeNil)
-		err = ioutil.WriteFile(backupFile, []byte("backup_2"), 0600)
+		err = os.WriteFile(backupFile, []byte("backup_2"), 0600)
 		So(err, ShouldBeNil)
 		st, err := os.Stat(dbFile)
 		So(err, ShouldBeNil)
@@ -174,7 +173,7 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 		err = InitPublicKeyStore(dbFile, nil)
 		So(err, ShouldBeNil)
 		// backup should not be overwritten
-		backupData, err := ioutil.ReadFile(backupFile)
+		backupData, err := os.ReadFile(backupFile)
 		So(err, ShouldBeNil)
 		So(backupData, ShouldResemble, []byte("backup_2"))
 	})
@@ -224,7 +223,7 @@ func TestInvalidKeystoreFileRecover(t *testing.T) {
 		utils.RemoveAll(dbFile + "*")
 		defer utils.RemoveAll(dbFile + "*")
 
-		err := ioutil.WriteFile(dbFile, []byte{}, 0600)
+		err := os.WriteFile(dbFile, []byte{}, 0600)
 		So(err, ShouldBeNil)
 
 		err = InitPublicKeyStore(dbFile, nil)

@@ -18,7 +18,7 @@ package utils
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -40,7 +40,7 @@ func TestRunServer(t *testing.T) {
 			[]string{},
 			"ls", testWorkingDir, logDir, true,
 		)
-		lsOut, _ := ioutil.ReadFile(FJ(logDir, "ls.log"))
+		lsOut, _ := os.ReadFile(FJ(logDir, "ls.log"))
 		So(bytes.ContainsAny(lsOut, "node_c"), ShouldBeTrue)
 
 		err := RunCommand(

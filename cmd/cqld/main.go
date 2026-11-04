@@ -19,11 +19,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -99,8 +97,6 @@ func initLogs() {
 func main() {
 	flag.Parse()
 	log.SetStringLevel(logLevel, log.InfoLevel)
-	// set random
-	rand.Seed(time.Now().UnixNano())
 
 	if showVersion {
 		fmt.Printf("%v %v %v %v %v\n",

@@ -17,7 +17,7 @@
 package utils
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -29,7 +29,7 @@ func TestDupConf(t *testing.T) {
 	Convey("dup config file", t, func() {
 		var d string
 		var err error
-		d, err = ioutil.TempDir("", "utils_test_")
+		d, err = os.MkdirTemp("", "utils_test_")
 		So(err, ShouldBeNil)
 		dupConfFile := filepath.Join(d, "config.yaml")
 

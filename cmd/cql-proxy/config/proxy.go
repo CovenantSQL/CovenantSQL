@@ -17,7 +17,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -150,7 +150,7 @@ func (fc *FaucetConfig) fixConfig() {
 // LoadConfig load the common covenantsql client config again for extra faucet config.
 func LoadConfig(listenAddr string, configPath string) (config *Config, err error) {
 	var configBytes []byte
-	if configBytes, err = ioutil.ReadFile(configPath); err != nil {
+	if configBytes, err = os.ReadFile(configPath); err != nil {
 		log.WithError(err).Error("read config file failed")
 		return
 	}

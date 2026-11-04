@@ -18,6 +18,7 @@ package kayak
 
 import (
 	"context"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,7 +28,6 @@ import (
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 type waitItem struct {

@@ -18,14 +18,13 @@ package naconn
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
@@ -125,7 +124,7 @@ func TestNAConn(t *testing.T) {
 					c.So(err, ShouldBeNil)
 					defer func() { _ = naconn.Close() }()
 					t.Logf("accept conn %s <- %s", naconn.LocalAddr(), naconn.RemoteAddr())
-					buffer, err := ioutil.ReadAll(naconn)
+					buffer, err := io.ReadAll(naconn)
 					c.So(err, ShouldBeNil)
 					c.So(buffer, ShouldResemble, message[:])
 				}(c, conn)
@@ -169,10 +168,8 @@ func thisNode() *proto.Node {
 }
 
 func setup() {
-	rand.Seed(time.Now().UnixNano())
-
 	var err error
-	if tempDir, err = ioutil.TempDir("", "covenantsql"); err != nil {
+	if tempDir, err = os.MkdirTemp("", "covenantsql"); err != nil {
 		panic(err)
 	}
 	if conf.GConf, err = conf.LoadConfig(confFile); err != nil {

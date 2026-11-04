@@ -82,7 +82,6 @@ func nonceLoop(publicKey *asymmetric.PublicKey) {
 	nonceChs := make([]chan mine.NonceInfo, cpuCount)
 	stopChs := make([]chan struct{}, cpuCount)
 
-	rand.Seed(time.Now().UnixNano())
 	step := math.MaxUint64 / uint64(cpuCount)
 
 	for i := 0; i < cpuCount; i++ {
@@ -135,7 +134,6 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 	progressCh := make(chan int, 100)
 	var wg sync.WaitGroup
 
-	rand.Seed(time.Now().UnixNano())
 	step := 256 / cpuCount
 	for i := 0; i < cpuCount; i++ {
 		wg.Add(1)

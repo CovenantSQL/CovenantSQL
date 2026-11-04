@@ -1,4 +1,4 @@
-// +build !testbinary
+//go:build !testbinary
 
 /*
  * Copyright 2018 The CovenantSQL Authors.
@@ -23,12 +23,12 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -52,7 +52,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	"github.com/CovenantSQL/CovenantSQL/utils/trace"
 )
 
 var (
@@ -815,7 +814,7 @@ func benchMiner(b *testing.B, minerCount uint16) {
 	}
 
 	// Create temp directory
-	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
+	testDataDir, err := os.MkdirTemp(testWorkingDir, "covenantsql")
 	if err != nil {
 		panic(err)
 	}
@@ -850,7 +849,7 @@ func benchMiner(b *testing.B, minerCount uint16) {
 		_, dsn, err = client.Create(meta)
 		So(err, ShouldBeNil)
 		log.Infof("the created database dsn is %v", dsn)
-		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
+		err = os.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
 			log.Errorf("write .dsn failed: %v", err)
 		}
@@ -924,7 +923,7 @@ func benchOutsideMinerWithTargetMinerList(
 	log.Warnf("benchmark %v for %d Miners:", confDir, minerCount)
 
 	// Create temp directory
-	testDataDir, err := ioutil.TempDir(testWorkingDir, "covenantsql")
+	testDataDir, err := os.MkdirTemp(testWorkingDir, "covenantsql")
 	if err != nil {
 		panic(err)
 	}
@@ -975,7 +974,7 @@ func benchOutsideMinerWithTargetMinerList(
 		err = client.WaitDBCreation(ctx, dsn)
 		So(err, ShouldBeNil)
 
-		err = ioutil.WriteFile(dsnFile, []byte(dsn), 0666)
+		err = os.WriteFile(dsnFile, []byte(dsn), 0666)
 		if err != nil {
 			log.Errorf("write .dsn failed: %v", err)
 		}

@@ -648,6 +648,23 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
 
+		// contains stateful query parts, using the current time in date functions
+		for _, q := range []string{
+			"SELECT date('now')",
+			"SELECT unixepoch('now')",
+			"SELECT unixepoch('2000-01-01', 'localtime')",
+			"SELECT timediff('now', '2000-01-01')",
+		} {
+			containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+				q, []types.NamedArg{})
+			So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+		}
+
+		// counterpart with a fixed time
+		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"SELECT unixepoch('2000-01-01'), timediff('2000-01-02', '2000-01-01')", []types.NamedArg{})
+		So(err, ShouldBeNil)
+
 		// counterpart to prove successful parsing of normal query
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"SELECT 1; SELECT func(); SELECT * FROM a", []types.NamedArg{})

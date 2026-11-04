@@ -60,6 +60,14 @@ var (
 			"now":       true,
 			"localtime": true,
 		},
+		"unixepoch": {
+			"now":       true,
+			"localtime": true,
+		},
+		"timediff": {
+			"now":       true,
+			"localtime": true,
+		},
 
 		// all sqlite functions is already ignored, including
 		//"sqlite_offset":             nil,

@@ -21,6 +21,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	crand "crypto/rand"
+	"math/big"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -49,6 +50,7 @@ func TestSign(t *testing.T) {
 	tests := []struct {
 		name string
 		key  []byte
+		sig  []byte
 	}{
 		{
 			name: "Test curve",
@@ -57,6 +59,18 @@ func TestSign(t *testing.T) {
 				0x39, 0x26, 0x55, 0xba, 0x4d, 0x29, 0x60, 0x3c,
 				0xd1, 0xa7, 0x34, 0x7d, 0x9d, 0x65, 0xcf, 0xe9,
 				0x3c, 0xe1, 0xeb, 0xff, 0xdc, 0xa2, 0x26, 0x94,
+			},
+			// Signatures are deterministic, so this one must not change.
+			sig: []byte{
+				0x30, 0x44, 0x02, 0x20, 0x11, 0x10, 0xdf, 0xd7,
+				0x7d, 0x7a, 0xeb, 0x2f, 0xea, 0xa8, 0x3b, 0xec,
+				0xe0, 0x60, 0xfd, 0x02, 0xea, 0x40, 0xab, 0xd7,
+				0x6a, 0x60, 0x06, 0xc6, 0xba, 0x44, 0x7e, 0x67,
+				0x7d, 0xcc, 0x43, 0xf6, 0x02, 0x20, 0x56, 0x99,
+				0x88, 0xe0, 0x8b, 0x63, 0xfe, 0x1b, 0x56, 0xf2,
+				0x1d, 0xe1, 0xa7, 0xba, 0x2c, 0xdd, 0x32, 0x86,
+				0x7a, 0x6b, 0xd8, 0x1a, 0x0a, 0x19, 0x21, 0x9d,
+				0x11, 0xfe, 0x8e, 0xa2, 0xb1, 0x55,
 			},
 		},
 	}
@@ -83,6 +97,9 @@ func TestSign(t *testing.T) {
 		}
 
 		serializedSig := sig.Serialize()
+		if !bytes.Equal(serializedSig, test.sig) {
+			t.Errorf("%s unexpected signature - got: %x, want: %x", test.name, serializedSig, test.sig)
+		}
 		targetSig, err := ParseSignature(serializedSig)
 		if err != nil {
 			t.Errorf("%s could not serialized: %v", test.name, err)
@@ -100,6 +117,32 @@ func TestSignInvalidKey(t *testing.T) {
 		priv, _ := PrivKeyFromBytes(key)
 		if _, err := priv.Sign([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")); err == nil {
 			t.Errorf("signed with the key %x", key)
+		}
+	}
+}
+
+func TestSignature_Verify(t *testing.T) {
+	hash := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	sig, err := priv.Sign(hash)
+	if err != nil {
+		t.Fatalf("could not sign: %v", err)
+	}
+	n := ec.S256().N
+	tests := []struct {
+		name string
+		sig  *Signature
+		hash []byte
+		want bool
+	}{
+		{"valid", sig, hash, true},
+		{"S above half the order", &Signature{R: sig.R, S: new(big.Int).Sub(n, sig.S)}, hash, false},
+		{"zero S", &Signature{R: sig.R, S: new(big.Int)}, hash, false},
+		{"R plus the order", &Signature{R: new(big.Int).Add(sig.R, n), S: sig.S}, hash, false},
+		{"short hash", sig, hash[:31], false},
+	}
+	for _, test := range tests {
+		if got := test.sig.Verify(test.hash, pub); got != test.want {
+			t.Errorf("%s: Verify returned %v, want %v", test.name, got, test.want)
 		}
 	}
 }

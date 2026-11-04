@@ -1,4 +1,4 @@
-// +build !testbinary
+//go:build !testbinary
 
 /*
  * Copyright 2019 The CovenantSQL Authors.

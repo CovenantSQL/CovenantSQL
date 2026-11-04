@@ -1,4 +1,4 @@
-// +build !nomeminfo_numa
+//go:build !nomeminfo_numa
 
 package metric
 

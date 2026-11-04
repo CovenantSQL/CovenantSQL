@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-// +build !nocpu
+//go:build !nocpu
 
 package collector
 

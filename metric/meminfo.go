@@ -14,8 +14,7 @@
 //limitations under the License.
 //
 
-// +build darwin linux openbsd
-// +build !nomeminfo
+//go:build (darwin || linux || openbsd) && !nomeminfo
 
 package metric
 

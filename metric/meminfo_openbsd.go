@@ -1,5 +1,4 @@
-// +build openbsd
-// +build !nomeminfo
+//go:build openbsd && !nomeminfo
 
 package metric
 

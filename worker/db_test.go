@@ -219,7 +219,7 @@ func TestSingleDatabase(t *testing.T) {
 
 			So(res.Header.RowCount, ShouldEqual, uint64(1))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
-			So(res.Payload.DeclTypes, ShouldResemble, []string{"int"})
+			So(res.Payload.DeclTypes, ShouldResemble, []string{"INT"})
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
 			So(res.Payload.Rows[0].Values[0], ShouldEqual, 1)
@@ -288,7 +288,7 @@ func TestSingleDatabase(t *testing.T) {
 
 			So(res.Header.RowCount, ShouldEqual, uint64(2))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
-			So(res.Payload.DeclTypes, ShouldResemble, []string{"int"})
+			So(res.Payload.DeclTypes, ShouldResemble, []string{"INT"})
 			So(res.Payload.Rows, ShouldNotBeEmpty)
 			So(len(res.Payload.Rows), ShouldEqual, 2)
 			So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
@@ -329,7 +329,7 @@ func TestSingleDatabase(t *testing.T) {
 
 			So(res.Header.RowCount, ShouldEqual, uint64(0))
 			So(res.Payload.Columns, ShouldResemble, []string{"test"})
-			So(res.Payload.DeclTypes, ShouldResemble, []string{"int"})
+			So(res.Payload.DeclTypes, ShouldResemble, []string{"INT"})
 			So(res.Payload.Rows, ShouldBeEmpty)
 
 			// write query, test failed
@@ -507,7 +507,7 @@ func TestDatabaseRecycle(t *testing.T) {
 
 		So(res.Header.RowCount, ShouldEqual, uint64(1))
 		So(res.Payload.Columns, ShouldResemble, []string{"test"})
-		So(res.Payload.DeclTypes, ShouldResemble, []string{"int"})
+		So(res.Payload.DeclTypes, ShouldResemble, []string{"INT"})
 		So(res.Payload.Rows, ShouldNotBeEmpty)
 		So(res.Payload.Rows[0].Values, ShouldNotBeEmpty)
 		So(res.Payload.Rows[0].Values[0], ShouldEqual, 1)

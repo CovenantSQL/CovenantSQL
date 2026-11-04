@@ -238,11 +238,11 @@ func BenchmarkGenKeySignVerify(b *testing.B) {
 }
 
 func generateKeyPair() (pubkey, privkey []byte) {
-	key, err := ecdsa.GenerateKey(secp256k1.S256(), crand.Reader)
+	key, err := ecdsa.GenerateKey(ec.S256(), crand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	pubkey = elliptic.Marshal(secp256k1.S256(), key.X, key.Y)
+	pubkey = elliptic.Marshal(ec.S256(), key.X, key.Y)
 
 	privkey = make([]byte, 32)
 	blob := key.D.Bytes()

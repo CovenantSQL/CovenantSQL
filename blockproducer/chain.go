@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -69,7 +69,7 @@ type Chain struct {
 	storage xi.Storage
 	// NOTE(leventeliu): this LRU object is only used for block cache control,
 	// do NOT read it in any case.
-	blockCache *lru.Cache
+	blockCache *lru.Cache[uint32, *blockNode]
 
 	// Channels for incoming blocks and transactions
 	pendingBlocks    chan *types.BPBlock
@@ -108,7 +108,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		ierr error
 
 		st        xi.Storage
-		cache     *lru.Cache
+		cache     *lru.Cache[uint32, *blockNode]
 		lastIrre  *blockNode
 		heads     []*blockNode
 		immutable *metaState
@@ -155,8 +155,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 	if cfg.BlockCacheSize <= 0 {
 		cfg.BlockCacheSize = 1 // Must provide a positive size
 	}
-	if cache, err = lru.NewWithEvict(cfg.BlockCacheSize, func(key interface{}, value interface{}) {
-		if node, ok := value.(*blockNode); ok && node != nil {
+	if cache, err = lru.NewWithEvict(cfg.BlockCacheSize, func(_ uint32, node *blockNode) {
+		if node != nil {
 			node.clear()
 		}
 	}); err != nil {

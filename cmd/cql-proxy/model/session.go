@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	gorp "gopkg.in/gorp.v2"
 )
 
@@ -279,7 +279,7 @@ func NewEmptySession(c *gin.Context) (s *Session) {
 
 // NewSession created and save new session to database.
 func NewSession(db *gorp.DbMap, expire int64) (s *Session, err error) {
-	id := uuid.Must(uuid.NewV4()).String()
+	id := uuid.NewString()
 	now := time.Now().Unix()
 	s = &Session{
 		ID:      id,

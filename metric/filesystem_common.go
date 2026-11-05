@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !nofilesystem && (linux || freebsd || openbsd || (darwin && amd64) || dragonfly)
+//go:build !nofilesystem && (linux || freebsd || openbsd || darwin || dragonfly)
 
 package metric
 

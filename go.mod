@@ -24,7 +24,7 @@ require (
 	github.com/gorilla/handlers v1.4.0
 	github.com/gorilla/mux v1.7.2
 	github.com/gorilla/websocket v1.5.3
-	github.com/hashicorp/golang-lru v0.5.1
+	github.com/hashicorp/golang-lru v1.0.2
 	github.com/ivpusic/grpool v1.0.0
 	github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e
 	github.com/jordwest/mock-conn v0.0.0-20180617021051-4896c6bd1641
@@ -55,6 +55,7 @@ require (
 	golang.org/x/sys v0.49.0
 	gopkg.in/go-playground/validator.v9 v9.29.0
 	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -136,7 +137,6 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62 => github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b

@@ -19,8 +19,8 @@ package model
 import (
 	"time"
 
+	"github.com/go-gorp/gorp/v3"
 	"github.com/pkg/errors"
-	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 	"github.com/CovenantSQL/CovenantSQL/crypto"

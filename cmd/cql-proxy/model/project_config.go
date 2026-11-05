@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/go-gorp/gorp/v3"
 	"github.com/pkg/errors"
-	gorp "gopkg.in/gorp.v2"
 )
 
 // ProjectConfigType defines the project config enum.

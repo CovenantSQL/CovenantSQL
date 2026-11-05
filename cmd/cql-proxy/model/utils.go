@@ -18,7 +18,7 @@ package model
 
 import (
 	"github.com/gin-gonic/gin"
-	gorp "gopkg.in/gorp.v2"
+	"github.com/go-gorp/gorp/v3"
 )
 
 // GetDB returns the database mapping object from gin context.

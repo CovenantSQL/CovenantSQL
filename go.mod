@@ -40,7 +40,7 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62
 	github.com/sirupsen/logrus v1.10.2
-	github.com/smartystreets/goconvey v0.0.0-20170602164621-9e8dc3f972df
+	github.com/smartystreets/goconvey v1.8.1
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20190106185902-35a74f039c6a
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tchap/go-patricia v2.3.0+incompatible
@@ -55,6 +55,7 @@ require (
 	golang.org/x/sys v0.49.0
 	gopkg.in/go-playground/validator.v9 v9.29.0
 	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -94,7 +95,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.23 // indirect
 	github.com/googleapis/gax-go/v2 v2.26.2 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
+	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/juju/errors v0.0.0-20190207033735-e65537c515d7 // indirect
@@ -115,7 +116,7 @@ require (
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/siddontang/go v0.0.0-20180604090527-bdc77568d726 // indirect
 	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed // indirect
-	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
+	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/xo/tblfmt v0.0.0-20190609041254-28c54ec42ce8 // indirect
 	github.com/xo/terminfo v0.0.0-20190125114736-1a4775eeeb62 // indirect
@@ -136,7 +137,6 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62 => github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b

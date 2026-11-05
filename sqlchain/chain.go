@@ -1054,10 +1054,8 @@ func (c *Chain) pruneBlockCache() {
 
 func (c *Chain) stat() {
 	var (
-		ic = atomic.LoadInt32(&c.ai.multiIndexCount)
-		rc = atomic.LoadInt32(&c.ai.responseCount)
-		tc = atomic.LoadInt32(&c.ai.ackCount)
-		bc = atomic.LoadInt32(&c.cachedBlockCount)
+		ic, rc, tc = c.ai.stats()
+		bc         = atomic.LoadInt32(&c.cachedBlockCount)
 	)
 	// Print chain stats
 	c.logEntry().WithFields(log.Fields{

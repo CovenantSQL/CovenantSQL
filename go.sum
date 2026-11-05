@@ -755,8 +755,6 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d h1:vfofYNRScrDdvS342BElfbETmL1Aiz3i2t0zfRj16Hs=
 github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d/go.mod h1:RRCYJbIwD5jmqPI9XoAFR0OcDxqUctll6zUj/+B4S48=
-github.com/tchap/go-patricia v2.3.0+incompatible h1:GkY4dP3cEfEASBPPkWd+AmjYxhmDkqO9/zg7R0lSQRs=
-github.com/tchap/go-patricia v2.3.0+incompatible/go.mod h1:bmLyhP68RS6kStMGxByiQ23RP/odRBOTVjwp2cDyi6I=
 github.com/thda/tds v0.1.7 h1:s29kbnJK0agL3ps85A/sb9XS2uxgKF5UJ6AZjbyqXX4=
 github.com/thda/tds v0.1.7/go.mod h1:isLIF1oZdXfkqVMJM8RyNrsjlHPlTKnPlnsBs7ngZcM=
 github.com/trinodb/trino-go-client v0.333.0 h1:+bsW8/uLFNF00MEL9JZJym94LlUnle25VgDlWGPEZos=

@@ -21,7 +21,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-gorp/gorp v2.2.0+incompatible
-	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/go-github/v93 v93.0.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.3
@@ -90,7 +90,7 @@ require (
 	github.com/gohxs/readline v0.0.0-20171011095936-a780388e6e7c // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/go-github/v52 v52.0.0 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.11 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.23 // indirect

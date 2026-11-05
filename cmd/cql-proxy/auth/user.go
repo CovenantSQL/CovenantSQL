@@ -31,7 +31,7 @@ import (
 	twitterOAuth1 "github.com/dghubble/oauth1/twitter"
 	"github.com/dghubble/sling"
 	"github.com/gin-gonic/gin"
-	githubRPC "github.com/google/go-github/github"
+	githubRPC "github.com/google/go-github/v93/github"
 	"github.com/jmoiron/jsonq"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -333,7 +333,11 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 			return
 		}
 
-		rpc := githubRPC.NewClient(cfg.Client(r.Context(), tokenInfo))
+		rpc, err := githubRPC.NewClient(githubRPC.WithHTTPClient(cfg.Client(r.Context(), tokenInfo)))
+		if err != nil {
+			fail(err)
+			return
+		}
 
 		userInfo, _, err := rpc.Users.Get(r.Context(), "")
 		if err != nil {

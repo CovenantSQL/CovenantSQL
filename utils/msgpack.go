@@ -25,9 +25,14 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-var msgPackHandle = &codec.MsgpackHandle{
-	WriteExt: true,
-}
+var msgPackHandle = func() *codec.MsgpackHandle {
+	h := &codec.MsgpackHandle{WriteExt: true}
+	// Write struct fields sorted by name, as github.com/ugorji/go v1.1.4 did:
+	// v1.3.2 writes them in declaration order unless Canonical is set, which
+	// also sorts map keys.
+	h.Canonical = true
+	return h
+}()
 
 func init() {
 	// github.com/ugorji/go before v1.1.6 sets up a handle on its first use, and

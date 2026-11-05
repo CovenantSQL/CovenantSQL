@@ -14,15 +14,15 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/derekstavis/go-qs v0.0.0-20180720192143-9eef69e6c4e7
 	github.com/dghubble/gologin/v2 v2.5.0
-	github.com/dghubble/oauth1 v0.7.2
-	github.com/dghubble/sling v1.4.1
+	github.com/dghubble/oauth1 v0.7.3
+	github.com/dghubble/sling v1.4.2
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/gin-contrib/cors v1.7.9
+	github.com/gin-contrib/cors v1.7.10
 	github.com/gin-gonic/gin v1.12.0
-	github.com/go-gorp/gorp v2.0.1-0.20180226155812-4df78490a9aa+incompatible
+	github.com/go-gorp/gorp v2.2.0+incompatible
 	github.com/google/go-github v17.0.0+incompatible
-	github.com/gorilla/handlers v1.4.0
-	github.com/gorilla/mux v1.7.2
+	github.com/gorilla/handlers v1.5.2
+	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/ivpusic/grpool v1.0.0
@@ -30,18 +30,18 @@ require (
 	github.com/jordwest/mock-conn v0.0.0-20180617021051-4896c6bd1641
 	github.com/lufia/iostat v1.2.1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
-	github.com/prometheus/common v0.72.0
-	github.com/prometheus/procfs v0.22.0
-	github.com/rakyll/statik v0.1.6
+	github.com/prometheus/common v0.73.1
+	github.com/prometheus/procfs v0.23.0
+	github.com/rakyll/statik v0.1.8
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62
 	github.com/sirupsen/logrus v1.10.2
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/sourcegraph/jsonrpc2 v0.0.0-20190106185902-35a74f039c6a
+	github.com/sourcegraph/jsonrpc2 v0.2.3
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tchap/go-patricia v2.3.0+incompatible
 	github.com/ugorji/go v1.1.4
@@ -53,8 +53,8 @@ require (
 	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sys v0.49.0
-	gopkg.in/go-playground/validator.v9 v9.29.0
-	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
+	gopkg.in/go-playground/validator.v9 v9.31.0
+	gopkg.in/gorp.v2 v2.2.0
 )
 
 require (
@@ -63,7 +63,6 @@ require (
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/alecthomas/chroma v0.6.3 // indirect
-	github.com/apoydence/onpar v0.0.0-20190519213022-ee068f8ea4d1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
@@ -107,6 +106,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/pandatix/go-abnf v0.5.3 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pingcap/check v0.0.0-20190102082844-67f458068fc8 // indirect

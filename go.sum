@@ -389,8 +389,8 @@ github.com/tchap/go-patricia v2.3.0+incompatible/go.mod h1:bmLyhP68RS6kStMGxByiQ
 github.com/thda/tds v0.1.5/go.mod h1:V+2V0fw7sLrJoPpueuaLrdlXFcE6AtwdAgirCCzzVUI=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
-github.com/ugorji/go v1.1.4 h1:j4s+tAvLfL3bZyefP2SEWmhBzmuIlH/eqNuPdFPgngw=
-github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
+github.com/ugorji/go/codec v1.3.2 h1:zkEASHHyEClGeURfgNT9PJZVfAbs9oEX9QXggwWNJbc=
+github.com/ugorji/go/codec v1.3.2/go.mod h1:pRBVtBSKl77K30Bv8R2P+cLSGaTtex6fsA2Wjqmfxj4=
 github.com/xinsnake/go-http-digest-auth-client v0.4.0/go.mod h1:QK1t1v7ylyGb363vGWu+6Irh7gyFj+N7+UZzM0L6g8I=
 github.com/xo/dburl v0.0.0-20190203050942-98997a05b24f h1:mpE3N7Ao9j/miA6UsIpIsm925lXkff09BVQykBPtP9I=
 github.com/xo/dburl v0.0.0-20190203050942-98997a05b24f/go.mod h1:g6rdekR8vgfVZrkLWfobLTm0kVez7GAN23mWtkGCJ14=

@@ -27,12 +27,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
-const (
-	// msgpack constants, copied from go/codec/msgpack.go
-	valueTypeMap   = 9
-	valueTypeArray = 10
-)
-
 var (
 	txTypeMapping sync.Map
 	txType        = reflect.TypeOf((*Transaction)(nil)).Elem()
@@ -44,16 +38,16 @@ var (
 	ErrInvalidTransactionType = errors.New("invalid transaction type, can not instantiate transaction")
 	// ErrTransactionRegistration represents invalid transaction object type being registered.
 	ErrTransactionRegistration = errors.New("transaction register failed")
-	// ErrMsgPackVersionMismatch represents the msgpack library abi has changed.
-	ErrMsgPackVersionMismatch = errors.New("msgpack library version mismatch")
+
+	// arrayHandle splits the [type, transaction] array into its elements. The
+	// split decodes from the byte slice instead of going through
+	// utils.DecodeMsgPack: a decoder reading from an io.Reader returns each
+	// codec.Raw as a view of its buffer, which reading the next element
+	// overwrites.
+	arrayHandle = &codec.MsgpackHandle{WriteExt: true}
 )
 
 func init() {
-	// detect msgpack version
-	if codec.GenVersion < 8 {
-		panic(ErrMsgPackVersionMismatch)
-	}
-
 	// register transaction wrapper to msgpack handler
 	if err := utils.RegisterInterfaceToMsgPack(txType, txWrapperType); err != nil {
 		panic(err)
@@ -72,37 +66,33 @@ func (w *TransactionWrapper) Unwrap() Transaction {
 
 // CodecEncodeSelf implements codec.Selfer interface.
 func (w *TransactionWrapper) CodecEncodeSelf(e *codec.Encoder) {
-	helperEncoder, encDriver := codec.GenHelperEncoder(e)
-
 	if w == nil || w.Transaction == nil {
-		encDriver.EncodeNil()
+		e.MustEncode(nil)
 		return
 	}
 
-	// translate wrapper to two fields array wrapped by map
-	encDriver.WriteArrayStart(2)
-	encDriver.WriteArrayElem()
-	encDriver.EncodeUint(uint64(w.GetTransactionType()))
-	encDriver.WriteArrayElem()
-	helperEncoder.EncFallback(w.Transaction)
-	encDriver.WriteArrayEnd()
+	// translate wrapper to two fields array: [type, transaction]
+	e.MustEncode([]interface{}{uint64(w.GetTransactionType()), w.Transaction})
 }
 
 // CodecDecodeSelf implements codec.Selfer interface.
 func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
-	_, decodeDriver := codec.GenHelperDecoder(d)
-
 	// clear fields
 	w.Transaction = nil
-	ct := decodeDriver.ContainerType()
 
-	switch ct {
-	case valueTypeArray:
-		w.decodeFromWrapper(d)
-	case valueTypeMap:
-		w.decodeFromRaw(d)
+	// The decoder does not tell the type of the next value before decoding it,
+	// so read the whole value and look at its first byte. raw is only valid
+	// until d reads again.
+	var raw codec.Raw
+	d.MustDecode(&raw)
+
+	switch {
+	case isMsgpackArray(raw):
+		w.decodeFromWrapper(raw)
+	case isMsgpackMap(raw):
+		w.decodeFromRaw(raw)
 	default:
-		panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
+		panic(errors.Wrapf(ErrInvalidContainerType, "type %#x applied", raw[0]))
 	}
 }
 
@@ -137,57 +127,39 @@ func (w *TransactionWrapper) UnmarshalJSON(data []byte) (err error) {
 	return json.Unmarshal(data, &w.Transaction)
 }
 
-func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
-	helperDecoder, decodeDriver := codec.GenHelperDecoder(d)
-	containerLen := decodeDriver.ReadArrayStart()
-
-	for i := 0; i < containerLen; i++ {
-		if decodeDriver.CheckBreak() {
-			break
-		}
-
-		decodeDriver.ReadArrayElem()
-
-		if i == 0 {
-			if decodeDriver.TryDecodeAsNil() {
-				// invalid type, can not instantiate transaction
-				panic(ErrInvalidTransactionType)
-			} else {
-				var txType TransactionType
-				helperDecoder.DecFallback(&txType, true)
-
-				var err error
-				if w.Transaction, err = NewTransaction(txType); err != nil {
-					panic(err)
-				}
-			}
-		} else if i == 1 {
-			if ct := decodeDriver.ContainerType(); ct != valueTypeMap {
-				panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
-			}
-
-			if !decodeDriver.TryDecodeAsNil() {
-				// the container type should be struct
-				helperDecoder.DecFallback(&w.Transaction, true)
-			}
-		} else {
-			helperDecoder.DecStructFieldNotFound(i, "")
-		}
+func (w *TransactionWrapper) decodeFromWrapper(raw codec.Raw) {
+	var fields []codec.Raw
+	if err := codec.NewDecoderBytes(raw, arrayHandle).Decode(&fields); err != nil {
+		panic(err)
 	}
 
-	decodeDriver.ReadArrayEnd()
-
-	if containerLen < 2 {
+	// fields after the first two are ignored
+	if len(fields) < 2 || fields[0] == nil {
+		// invalid type, can not instantiate transaction
 		panic(ErrInvalidTransactionType)
+	}
+
+	var txType TransactionType
+	if err := utils.DecodeMsgPack(fields[0], &txType); err != nil {
+		panic(err)
+	}
+
+	var err error
+	if w.Transaction, err = NewTransaction(txType); err != nil {
+		panic(err)
+	}
+
+	// the container type should be struct
+	if !isMsgpackMap(fields[1]) {
+		panic(errors.Wrap(ErrInvalidContainerType, "transaction is not a map"))
+	}
+
+	if err = utils.DecodeMsgPack(fields[1], &w.Transaction); err != nil {
+		panic(err)
 	}
 }
 
-func (w *TransactionWrapper) decodeFromRaw(d *codec.Decoder) {
-	helperDecoder, _ := codec.GenHelperDecoder(d)
-
-	// read all container as raw
-	rawBytes := helperDecoder.DecRaw()
-
+func (w *TransactionWrapper) decodeFromRaw(rawBytes codec.Raw) {
 	var typeDetector TransactionTypeMixin
 	typeDetector.SetTransactionType(TransactionTypeNumber)
 
@@ -209,6 +181,17 @@ func (w *TransactionWrapper) decodeFromRaw(d *codec.Decoder) {
 	if err = utils.DecodeMsgPack(rawBytes, w.Transaction); err != nil {
 		panic(err)
 	}
+}
+
+// isMsgpackArray reports whether raw is a msgpack array (fixarray, array 16 or
+// array 32, see https://github.com/msgpack/msgpack/blob/master/spec.md#formats).
+func isMsgpackArray(raw codec.Raw) bool {
+	return len(raw) > 0 && (raw[0]&0xf0 == 0x90 || raw[0] == 0xdc || raw[0] == 0xdd)
+}
+
+// isMsgpackMap reports whether raw is a msgpack map (fixmap, map 16 or map 32).
+func isMsgpackMap(raw codec.Raw) bool {
+	return len(raw) > 0 && (raw[0]&0xf0 == 0x80 || raw[0] == 0xde || raw[0] == 0xdf)
 }
 
 // RegisterTransaction registers transaction type to wrapper.

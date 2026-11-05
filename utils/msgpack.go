@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"net/rpc"
@@ -64,10 +65,33 @@ func EncodeMsgPack(in interface{}) (*bytes.Buffer, error) {
 
 // GetMsgPackServerCodec returns msgpack server codec for connection.
 func GetMsgPackServerCodec(c io.ReadWriteCloser) rpc.ServerCodec {
-	return codec.MsgpackSpecRpc.ServerCodec(c, msgPackHandle)
+	return codec.MsgpackSpecRpc.ServerCodec(newBufferedConn(c), msgPackHandle)
 }
 
 // GetMsgPackClientCodec returns msgpack client codec for connection.
 func GetMsgPackClientCodec(c io.ReadWriteCloser) rpc.ClientCodec {
-	return codec.MsgpackSpecRpc.ClientCodec(c, msgPackHandle)
+	return codec.MsgpackSpecRpc.ClientCodec(newBufferedConn(c), msgPackHandle)
+}
+
+// bufferedConn buffers the writes to a connection until the RPC codec flushes
+// them after each message. The codecs of github.com/ugorji/go v1.1.4 did this
+// themselves; those of v1.3.2 write a message in pieces of 16 bytes instead.
+type bufferedConn struct {
+	io.ReadWriteCloser
+	w *bufio.Writer
+}
+
+func newBufferedConn(c io.ReadWriteCloser) *bufferedConn {
+	return &bufferedConn{ReadWriteCloser: c, w: bufio.NewWriter(c)}
+}
+
+// Write implements io.Writer.
+func (c *bufferedConn) Write(p []byte) (int, error) {
+	return c.w.Write(p)
+}
+
+// Flush writes the buffered data to the connection. The codecs call it after
+// writing each message.
+func (c *bufferedConn) Flush() error {
+	return c.w.Flush()
 }

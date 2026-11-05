@@ -28,7 +28,7 @@ require (
 	github.com/ivpusic/grpool v1.0.0
 	github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e
 	github.com/jordwest/mock-conn v0.0.0-20180617021051-4896c6bd1641
-	github.com/lufia/iostat v0.0.0-20170605150913-9f7362b77ad3
+	github.com/lufia/iostat v1.2.1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.25.0

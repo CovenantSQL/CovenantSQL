@@ -45,7 +45,6 @@ require (
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/sourcegraph/jsonrpc2 v0.2.3
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
-	github.com/tchap/go-patricia v2.3.0+incompatible
 	github.com/ugorji/go v1.1.4
 	github.com/xo/dburl v0.25.1
 	github.com/xo/usql v0.21.6

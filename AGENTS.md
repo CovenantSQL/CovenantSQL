@@ -39,7 +39,6 @@ CovenantSQL is a decentralized SQL database in Go. Block producers (`cqld`) run 
 ## PR Review
 
 - Require a reproducible bug or a broadly useful feature; close speculative changes and AI-generated bloat.
-- Treat new arguments, and PRs adding more than 50 net lines of non-documentation code (counting tests, not counting vendored upstream code or generated `*_gen.go`), as high-barrier exceptions that must justify why the change cannot be smaller or live in an existing owner.
 - Review the full live diff independently; approvals, descriptions, and green CI are supporting evidence, not proof. A race can pass CI: rerun suspect tests with `-race` in fresh processes.
 - Reject compatibility shims, duplicated helpers, dead code, unrelated cleanup, and new fields or data with no reader.
 - Delete tests whose assertions only validate mock setup or interactions.

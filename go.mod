@@ -44,7 +44,7 @@ require (
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20190106185902-35a74f039c6a
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tchap/go-patricia v2.3.0+incompatible
-	github.com/ugorji/go v1.1.4
+	github.com/ugorji/go/codec v1.3.2
 	github.com/xo/dburl v0.0.0-20190203050942-98997a05b24f
 	github.com/xo/usql v0.7.4
 	github.com/xtaci/smux v1.3.4-0.20190522035559-79b3c96b84d1

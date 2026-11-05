@@ -293,10 +293,24 @@ func (c *Cursor) UseDB(dbName string) (err error) {
 		return
 	}
 
+	if c.curDBInstance != nil {
+		c.curDBInstance.Close()
+	}
 	c.curDB = dbName
 	c.curDBInstance = db
 
 	return
+}
+
+// Close closes the database the cursor uses.
+func (c *Cursor) Close() {
+	c.curDBLock.Lock()
+	defer c.curDBLock.Unlock()
+
+	if c.curDBInstance != nil {
+		c.curDBInstance.Close()
+		c.curDBInstance = nil
+	}
 }
 
 // HandleQuery handle COM_QUERY comamnd, like SELECT, INSERT, UPDATE, etc...

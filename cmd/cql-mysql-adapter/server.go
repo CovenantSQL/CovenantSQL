@@ -74,7 +74,10 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	h, err := mysqlServer.NewCustomizedConn(conn, s.mysqlAuth, NewCursor(s))
+	cursor := NewCursor(s)
+	defer cursor.Close()
+
+	h, err := mysqlServer.NewCustomizedConn(conn, s.mysqlAuth, cursor)
 
 	if err != nil {
 		log.WithError(err).Error("process connection failed")

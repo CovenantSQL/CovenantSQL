@@ -18,9 +18,9 @@ package naconn
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"net"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/etls"
@@ -82,7 +82,7 @@ func (c *NAConn) serverHandshake() (err error) {
 	headerBuf := make([]byte, HeaderSize)
 	rCount, err := c.CryptoConn.Conn.Read(headerBuf)
 	if err != nil {
-		err = errors.Wrap(err, "read node header error")
+		err = fmt.Errorf("read node header error: %w", err)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (c *NAConn) serverHandshake() (err error) {
 	isAnonymous := rawNodeID.IsEqual(&kms.AnonymousRawNodeID.Hash)
 	symmetricKey, err := GetSharedSecretWith(defaultResolver, rawNodeID, isAnonymous)
 	if err != nil {
-		err = errors.Wrapf(err, "get shared secret, target: %s", rawNodeID.String())
+		err = fmt.Errorf("get shared secret, target: %s: %w", rawNodeID.String(), err)
 		return
 	}
 	cipher := etls.NewCipher(symmetricKey)
@@ -128,12 +128,12 @@ func (c *NAConn) clientHandshake() (err error) {
 		var nonce *cpuminer.Uint256
 		nodeIDBytes, err = kms.GetLocalNodeIDBytes()
 		if err != nil {
-			err = errors.Wrap(err, "get local node id failed")
+			err = fmt.Errorf("get local node id failed: %w", err)
 			return
 		}
 		nonce, err = kms.GetLocalNonce()
 		if err != nil {
-			err = errors.Wrap(err, "get local nonce failed")
+			err = fmt.Errorf("get local nonce failed: %w", err)
 			return
 		}
 		copy(writeBuf[etls.MagicSize:], nodeIDBytes)
@@ -141,12 +141,12 @@ func (c *NAConn) clientHandshake() (err error) {
 	}
 	wrote, err := c.Conn.Write(writeBuf)
 	if err != nil {
-		err = errors.Wrap(err, "write node id and nonce failed")
+		err = fmt.Errorf("write node id and nonce failed: %w", err)
 		return
 	}
 
 	if wrote != HeaderSize {
-		err = errors.Errorf("write header size not match %d", wrote)
+		err = fmt.Errorf("write header size not match %d", wrote)
 		return
 	}
 	return
@@ -191,14 +191,14 @@ func DialEx(remote proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 
 	nodeAddr, err := defaultResolver.Resolve(rawNodeID)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve %s failed", rawNodeID.String())
+		err = fmt.Errorf("resolve %s failed: %w", rawNodeID.String(), err)
 		return
 	}
 
 	cipher := etls.NewCipher(symmetricKey)
 	iconn, err := net.DialTimeout("tcp", nodeAddr, conf.TCPDialTimeout)
 	if err != nil {
-		err = errors.Wrapf(err, "connect to node %s failed", nodeAddr)
+		err = fmt.Errorf("connect to node %s failed: %w", nodeAddr, err)
 		return
 	}
 
@@ -210,7 +210,7 @@ func DialEx(remote proto.NodeID, isAnonymous bool) (conn net.Conn, err error) {
 	}
 
 	if err = naconn.Handshake(); err != nil {
-		err = errors.Wrapf(err, "connect %s %s failed", rawNodeID.String(), nodeAddr)
+		err = fmt.Errorf("connect %s %s failed: %w", rawNodeID.String(), nodeAddr, err)
 		return
 	}
 

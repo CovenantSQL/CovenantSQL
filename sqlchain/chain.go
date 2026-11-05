@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"errors"
 	"expvar"
 	"fmt"
 	"strings"
@@ -28,7 +29,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -146,7 +146,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		bdbFile := c.ChainFilePrefix + "-block-state.ldb"
 		blkDB, err = leveldb.OpenFile(bdbFile, &leveldbConf)
 		if err != nil {
-			err = errors.Wrapf(err, "open leveldb %s", bdbFile)
+			err = fmt.Errorf("open leveldb %s: %w", bdbFile, err)
 			return
 		}
 		le.Debugf("opened chain bdb %s", bdbFile)
@@ -155,7 +155,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		tdbFile := c.ChainFilePrefix + "-ack-req-resp.ldb"
 		txDB, err = leveldb.OpenFile(tdbFile, &leveldbConf)
 		if err != nil {
-			err = errors.Wrapf(err, "open leveldb %s", tdbFile)
+			err = fmt.Errorf("open leveldb %s: %w", tdbFile, err)
 			return
 		}
 		le.Debugf("opened chain tdb %s", tdbFile)
@@ -167,7 +167,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 	// Open storage
 	var strg xi.Storage
 	if strg, err = xs.NewSqlite(c.DataFile); err != nil {
-		err = errors.Wrapf(err, "open data file %s", c.DataFile)
+		err = fmt.Errorf("open data file %s: %w", c.DataFile, err)
 		return
 	}
 
@@ -177,18 +177,18 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		addr proto.AccountAddress
 	)
 	if pk, err = kms.GetLocalPrivateKey(); err != nil {
-		err = errors.Wrap(err, "failed to cache private key")
+		err = fmt.Errorf("failed to cache private key: %w", err)
 		return
 	}
 	addr, err = crypto.PubKeyHash(pk.PubKey())
 	if err != nil {
-		err = errors.Wrap(err, "failed to generate address")
+		err = fmt.Errorf("failed to generate address: %w", err)
 		return
 	}
 
 	metaKeyPrefix, err := c.DatabaseID.AccountAddress()
 	if err != nil {
-		err = errors.Wrap(err, "failed to generate database meta prefix")
+		err = fmt.Errorf("failed to generate database meta prefix: %w", err)
 		return
 	}
 
@@ -242,23 +242,23 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		)
 
 		if err = utils.DecodeMsgPack(v, block); err != nil {
-			err = errors.Wrapf(err, "decoding failed at height %d with key %s",
-				keyWithSymbolToHeight(k), string(k))
+			err = fmt.Errorf("decoding failed at height %d with key %s: %w",
+				keyWithSymbolToHeight(k), string(k), err)
 			return
 		}
 		le.WithField("block", block.BlockHash().String()).Debug("loading block from database")
 
 		if last == nil {
 			if err = block.VerifyAsGenesis(); err != nil {
-				err = errors.Wrap(err, "genesis verification failed")
+				err = fmt.Errorf("genesis verification failed: %w", err)
 				return
 			}
 			// Set constant fields from genesis block
 			chain.rt.setGenesis(block)
 		} else if block.ParentHash().IsEqual(&last.hash) {
 			if err = block.Verify(); err != nil {
-				err = errors.Wrapf(err, "block verification failed at height %d with key %s",
-					keyWithSymbolToHeight(k), string(k))
+				err = fmt.Errorf("block verification failed at height %d with key %s: %w",
+					keyWithSymbolToHeight(k), string(k), err)
 				return
 			}
 			parent = last
@@ -279,7 +279,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		chain.bi.addBlock(last)
 	}
 	if err = blockIter.Error(); err != nil {
-		err = errors.Wrap(err, "accumulated error of iterator")
+		err = fmt.Errorf("accumulated error of iterator: %w", err)
 		return
 	}
 
@@ -312,7 +312,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		h := keyWithSymbolToHeight(k)
 		var resp = &types.SignedResponseHeader{}
 		if err = utils.DecodeMsgPack(v, resp); err != nil {
-			err = errors.Wrapf(err, "load resp, height %d, index %s", h, string(k))
+			err = fmt.Errorf("load resp, height %d, index %s: %w", h, string(k), err)
 			return
 		}
 		log.WithFields(log.Fields{
@@ -322,7 +322,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		}).Debug("loaded new resp header")
 	}
 	if err = respIter.Error(); err != nil {
-		err = errors.Wrap(err, "load resp")
+		err = fmt.Errorf("load resp: %w", err)
 		return
 	}
 
@@ -334,7 +334,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		h := keyWithSymbolToHeight(k)
 		var ack = &types.SignedAckHeader{}
 		if err = utils.DecodeMsgPack(v, ack); err != nil {
-			err = errors.Wrapf(err, "load ack, height %d, index %s", h, string(k))
+			err = fmt.Errorf("load ack, height %d, index %s: %w", h, string(k), err)
 			return
 		}
 		log.WithFields(log.Fields{
@@ -344,7 +344,7 @@ func NewChainWithContext(ctx context.Context, c *Config) (chain *Chain, err erro
 		}).Debug("loaded new ack header")
 	}
 	if err = respIter.Error(); err != nil {
-		err = errors.Wrap(err, "load ack")
+		err = fmt.Errorf("load ack: %w", err)
 		return
 	}
 
@@ -357,7 +357,7 @@ func (c *Chain) genesis(b *types.Block) (err error) {
 		return
 	}
 	if err = b.VerifyAsGenesis(); err != nil {
-		err = errors.Wrap(err, "initialize chain state")
+		err = fmt.Errorf("initialize chain state: %w", err)
 		return
 	}
 	return c.pushBlock(b)
@@ -385,7 +385,7 @@ func (c *Chain) pushBlock(b *types.Block) (err error) {
 	// Put block
 	err = blkDB.Put(blockKey, encBlock.Bytes(), nil)
 	if err != nil {
-		err = errors.Wrapf(err, "put %s", string(node.indexKey()))
+		err = fmt.Errorf("put %s: %w", string(node.indexKey()), err)
 		return
 	}
 	atomic.AddInt32(&c.cachedBlockCount, 1)
@@ -452,12 +452,12 @@ func (c *Chain) pushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	tdbKey := utils.ConcatAll(c.metaAckIndex, k, ack.Hash().AsBytes())
 
 	if err = c.register(ack); err != nil {
-		err = errors.Wrapf(err, "register ack %v at height %d", ack.Hash(), h)
+		err = fmt.Errorf("register ack %v at height %d: %w", ack.Hash(), h, err)
 		return
 	}
 
 	if err = txDB.Put(tdbKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrapf(err, "put ack %d %s", h, ack.Hash().String())
+		err = fmt.Errorf("put ack %d %s: %w", h, ack.Hash().String(), err)
 		return
 	}
 
@@ -471,7 +471,7 @@ func (c *Chain) produceBlock(now time.Time) (err error) {
 		qts []*x.QueryTracker
 	)
 	if frs, qts, err = c.st.CommitEx(); err != nil {
-		err = errors.Wrap(err, "failed to fetch query list from db state")
+		err = fmt.Errorf("failed to fetch query list from db state: %w", err)
 		return
 	}
 	if len(frs) == 0 && len(qts) == 0 {
@@ -898,14 +898,14 @@ func (c *Chain) fetchBlockByIndexKey(indexKey []byte) (b *types.Block, err error
 	var v []byte
 	v, err = blkDB.Get(k, nil)
 	if err != nil {
-		err = errors.Wrapf(err, "fetch block %s", string(k))
+		err = fmt.Errorf("fetch block %s: %w", string(k), err)
 		return
 	}
 
 	b = &types.Block{}
 	err = utils.DecodeMsgPack(v, b)
 	if err != nil {
-		err = errors.Wrapf(err, "fetch block %s", string(k))
+		err = fmt.Errorf("fetch block %s: %w", string(k), err)
 		return
 	}
 
@@ -987,9 +987,8 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 func (c *Chain) VerifyAndPushAckedQuery(ack *types.SignedAckHeader) (err error) {
 	// TODO(leventeliu): check ack.
 	if c.rt.queryTimeIsExpired(ack.GetResponseTimestamp()) {
-		err = errors.Wrapf(ErrQueryExpired,
-			"Verify ack query, min valid height %d, ack height %d",
-			c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp))
+		err = fmt.Errorf("Verify ack query, min valid height %d, ack height %d: %w",
+			c.rt.getMinValidHeight(), c.rt.getHeightFromTime(ack.Timestamp), ErrQueryExpired)
 		return
 	}
 

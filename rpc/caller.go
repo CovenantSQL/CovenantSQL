@@ -19,11 +19,11 @@ package rpc
 import (
 	"context"
 	"expvar"
+	"fmt"
 	"net/rpc"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -91,7 +91,7 @@ func (c *Caller) CallNodeWithContext(
 
 	client, err := DialToNodeWithPool(c.pool, node, method == route.DHTPing.String())
 	if err != nil {
-		err = errors.Wrapf(err, "dial to node %s failed", node)
+		err = fmt.Errorf("dial to node %s failed: %w", node, err)
 		return
 	}
 	defer func() { _ = client.Close() }()

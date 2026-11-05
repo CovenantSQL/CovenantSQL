@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	yaml "go.yaml.in/yaml/v2"
 
@@ -71,7 +70,7 @@ func TestDB(t *testing.T) {
 
 		pubk, err = GetPublicKey(proto.NodeID("99999999"))
 		So(pubk, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
+		So(err, ShouldWrap, ErrKeyNotFound)
 
 		err = SetNode(nil)
 		So(err, ShouldEqual, ErrNilNode)
@@ -116,14 +115,14 @@ func TestDB(t *testing.T) {
 
 		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
+		So(err, ShouldWrap, ErrKeyNotFound)
 
 		err = ResetBucket()
 		So(err, ShouldBeNil)
 
 		pubk, err = GetPublicKey(proto.NodeID("2222"))
 		So(pubk, ShouldBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrKeyNotFound)
+		So(err, ShouldWrap, ErrKeyNotFound)
 
 		IDs, err = GetAllNodeID()
 		So(IDs, ShouldBeNil)

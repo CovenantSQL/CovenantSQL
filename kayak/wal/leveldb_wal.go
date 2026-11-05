@@ -19,11 +19,11 @@ package wal
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 
-	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -53,7 +53,7 @@ type LevelDBWal struct {
 func NewLevelDBWal(filename string) (p *LevelDBWal, err error) {
 	p = &LevelDBWal{}
 	if p.db, err = leveldb.OpenFile(filename, nil); err != nil {
-		err = errors.Wrap(err, "open database failed")
+		err = fmt.Errorf("open database failed: %w", err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func (p *LevelDBWal) Write(l *kt.Log) (err error) {
 	headerKey := append(append([]byte(nil), logHeaderKeyPrefix...), p.uint64ToBytes(l.Index)...)
 
 	if _, err = p.db.Get(headerKey, nil); err != nil && err != leveldb.ErrNotFound {
-		err = errors.Wrap(err, "access leveldb failed")
+		err = fmt.Errorf("access leveldb failed: %w", err)
 		return
 	} else if err == nil {
 		err = ErrAlreadyExists
@@ -91,12 +91,12 @@ func (p *LevelDBWal) Write(l *kt.Log) (err error) {
 	// write data first
 	var enc *bytes.Buffer
 	if enc, err = utils.EncodeMsgPack(l.Data); err != nil {
-		err = errors.Wrap(err, "encode log data failed")
+		err = fmt.Errorf("encode log data failed: %w", err)
 		return
 	}
 
 	if err = p.db.Put(dataKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrap(err, "write log data failed")
+		err = fmt.Errorf("write log data failed: %w", err)
 		return
 	}
 
@@ -104,13 +104,13 @@ func (p *LevelDBWal) Write(l *kt.Log) (err error) {
 	l.DataLength = uint64(enc.Len())
 
 	if enc, err = utils.EncodeMsgPack(l.LogHeader); err != nil {
-		err = errors.Wrap(err, "encode log header failed")
+		err = fmt.Errorf("encode log header failed: %w", err)
 		return
 	}
 
 	// save header
 	if err = p.db.Put(headerKey, enc.Bytes(), nil); err != nil {
-		err = errors.Wrap(err, "encode log header failed")
+		err = fmt.Errorf("encode log header failed: %w", err)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (p *LevelDBWal) Get(i uint64) (l *kt.Log, err error) {
 		err = ErrNotExists
 		return
 	} else if err != nil {
-		err = errors.Wrap(err, "get log header failed")
+		err = fmt.Errorf("get log header failed: %w", err)
 		return
 	}
 
@@ -198,7 +198,7 @@ func (p *LevelDBWal) load(logHeader []byte) (l *kt.Log, err error) {
 
 	if err = utils.DecodeMsgPack(logHeader, &l.LogHeader); err != nil {
 		log.WithField("header", logHeader).WithError(err).Debug("decode log header failed")
-		err = errors.Wrap(err, "decode log header failed")
+		err = fmt.Errorf("decode log header failed: %w", err)
 		return
 	}
 
@@ -206,13 +206,13 @@ func (p *LevelDBWal) load(logHeader []byte) (l *kt.Log, err error) {
 
 	var encData []byte
 	if encData, err = p.db.Get(dataKey, nil); err != nil {
-		err = errors.Wrap(err, "get log data failed")
+		err = fmt.Errorf("get log data failed: %w", err)
 		return
 	}
 
 	// load data
 	if err = utils.DecodeMsgPack(encData, &l.Data); err != nil {
-		err = errors.Wrap(err, "decode log data failed")
+		err = fmt.Errorf("decode log data failed: %w", err)
 	}
 
 	return

@@ -16,7 +16,7 @@
 
 package config
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrInvalidProxyConfig represents invalid proxy config without enough configurations.

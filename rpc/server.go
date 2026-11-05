@@ -18,11 +18,10 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/rpc"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/naconn"
@@ -77,13 +76,13 @@ func (s *Server) InitRPCServer(
 
 	err = kms.InitLocalKeyPair(privateKeyPath, masterKey)
 	if err != nil {
-		err = errors.Wrap(err, "init local key pair failed")
+		err = fmt.Errorf("init local key pair failed: %w", err)
 		return
 	}
 
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		err = errors.Wrap(err, "create crypto listener failed")
+		err = fmt.Errorf("create crypto listener failed: %w", err)
 		return
 	}
 

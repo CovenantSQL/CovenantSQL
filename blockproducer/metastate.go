@@ -18,10 +18,11 @@ package blockproducer
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/mohae/deepcopy"
-	"github.com/pkg/errors"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -260,7 +261,7 @@ func (s *metaState) increaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "increase account balance fail")
+			err := fmt.Errorf("increase account balance fail: %w", ErrAccountNotFound)
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -276,7 +277,7 @@ func (s *metaState) decreaseAccountToken(k proto.AccountAddress, amount uint64, 
 	)
 	if dst, ok = s.dirty.accounts[k]; !ok {
 		if src, ok = s.readonly.accounts[k]; !ok {
-			err := errors.Wrap(ErrAccountNotFound, "decrease account balance fail")
+			err := fmt.Errorf("decrease account balance fail: %w", ErrAccountNotFound)
 			return err
 		}
 		dst = deepcopy.Copy(src).(*types.Account)
@@ -300,12 +301,12 @@ func (s *metaState) transferAccountToken(transfer *types.Transfer) (err error) {
 	}
 	realSender, err := crypto.PubKeyHash(transfer.Signee)
 	if err != nil {
-		err = errors.Wrap(err, "applyTx failed")
+		err = fmt.Errorf("applyTx failed: %w", err)
 		return err
 	}
 	if realSender != transfer.Sender {
-		err = errors.Wrapf(ErrInvalidSender,
-			"applyTx failed: real sender %s, sender %s", realSender, transfer.Sender)
+		err = fmt.Errorf("applyTx failed: real sender %s, sender %s: %w",
+			realSender, transfer.Sender, ErrInvalidSender)
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
 		return
 	}
@@ -512,7 +513,7 @@ func (s *metaState) increaseNonce(addr proto.AccountAddress) (err error) {
 func (s *metaState) updateProviderList(tx *types.ProvideService, height uint32) (err error) {
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
-		err = errors.Wrap(err, "updateProviderList failed")
+		err = fmt.Errorf("updateProviderList failed: %w", err)
 		return
 	}
 
@@ -554,12 +555,12 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	log.Infof("create database: %s", tx.Hash())
 	sender, err := crypto.PubKeyHash(tx.Signee)
 	if err != nil {
-		err = errors.Wrap(err, "matchProviders failed")
+		err = fmt.Errorf("matchProviders failed: %w", err)
 		return
 	}
 	if sender != tx.Owner {
-		err = errors.Wrapf(ErrInvalidSender, "match failed with real sender: %s, sender: %s",
-			sender, tx.Owner)
+		err = fmt.Errorf("match failed with real sender: %s, sender: %s: %w",
+			sender, tx.Owner, ErrInvalidSender)
 		return
 	}
 
@@ -607,7 +608,9 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	// not enough, find more miner(s)
 	if uint64(miners.Len()) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			err = errors.Wrapf(err, "miners match target are not enough %d:%d", miners.Len(), minerCount)
+			if err != nil {
+				err = fmt.Errorf("miners match target are not enough %d:%d: %w", miners.Len(), minerCount, err)
+			}
 			return
 		}
 		var newMiners MinerInfos
@@ -624,7 +627,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	dbID := proto.FromAccountAndNonce(tx.Owner, uint32(tx.Nonce))
 	dbAddr, err := dbID.AccountAddress()
 	if err != nil {
-		err = errors.Wrapf(err, "unexpected error when convert database id: %v", dbID)
+		err = fmt.Errorf("unexpected error when convert database id: %v: %w", dbID, err)
 		return
 	}
 	// generate userinfo
@@ -680,7 +683,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 
 	if _, loaded := s.loadSQLChainObject(dbID); loaded {
-		err = errors.Wrapf(ErrDatabaseExists, "database exists: %s", dbID)
+		err = fmt.Errorf("database exists: %s: %w", dbID, ErrDatabaseExists)
 		return
 	}
 	s.dirty.accounts[dbAddr] = &types.Account{Address: dbAddr}
@@ -910,14 +913,13 @@ func (s *metaState) updateKeys(tx *types.IssueKeys) (err error) {
 func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 	newProfile, loaded := s.loadSQLChainObject(tx.Receiver.DatabaseID())
 	if !loaded {
-		err = errors.Wrap(ErrDatabaseNotFound, "update billing failed")
+		err = fmt.Errorf("update billing failed: %w", ErrDatabaseNotFound)
 		return
 	}
 
 	if tx.Version > 0 && (tx.Range.From >= tx.Range.To || newProfile.LastUpdatedHeight != tx.Range.From) {
-		err = errors.Wrapf(ErrInvalidRange,
-			"update billing within range %d:(%d, %d]",
-			newProfile.LastUpdatedHeight, tx.Range.From, tx.Range.To)
+		err = fmt.Errorf("update billing within range %d:(%d, %d]: %w",
+			newProfile.LastUpdatedHeight, tx.Range.From, tx.Range.To, ErrInvalidRange)
 		return
 	}
 	log.Debugf("update billing addr: %s, user: %d, tx: %v", tx.GetAccountAddress(), len(tx.Users), tx)
@@ -1019,13 +1021,13 @@ func (s *metaState) transferSQLChainTokenBalance(transfer *types.Transfer) (err 
 
 	realSender, err := crypto.PubKeyHash(transfer.Signee)
 	if err != nil {
-		err = errors.Wrap(err, "applyTx failed")
+		err = fmt.Errorf("applyTx failed: %w", err)
 		return
 	}
 
 	if realSender != transfer.Sender {
-		err = errors.Wrapf(ErrInvalidSender,
-			"applyTx failed: real sender %s, sender %s", realSender, transfer.Sender)
+		err = fmt.Errorf("applyTx failed: real sender %s, sender %s: %w",
+			realSender, transfer.Sender, ErrInvalidSender)
 		log.WithError(err).Warning("public key not match sender in applyTransaction")
 		return
 	}

@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/CovenantSQL/sqlparser"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -97,7 +96,7 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 	)
 
 	if queryParts, statements, err = sqlparser.ParseMultiple(tokenizer); err != nil {
-		err = errors.Wrap(err, "parse sql failed")
+		err = fmt.Errorf("parse sql failed: %w", err)
 		return
 	}
 
@@ -149,13 +148,13 @@ WHERE type = "index" AND tbl_name = "%s"
 			// for new table
 			if strings.HasPrefix(strings.ToLower(stmt.NewName.Name.String()), "sqlite") {
 				// invalid table name
-				err = errors.Wrapf(ErrInvalidTableName, "%s", stmt.NewName.Name.String())
+				err = fmt.Errorf("%s: %w", stmt.NewName.Name.String(), ErrInvalidTableName)
 				return
 			}
 			// for alter table/alter index
 			if strings.HasPrefix(strings.ToLower(stmt.Table.Name.String()), "sqlite") {
 				// invalid table name
-				err = errors.Wrapf(ErrInvalidTableName, "%s", stmt.NewName.Name.String())
+				err = fmt.Errorf("%s: %w", stmt.NewName.Name.String(), ErrInvalidTableName)
 				return
 			}
 		}
@@ -166,26 +165,26 @@ WHERE type = "index" AND tbl_name = "%s"
 			case *sqlparser.SQLVal:
 				if n.Type == sqlparser.ValArg && bytes.EqualFold([]byte("CURRENT_TIMESTAMP"), n.Val) {
 					// current_timestamp literal in default expression
-					err = errors.Wrap(ErrStatefulQueryParts, "DEFAULT CURRENT_TIMESTAMP not supported")
+					err = fmt.Errorf("DEFAULT CURRENT_TIMESTAMP not supported: %w", ErrStatefulQueryParts)
 					return
 				}
 			case *sqlparser.TimeExpr:
 				tb := sqlparser.NewTrackedBuffer(nil)
-				err = errors.Wrapf(ErrStatefulQueryParts, "time expression %s not supported",
-					tb.WriteNode(n).String())
+				err = fmt.Errorf("time expression %s not supported: %w",
+					tb.WriteNode(n).String(), ErrStatefulQueryParts)
 				return
 			case *sqlparser.FuncExpr:
 				if strings.HasPrefix(n.Name.Lowered(), "sqlite") {
 					tb := sqlparser.NewTrackedBuffer(nil)
-					err = errors.Wrapf(ErrStatefulQueryParts, "function call %s not supported",
-						tb.WriteNode(n).String())
+					err = fmt.Errorf("function call %s not supported: %w",
+						tb.WriteNode(n).String(), ErrStatefulQueryParts)
 					return
 				}
 				if sanitizeArgs, ok := sanitizeFunctionMap[n.Name.Lowered()]; ok {
 					// need to sanitize this function
 					tb := sqlparser.NewTrackedBuffer(nil)
-					sanitizeErr := errors.Wrapf(ErrStatefulQueryParts, "stateful function call %s not supported",
-						tb.WriteNode(n).String())
+					sanitizeErr := fmt.Errorf("stateful function call %s not supported: %w",
+						tb.WriteNode(n).String(), ErrStatefulQueryParts)
 
 					if sanitizeArgs == nil {
 						err = sanitizeErr
@@ -212,7 +211,7 @@ WHERE type = "index" AND tbl_name = "%s"
 			return true, nil
 		}, walkNodes...)
 		if err != nil {
-			err = errors.Wrap(err, "parse sql failed")
+			err = fmt.Errorf("parse sql failed: %w", err)
 			return
 		}
 	}

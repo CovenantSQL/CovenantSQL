@@ -2,12 +2,12 @@ package jsonrpc
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/sourcegraph/jsonrpc2"
 	wsstream "github.com/sourcegraph/jsonrpc2/websocket"
 
@@ -36,7 +36,7 @@ func (ws *WebsocketServer) Serve() error {
 		conn, err := upgrader.Upgrade(rw, r, nil)
 		if err != nil {
 			log.WithError(err).Error("jsonrpc: upgrade http connection to websocket failed")
-			http.Error(rw, errors.WithMessage(err, "could not upgrade to websocket").Error(), http.StatusBadRequest)
+			http.Error(rw, fmt.Errorf("could not upgrade to websocket: %w", err).Error(), http.StatusBadRequest)
 			return
 		}
 		defer conn.Close()
@@ -52,7 +52,7 @@ func (ws *WebsocketServer) Serve() error {
 	addr := ws.Addr
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return errors.Wrapf(err, "couldn't bind to address %q", addr)
+		return fmt.Errorf("couldn't bind to address %q: %w", addr, err)
 	}
 
 	ws.Handler = mux

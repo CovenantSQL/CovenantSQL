@@ -18,11 +18,11 @@ package observer
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -130,7 +130,7 @@ func NewService() (service *Service, err error) {
 
 	for _, q := range initTableSQL {
 		if _, err = db.Writer().Exec(q); err != nil {
-			err = errors.Wrap(err, "init table failed")
+			err = fmt.Errorf("init table failed: %w", err)
 			return
 		}
 	}
@@ -144,7 +144,7 @@ func NewService() (service *Service, err error) {
 	// load previous subscriptions
 	rows, err := db.Writer().Query(getAllSubscriptionsSQL)
 	if err != nil {
-		err = errors.Wrap(err, "query previous subscriptions failed")
+		err = fmt.Errorf("query previous subscriptions failed: %w", err)
 		return
 	}
 
@@ -159,7 +159,7 @@ func NewService() (service *Service, err error) {
 		)
 
 		if err = rows.Scan(&rawDBID, &count); err != nil {
-			err = errors.Wrap(err, "scan subscriptions failed")
+			err = fmt.Errorf("scan subscriptions failed: %w", err)
 			return
 		}
 
@@ -233,7 +233,7 @@ func (s *Service) saveSubscriptionStatus(dbID proto.DatabaseID, count int32) (er
 
 	_, err = s.db.Writer().Exec(saveSubscriptionSQL, string(dbID), count)
 	if err != nil {
-		err = errors.Wrapf(err, "save subscription failed: %s, %d", dbID, count)
+		err = fmt.Errorf("save subscription failed: %s, %d: %w", dbID, count, err)
 	}
 	return
 }
@@ -257,7 +257,7 @@ func (s *Service) addAck(dbID proto.DatabaseID, height int32, offset int32, ack 
 	// store ack
 	_, err = s.db.Writer().Exec(saveAckSQL, string(dbID), ack.Hash().String(), height, offset)
 	if err != nil {
-		err = errors.Wrapf(err, "save ack failed: %s, %s, %d", dbID, ack.Hash().String(), height)
+		err = fmt.Errorf("save ack failed: %s, %s, %d: %w", dbID, ack.Hash().String(), height, err)
 	}
 	return
 }
@@ -282,12 +282,12 @@ func (s *Service) addQueryTracker(dbID proto.DatabaseID, height int32, offset in
 
 	_, err = s.db.Writer().Exec(saveRequestSQL, string(dbID), qt.Request.Header.Hash().String(), height, offset)
 	if err != nil {
-		err = errors.Wrapf(err, "save request failed: %s, %s, %d", dbID, qt.Request.Header.Hash().String(), height)
+		err = fmt.Errorf("save request failed: %s, %s, %d: %w", dbID, qt.Request.Header.Hash().String(), height, err)
 		return
 	}
 	_, err = s.db.Writer().Exec(saveResponseSQL, string(dbID), qt.Response.Hash().String(), height, offset)
 	if err != nil {
-		err = errors.Wrapf(err, "save response failed: %s, %s, %d", dbID, qt.Response.Hash().String(), height)
+		err = fmt.Errorf("save response failed: %s, %s, %d: %w", dbID, qt.Response.Hash().String(), height, err)
 	}
 	return
 }
@@ -316,7 +316,7 @@ func (s *Service) addBlock(dbID proto.DatabaseID, count int32, b *types.Block) (
 
 	_, err = s.db.Writer().Exec(saveBlockSQL, string(dbID), h, count, b.BlockHash().String(), blockBytes.Bytes())
 	if err != nil {
-		err = errors.Wrapf(err, "save block failed: %s, %s, %d", dbID, b.BlockHash().String(), count)
+		err = fmt.Errorf("save block failed: %s, %s, %d: %w", dbID, b.BlockHash().String(), count, err)
 		return
 	}
 
@@ -438,12 +438,12 @@ func (s *Service) getAck(dbID proto.DatabaseID, h *hash.Hash) (ack *types.Signed
 
 	err = s.db.Writer().QueryRow(getAckByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query ack failed: %s, %s", dbID, h.String())
+		err = fmt.Errorf("query ack failed: %s, %s: %w", dbID, h.String(), err)
 		return
 	}
 
@@ -477,12 +477,12 @@ func (s *Service) getRequest(dbID proto.DatabaseID, h *hash.Hash) (request *type
 
 	err = s.db.Writer().QueryRow(getRequestByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query request failed: %s, %s", dbID, h.String())
+		err = fmt.Errorf("query request failed: %s, %s: %w", dbID, h.String(), err)
 		return
 	}
 
@@ -516,12 +516,12 @@ func (s *Service) getResponseHeader(dbID proto.DatabaseID, h *hash.Hash) (respon
 
 	err = s.db.Writer().QueryRow(getResponseByHashSQL, string(dbID), h.String()).Scan(&blockHeight, &dataOffset)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query response failed: %s, %s", dbID, h.String())
+		err = fmt.Errorf("query response failed: %s, %s: %w", dbID, h.String(), err)
 		return
 	}
 
@@ -554,18 +554,18 @@ func (s *Service) getHighestBlock(dbID proto.DatabaseID) (height int32, b *types
 	)
 	err = s.db.Writer().QueryRow(getHighestBlockSQL, string(dbID)).Scan(&height, &count, &blockData)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query highest block failed: %s", dbID)
+		err = fmt.Errorf("query highest block failed: %s: %w", dbID, err)
 		return
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
 	if err != nil {
-		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+		err = fmt.Errorf("decode block failed: %s: %w", dbID, err)
 	}
 
 	return
@@ -577,18 +577,18 @@ func (s *Service) getHighestBlockV2(
 	var blockData []byte
 	err = s.db.Writer().QueryRow(getHighestBlockSQL, string(dbID)).Scan(&height, &count, &blockData)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query highest block failed: %s", dbID)
+		err = fmt.Errorf("query highest block failed: %s: %w", dbID, err)
 		return
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
 	if err != nil {
-		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+		err = fmt.Errorf("decode block failed: %s: %w", dbID, err)
 	}
 
 	return
@@ -598,18 +598,18 @@ func (s *Service) getBlockByHeight(dbID proto.DatabaseID, height int32) (count i
 	var blockData []byte
 	err = s.db.Writer().QueryRow(getBlockByHeightSQL, string(dbID), height).Scan(&count, &blockData)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query block by height failed: %s, %d", dbID, height)
+		err = fmt.Errorf("query block by height failed: %s, %d: %w", dbID, height, err)
 		return
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
 	if err != nil {
-		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+		err = fmt.Errorf("decode block failed: %s: %w", dbID, err)
 	}
 
 	return
@@ -621,18 +621,18 @@ func (s *Service) getBlockByCount(
 	var blockData []byte
 	err = s.db.Writer().QueryRow(getBlockByCountSQL, string(dbID), count).Scan(&height, &blockData)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query block by count failed: %s, %d", dbID, count)
+		err = fmt.Errorf("query block by count failed: %s, %d: %w", dbID, count, err)
 		return
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
 	if err != nil {
-		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+		err = fmt.Errorf("decode block failed: %s: %w", dbID, err)
 	}
 
 	return
@@ -642,18 +642,18 @@ func (s *Service) getBlock(dbID proto.DatabaseID, h *hash.Hash) (count int32, he
 	var blockData []byte
 	err = s.db.Writer().QueryRow(getBlockByHashSQL, string(dbID), h.String()).Scan(&height, &count, &blockData)
 	if err != nil {
-		if errors.Cause(err) == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 			return
 		}
 
-		err = errors.Wrapf(err, "query block by hash failed: %s, %s", dbID, h.String())
+		err = fmt.Errorf("query block by hash failed: %s, %s: %w", dbID, h.String(), err)
 		return
 	}
 
 	err = utils.DecodeMsgPack(blockData, &b)
 	if err != nil {
-		err = errors.Wrapf(err, "decode block failed: %s", dbID)
+		err = fmt.Errorf("decode block failed: %s: %w", dbID, err)
 	}
 
 	return

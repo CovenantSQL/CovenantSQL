@@ -17,11 +17,11 @@
 package mux
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/naconn"
@@ -106,7 +106,7 @@ func GetNodeInfo(id *proto.RawNodeID) (nodeInfo *proto.Node, err error) {
 	nodeInfo, err = kms.GetNodeInfo(proto.NodeID(id.String()))
 	if err != nil {
 		//log.WithField("target", id.String()).WithError(err).Info("get node info from KMS failed")
-		if errors.Cause(err) == kms.ErrKeyNotFound {
+		if errors.Is(err, kms.ErrKeyNotFound) {
 			nodeInfo, err = FindNodeInBP(id)
 			if err != nil {
 				return
@@ -154,7 +154,7 @@ func FindNodeInBP(id *proto.RawNodeID) (node *proto.Node, err error) {
 		}).WithError(err).Warning("call dht rpc failed")
 	}
 
-	err = errors.Wrapf(err, "could not find node in all block producers")
+	err = fmt.Errorf("could not find node in all block producers: %w", err)
 	return
 }
 
@@ -169,7 +169,7 @@ func PingBP(node *proto.Node, BPNodeID proto.NodeID) (err error) {
 	resp := new(proto.PingResp)
 	err = client.CallNode(BPNodeID, "DHT.Ping", req, resp)
 	if err != nil {
-		err = errors.Wrap(err, "call DHT.Ping failed")
+		err = fmt.Errorf("call DHT.Ping failed: %w", err)
 		return
 	}
 	return
@@ -216,15 +216,15 @@ func GetCurrentBP() (bpNodeID proto.NodeID, err error) {
 
 	if len(res.Nodes) <= 0 {
 		// node not found
-		err = errors.Wrap(ErrNoChiefBlockProducerAvailable,
-			"get no hash nearest block producer nodes")
+		err = fmt.Errorf("get no hash nearest block producer nodes: %w",
+			ErrNoChiefBlockProducerAvailable)
 		return
 	}
 
 	if res.Nodes[0].Role != proto.Leader && res.Nodes[0].Role != proto.Follower {
 		// not block producer
-		err = errors.Wrap(ErrNoChiefBlockProducerAvailable,
-			"no suitable nodes with proper block producer role")
+		err = fmt.Errorf("no suitable nodes with proper block producer role: %w",
+			ErrNoChiefBlockProducerAvailable)
 		return
 	}
 
@@ -255,14 +255,14 @@ func RegisterNodeToBP(timeout time.Duration) (err error) {
 	// get local node id
 	localNodeID, err := kms.GetLocalNodeID()
 	if err != nil {
-		err = errors.Wrap(err, "register node to BP")
+		err = fmt.Errorf("register node to BP: %w", err)
 		return
 	}
 
 	// get local node info
 	localNodeInfo, err := kms.GetNodeInfo(localNodeID)
 	if err != nil {
-		err = errors.Wrap(err, "register node to BP")
+		err = fmt.Errorf("register node to BP: %w", err)
 		return
 	}
 

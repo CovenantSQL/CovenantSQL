@@ -19,11 +19,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/consistent"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -72,7 +71,7 @@ func (s *LocalStorage) SetNode(node *proto.Node) (err error) {
 
 	nodeBuf, err := utils.EncodeMsgPack(node)
 	if err != nil {
-		err = errors.Wrap(err, "encode node failed")
+		err = fmt.Errorf("encode node failed: %w", err)
 		return
 	}
 
@@ -103,7 +102,7 @@ func (s *LocalStorage) SetNode(node *proto.Node) (err error) {
 			},
 		},
 	}); err != nil {
-		err = errors.Wrap(err, "execute query in dht database failed")
+		err = fmt.Errorf("execute query in dht database failed: %w", err)
 	}
 
 	return
@@ -161,7 +160,7 @@ func (s *KVServer) SetNodeEx(node *proto.Node, ttl uint32, origin proto.NodeID) 
 
 	// set local
 	if err = s.storage.SetNode(node); err != nil {
-		err = errors.Wrap(err, "set node failed")
+		err = fmt.Errorf("set node failed: %w", err)
 		return
 	}
 

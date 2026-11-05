@@ -19,10 +19,9 @@ package types
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"reflect"
 	"testing"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -134,11 +133,11 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 
 	block.SignedHeader.DataHash[0]++
 	err = block.Verify()
-	if errors.Cause(err) != verifier.ErrHashValueNotMatch {
+	if !errors.Is(err, verifier.ErrHashValueNotMatch) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	err = block.VerifyHash()
-	if errors.Cause(err) != verifier.ErrHashValueNotMatch {
+	if !errors.Is(err, verifier.ErrHashValueNotMatch) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	err = block.SetHash()

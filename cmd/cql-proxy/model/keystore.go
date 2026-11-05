@@ -17,9 +17,9 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
@@ -42,7 +42,7 @@ type DeveloperPrivateKey struct {
 func (p *DeveloperPrivateKey) LoadPrivateKey() (err error) {
 	p.Key, err = kms.DecodePrivateKey(p.RawKey, []byte{})
 	if err != nil {
-		err = errors.Wrapf(err, "load private key failed")
+		err = fmt.Errorf("load private key failed: %w", err)
 	}
 	return
 }
@@ -50,13 +50,15 @@ func (p *DeveloperPrivateKey) LoadPrivateKey() (err error) {
 // GetPrivateKey load private key of account from proxy database.
 func GetPrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddress) (p *DeveloperPrivateKey, err error) {
 	if p, err = GetAccount(db, developer, account); err != nil || p == nil {
-		err = errors.Wrapf(err, "get private key failed")
+		if err != nil {
+			err = fmt.Errorf("get private key failed: %w", err)
+		}
 		return
 	}
 
 	// validate key password
 	if err = p.LoadPrivateKey(); err != nil {
-		err = errors.Wrapf(err, "decode private key failed")
+		err = fmt.Errorf("decode private key failed: %w", err)
 		p = nil
 	}
 
@@ -68,19 +70,19 @@ func AddNewPrivateKey(db *gorp.DbMap, developer int64) (p *DeveloperPrivateKey, 
 	dbMap := db
 	privateKey, pubKey, err := asymmetric.GenSecp256k1KeyPair()
 	if err != nil {
-		err = errors.Wrapf(err, "generate secp256k1 keypair failed")
+		err = fmt.Errorf("generate secp256k1 keypair failed: %w", err)
 		return
 	}
 
 	keyBytes, err := kms.EncodePrivateKey(privateKey, []byte{})
 	if err != nil {
-		err = errors.Wrapf(err, "encode private key failed")
+		err = fmt.Errorf("encode private key failed: %w", err)
 		return
 	}
 
 	account, err := crypto.PubKeyHash(pubKey)
 	if err != nil {
-		err = errors.Wrapf(err, "convert public key to wallet address failed")
+		err = fmt.Errorf("convert public key to wallet address failed: %w", err)
 		return
 	}
 
@@ -94,7 +96,7 @@ func AddNewPrivateKey(db *gorp.DbMap, developer int64) (p *DeveloperPrivateKey, 
 
 	err = dbMap.Insert(p)
 	if err != nil {
-		err = errors.Wrapf(err, "add new private key failed")
+		err = fmt.Errorf("add new private key failed: %w", err)
 	}
 
 	return
@@ -108,7 +110,7 @@ func SavePrivateKey(db *gorp.DbMap, developer int64, key *asymmetric.PrivateKey)
 
 	account, err := crypto.PubKeyHash(key.PubKey())
 	if err != nil {
-		err = errors.Wrapf(err, "convert public key to wallet address failed")
+		err = fmt.Errorf("convert public key to wallet address failed: %w", err)
 		return
 	}
 
@@ -127,7 +129,7 @@ func SavePrivateKey(db *gorp.DbMap, developer int64, key *asymmetric.PrivateKey)
 	}
 
 	if p.RawKey, err = kms.EncodePrivateKey(key, []byte{}); err != nil {
-		err = errors.Wrapf(err, "encode private key failed")
+		err = fmt.Errorf("encode private key failed: %w", err)
 		p = nil
 		return
 	}
@@ -137,12 +139,12 @@ func SavePrivateKey(db *gorp.DbMap, developer int64, key *asymmetric.PrivateKey)
 	if exists {
 		_, err = dbMap.Update(p)
 		if err != nil {
-			err = errors.Wrapf(err, "update private key info failed")
+			err = fmt.Errorf("update private key info failed: %w", err)
 		}
 	} else {
 		err = dbMap.Insert(p)
 		if err != nil {
-			err = errors.Wrapf(err, "add private key info failed")
+			err = fmt.Errorf("add private key info failed: %w", err)
 		}
 	}
 
@@ -154,13 +156,13 @@ func DeletePrivateKey(db *gorp.DbMap, developer int64, account utils.AccountAddr
 	p *DeveloperPrivateKey, err error) {
 	p, err = GetPrivateKey(db, developer, account)
 	if err != nil {
-		err = errors.Wrapf(err, "get private key failed")
+		err = fmt.Errorf("get private key failed: %w", err)
 		return
 	}
 
 	_, err = db.Delete(p)
 	if err != nil {
-		err = errors.Wrapf(err, "delete private key failed")
+		err = fmt.Errorf("delete private key failed: %w", err)
 	}
 
 	return
@@ -172,7 +174,7 @@ func GetAccount(db *gorp.DbMap, developer int64, account utils.AccountAddress) (
 		`SELECT * FROM "private_keys" WHERE "account" = ? AND "developer_id" = ? LIMIT 1`,
 		account, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get account info failed")
+		err = fmt.Errorf("get account info failed: %w", err)
 	}
 	return
 }
@@ -182,7 +184,7 @@ func GetAllAccounts(db *gorp.DbMap, developer int64) (keys []*DeveloperPrivateKe
 	_, err = db.Select(&keys,
 		`SELECT * FROM "private_keys" WHERE "developer_id" = ?`, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get all developer keypairs failed")
+		err = fmt.Errorf("get all developer keypairs failed: %w", err)
 	}
 	return
 }
@@ -193,7 +195,7 @@ func GetAccountByID(db *gorp.DbMap, developer int64, id int64) (p *DeveloperPriv
 		`SELECT * FROM "private_keys" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`,
 		id, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get account info failed")
+		err = fmt.Errorf("get account info failed: %w", err)
 	}
 	return
 }

@@ -18,15 +18,14 @@ package kayak
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runtime) doCheck(ctx context.Context, req interface{}) (err error) {
 	defer trace.StartRegion(ctx, "checkCallback").End()
 	if err = r.sh.Check(req); err != nil {
-		err = errors.Wrap(err, "verify log")
+		err = fmt.Errorf("verify log: %w", err)
 	}
 
 	return
@@ -35,7 +34,7 @@ func (r *Runtime) doCheck(ctx context.Context, req interface{}) (err error) {
 func (r *Runtime) doEncodePayload(ctx context.Context, req interface{}) (enc []byte, err error) {
 	defer trace.StartRegion(ctx, "encodePayloadCallback").End()
 	if enc, err = r.sh.EncodePayload(req); err != nil {
-		err = errors.Wrap(err, "encode kayak payload failed")
+		err = fmt.Errorf("encode kayak payload failed: %w", err)
 	}
 	return
 }
@@ -43,7 +42,7 @@ func (r *Runtime) doEncodePayload(ctx context.Context, req interface{}) (enc []b
 func (r *Runtime) doDecodePayload(ctx context.Context, data []byte) (req interface{}, err error) {
 	defer trace.StartRegion(ctx, "decodePayloadCallback").End()
 	if req, err = r.sh.DecodePayload(data); err != nil {
-		err = errors.Wrap(err, "decode kayak payload failed")
+		err = fmt.Errorf("decode kayak payload failed: %w", err)
 	}
 	return
 }

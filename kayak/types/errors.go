@@ -16,7 +16,7 @@
 
 package types
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrNotLeader represents current node is not a peer leader.

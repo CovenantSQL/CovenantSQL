@@ -28,7 +28,6 @@ import (
 	qs "github.com/derekstavis/go-qs"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/jsonq"
-	"github.com/pkg/errors"
 )
 
 var numberRegex = regexp.MustCompile("^\\d+$")
@@ -96,7 +95,7 @@ func ParseNestedQuery(form url.Values, pathes ...string) (res interface{}, err e
 	if len(pathes) > 0 {
 		res, err = jsonq.NewQuery(res).Interface(pathes...)
 		if err != nil {
-			err = errors.Wrapf(err, "parse query failed")
+			err = fmt.Errorf("parse query failed: %w", err)
 			return
 		}
 	}

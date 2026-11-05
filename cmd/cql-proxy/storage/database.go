@@ -18,8 +18,8 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 
-	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -42,7 +42,7 @@ func NewDatabase(cfg *config.StorageConfig) (storage *gorp.DbMap, err error) {
 	}
 
 	if err != nil {
-		err = errors.Wrapf(err, "open proxy database failed")
+		err = fmt.Errorf("open proxy database failed: %w", err)
 		return
 	}
 

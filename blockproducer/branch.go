@@ -22,8 +22,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pkg/errors"
-
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -223,7 +221,7 @@ func (b *branch) produceBlock(
 		Transactions: out,
 	}
 	if ierr = block.PackAndSignBlock(signer); ierr != nil {
-		err = errors.Wrap(ierr, "failed to sign block")
+		err = fmt.Errorf("failed to sign block: %w", ierr)
 		return
 	}
 	cpy.head = newBlockNode(h, block, cpy.head)

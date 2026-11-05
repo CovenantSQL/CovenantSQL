@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
 
@@ -169,7 +167,7 @@ type DatabaseID string
 func (d *DatabaseID) AccountAddress() (a AccountAddress, err error) {
 	h, err := hash.NewHashFromStr(string(*d))
 	if err != nil {
-		err = errors.Wrap(err, "fail to convert string to hash")
+		err = fmt.Errorf("fail to convert string to hash: %w", err)
 		return
 	}
 	a = AccountAddress(*h)

@@ -18,14 +18,14 @@ package kms
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -167,7 +167,7 @@ func InitPublicKeyStore(dbPath string, initNodes []proto.Node) (err error) {
 	for _, n := range initNodes {
 		err = setNode(&n)
 		if err != nil {
-			err = errors.Wrap(err, "set init nodes failed")
+			err = fmt.Errorf("set init nodes failed: %w", err)
 			return
 		}
 	}
@@ -197,7 +197,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 	if err = func() (err error) {
 		var rawNodeInfo []byte
 		if err = pks.db.Writer().QueryRow(getRecordSQL, string(id)).Scan(&rawNodeInfo); err != nil {
-			if errors.Cause(err) == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				err = ErrKeyNotFound
 			}
 			return
@@ -207,7 +207,7 @@ func GetNodeInfo(id proto.NodeID) (nodeInfo *proto.Node, err error) {
 
 		return
 	}(); err != nil {
-		err = errors.Wrap(err, "get node info failed")
+		err = fmt.Errorf("get node info failed: %w", err)
 	}
 	return
 }
@@ -237,7 +237,7 @@ func GetAllNodeID() (nodeIDs []proto.NodeID, err error) {
 
 		return
 	}(); err != nil {
-		err = errors.Wrap(err, "get all node id failed")
+		err = fmt.Errorf("get all node id failed: %w", err)
 	}
 	return
 
@@ -287,14 +287,14 @@ func setNode(nodeInfo *proto.Node) (err error) {
 
 	nodeBuf, err := utils.EncodeMsgPack(nodeInfo)
 	if err != nil {
-		err = errors.Wrap(err, "marshal node info failed")
+		err = fmt.Errorf("marshal node info failed: %w", err)
 		return
 	}
 	log.Debugf("set node: %#v", nodeInfo)
 
 	_, err = pks.db.Writer().Exec(setRecordSQL, string(nodeInfo.ID), nodeBuf.Bytes())
 	if err != nil {
-		err = errors.Wrap(err, "set node info failed")
+		err = fmt.Errorf("set node info failed: %w", err)
 	}
 
 	return
@@ -310,7 +310,7 @@ func DelNode(id proto.NodeID) (err error) {
 
 	_, err = pks.db.Writer().Exec(deleteRecordSQL, string(id))
 	if err != nil {
-		err = errors.Wrap(err, "del node failed")
+		err = fmt.Errorf("del node failed: %w", err)
 	}
 	return
 }
@@ -322,7 +322,7 @@ func removeBucket() (err error) {
 	if pks != nil {
 		_, err = pks.db.Writer().Exec(deleteAllSQL)
 		if err != nil {
-			err = errors.Wrap(err, "remove bucket failed")
+			err = fmt.Errorf("remove bucket failed: %w", err)
 			return
 		}
 	}
@@ -360,7 +360,7 @@ func removeFileIfIsNotSQLite(filename string) (err error) {
 		return
 	}
 
-	if _, err = f.Read(fileHeader[:]); err != nil && errors.Cause(err) != io.EOF {
+	if _, err = f.Read(fileHeader[:]); err != nil && !errors.Is(err, io.EOF) {
 		// read file failed
 		_ = f.Close()
 		return

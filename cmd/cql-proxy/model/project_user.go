@@ -18,11 +18,12 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	gorp "gopkg.in/gorp.v2"
 )
 
@@ -122,7 +123,7 @@ func PreRegisterUser(db *gorp.DbMap, provider string, name string, email string)
 
 	err = db.Insert(u)
 	if err != nil {
-		err = errors.Wrapf(err, "add pre-registered user failed")
+		err = fmt.Errorf("add pre-registered user failed: %w", err)
 	}
 
 	return
@@ -133,7 +134,7 @@ func GetProjectUser(db *gorp.DbMap, id int64) (u *ProjectUser, err error) {
 	err = db.SelectOne(&u, `SELECT * FROM "____user" WHERE "id" = ? LIMIT 1`,
 		id)
 	if err != nil {
-		err = errors.Wrapf(err, "get project user failed")
+		err = fmt.Errorf("get project user failed: %w", err)
 		return
 	}
 	return
@@ -154,7 +155,7 @@ func GetProjectUsers(db *gorp.DbMap, id []int64) (users []*ProjectUser, err erro
 	_, err = db.Select(&users, `SELECT * FROM "____user" WHERE "id" IN (`+
 		strings.Repeat("?,", len(id)-1)+`?)`, args...)
 	if err != nil {
-		err = errors.Wrapf(err, "get project users failed")
+		err = fmt.Errorf("get project users failed: %w", err)
 	}
 
 	return
@@ -189,13 +190,13 @@ func GetProjectUserList(db *gorp.DbMap, searchTerm string, showOnlyEnabled bool,
 
 	total, err = db.SelectInt(totalSQL, totalArgs...)
 	if err != nil {
-		err = errors.Wrapf(err, "get user list total count failed")
+		err = fmt.Errorf("get user list total count failed: %w", err)
 		return
 	}
 
 	_, err = db.Select(&users, sql, args...)
 	if err != nil {
-		err = errors.Wrapf(err, "get user list failed")
+		err = fmt.Errorf("get user list failed: %w", err)
 		return
 	}
 
@@ -271,12 +272,12 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 	if exists {
 		_, err = db.Update(u)
 		if err != nil {
-			err = errors.Wrapf(err, "update user info failed")
+			err = fmt.Errorf("update user info failed: %w", err)
 		}
 	} else {
 		err = db.Insert(u)
 		if err != nil {
-			err = errors.Wrapf(err, "add new user failed")
+			err = fmt.Errorf("add new user failed: %w", err)
 		}
 	}
 
@@ -297,7 +298,7 @@ func EnsureProjectUser(db *gorp.DbMap, provider string,
 func UpdateProjectUser(db *gorp.DbMap, u *ProjectUser) (err error) {
 	_, err = db.Update(u)
 	if err != nil {
-		err = errors.Wrapf(err, "update project user failed")
+		err = fmt.Errorf("update project user failed: %w", err)
 	}
 	return
 }

@@ -18,11 +18,10 @@ package kayak
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"runtime/trace"
-
-	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 )
@@ -56,7 +55,7 @@ func (r *Runtime) writeWAL(ctx context.Context, l *kt.Log) (err error) {
 	defer trace.StartRegion(ctx, "writeWal").End()
 
 	if err = r.wal.Write(l); err != nil {
-		err = errors.Wrap(err, "write follower log failed")
+		err = fmt.Errorf("write follower log failed: %w", err)
 	}
 
 	return
@@ -68,7 +67,7 @@ func (r *Runtime) readLogs() (err error) {
 
 	for {
 		if l, err = r.wal.Read(); err != nil && err != io.EOF {
-			err = errors.Wrap(err, "load previous logs in wal failed")
+			err = fmt.Errorf("load previous logs in wal failed: %w", err)
 			return
 		} else if err == io.EOF {
 			err = nil
@@ -84,16 +83,14 @@ func (r *Runtime) readLogs() (err error) {
 			var lastCommit uint64
 			var prepareLog *kt.Log
 			if lastCommit, prepareLog, err = r.getPrepareLog(context.Background(), l); err != nil {
-				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
+				err = fmt.Errorf("previous prepare does not exists, node need full recovery: %w", err)
 				return
 			}
 			if lastCommit != r.lastCommit {
-				err = errors.Wrapf(err,
-					"last commit record in wal mismatched (expected: %v, actual: %v)", r.lastCommit, lastCommit)
 				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {
-				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
+				err = fmt.Errorf("previous prepare already committed/rollback: %w", kt.ErrInvalidLog)
 				return
 			}
 			r.lastCommit = l.Index
@@ -102,17 +99,17 @@ func (r *Runtime) readLogs() (err error) {
 		case kt.LogRollback:
 			var prepareLog *kt.Log
 			if _, prepareLog, err = r.getPrepareLog(context.Background(), l); err != nil {
-				err = errors.Wrap(err, "previous prepare does not exists, node need full recovery")
+				err = fmt.Errorf("previous prepare does not exists, node need full recovery: %w", err)
 				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {
-				err = errors.Wrap(kt.ErrInvalidLog, "previous prepare already committed/rollback")
+				err = fmt.Errorf("previous prepare already committed/rollback: %w", kt.ErrInvalidLog)
 				return
 			}
 			// resolve previous prepared
 			delete(r.pendingPrepares, prepareLog.Index)
 		default:
-			err = errors.Wrapf(kt.ErrInvalidLog, "invalid log type: %v", l.Type)
+			err = fmt.Errorf("invalid log type: %v: %w", l.Type, kt.ErrInvalidLog)
 			return
 		}
 

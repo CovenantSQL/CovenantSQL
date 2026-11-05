@@ -1,10 +1,9 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/api/models"
 	"github.com/CovenantSQL/CovenantSQL/rpc/jsonrpc"
@@ -28,7 +27,7 @@ func init() {
 func Serve(addr, dbFile string) error {
 	// setup database
 	if err := models.InitModels(dbFile); err != nil {
-		return errors.WithMessage(err, "api: init models failed")
+		return fmt.Errorf("api: init models failed: %w", err)
 	}
 	server.Addr = addr
 	server.RPCHandler = rpc

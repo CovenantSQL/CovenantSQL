@@ -16,7 +16,7 @@
 
 package wal
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrWalClosed represents the log file is closed.

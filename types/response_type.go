@@ -17,9 +17,8 @@
 package types
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -76,14 +75,18 @@ func (sh *SignedResponseHeader) Hash() hash.Hash {
 
 // VerifyHash verify the hash of the response.
 func (sh *SignedResponseHeader) VerifyHash() (err error) {
-	return errors.Wrap(verifyHash(&sh.ResponseHeader, &sh.ResponseHash),
-		"verify response header hash failed")
+	if err = verifyHash(&sh.ResponseHeader, &sh.ResponseHash); err != nil {
+		err = fmt.Errorf("verify response header hash failed: %w", err)
+	}
+	return
 }
 
 // BuildHash computes the hash of the response header.
 func (sh *SignedResponseHeader) BuildHash() (err error) {
-	return errors.Wrap(buildHash(&sh.ResponseHeader, &sh.ResponseHash),
-		"compute response header hash failed")
+	if err = buildHash(&sh.ResponseHeader, &sh.ResponseHash); err != nil {
+		err = fmt.Errorf("compute response header hash failed: %w", err)
+	}
+	return
 }
 
 // Response defines a complete query response.
@@ -99,7 +102,7 @@ func (r *Response) BuildHash() (err error) {
 
 	// build hash in header
 	if err = buildHash(&r.Payload, &r.Header.PayloadHash); err != nil {
-		err = errors.Wrap(err, "compute response payload hash failed")
+		err = fmt.Errorf("compute response payload hash failed: %w", err)
 		return
 	}
 
@@ -110,7 +113,7 @@ func (r *Response) BuildHash() (err error) {
 // VerifyHash verify the hash of the response.
 func (r *Response) VerifyHash() (err error) {
 	if err = verifyHash(&r.Payload, &r.Header.PayloadHash); err != nil {
-		err = errors.Wrap(err, "verify response payload hash failed")
+		err = fmt.Errorf("verify response payload hash failed: %w", err)
 		return
 	}
 

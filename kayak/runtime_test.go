@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -31,7 +32,6 @@ import (
 	"time"
 
 	mock_conn "github.com/jordwest/mock-conn"
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/xtaci/smux"
 
@@ -79,7 +79,7 @@ func newSQLiteStorage(dsn string) (s *sqliteStorage, err error) {
 func (s *sqliteStorage) EncodePayload(request interface{}) (data []byte, err error) {
 	var buf *bytes.Buffer
 	if buf, err = utils.EncodeMsgPack(request); err != nil {
-		err = errors.Wrap(err, "encode payload failed")
+		err = fmt.Errorf("encode payload failed: %w", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (s *sqliteStorage) EncodePayload(request interface{}) (data []byte, err err
 func (s *sqliteStorage) DecodePayload(data []byte) (request interface{}, err error) {
 	var req *queryStructure
 	if err = utils.DecodeMsgPack(data, &req); err != nil {
-		err = errors.Wrap(err, "decode payload failed")
+		err = fmt.Errorf("decode payload failed: %w", err)
 		return
 	}
 

@@ -18,9 +18,8 @@ package kayak
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
-
-	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -32,7 +31,7 @@ func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req inte
 
 	// check prepare in leader
 	if err = r.doCheck(ctx, req); err != nil {
-		err = errors.Wrap(err, "leader verify log")
+		err = fmt.Errorf("leader verify log: %w", err)
 		return
 	}
 
@@ -41,7 +40,7 @@ func (r *Runtime) doLeaderPrepare(ctx context.Context, tm *timer.Timer, req inte
 	// encode request
 	var encBuf []byte
 	if encBuf, err = r.doEncodePayload(ctx, req); err != nil {
-		err = errors.Wrap(err, "encode kayak payload failed")
+		err = fmt.Errorf("encode kayak payload failed: %w", err)
 		return
 	}
 
@@ -167,14 +166,16 @@ func (r *Runtime) followerPrepare(ctx context.Context, tm *timer.Timer, l *kt.Lo
 func (r *Runtime) followerRollback(ctx context.Context, tm *timer.Timer, l *kt.Log) (err error) {
 	var prepareLog *kt.Log
 	if _, prepareLog, err = r.getPrepareLog(ctx, l); err != nil || prepareLog == nil {
-		err = errors.Wrap(err, "get original request in rollback failed")
+		if err != nil {
+			err = fmt.Errorf("get original request in rollback failed: %w", err)
+		}
 		return
 	}
 	tm.Add("get_prepare")
 
 	// check if prepare already processed
 	if r.checkIfPrepareFinished(ctx, prepareLog.Index) {
-		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
+		err = fmt.Errorf("prepare request already processed: %w", kt.ErrInvalidLog)
 		return
 	}
 	tm.Add("check_prepare")
@@ -203,14 +204,14 @@ func (r *Runtime) followerCommit(ctx context.Context, tm *timer.Timer, l *kt.Log
 	}()
 
 	if lastCommit, prepareLog, err = r.getPrepareLog(ctx, l); err != nil {
-		err = errors.Wrap(err, "get original request in commit failed")
+		err = fmt.Errorf("get original request in commit failed: %w", err)
 		return
 	}
 	tm.Add("get_prepare")
 
 	// check if prepare already processed
 	if r.checkIfPrepareFinished(ctx, prepareLog.Index) {
-		err = errors.Wrap(kt.ErrInvalidLog, "prepare request already processed")
+		err = fmt.Errorf("prepare request already processed: %w", kt.ErrInvalidLog)
 		return
 	}
 	tm.Add("check_prepare")

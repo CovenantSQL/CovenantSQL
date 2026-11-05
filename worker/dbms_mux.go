@@ -17,9 +17,8 @@
 package worker
 
 import (
+	"fmt"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -68,7 +67,7 @@ func (s *DBKayakMuxService) Apply(req *kt.ApplyRequest, _ *interface{}) (err err
 		return v.(*kayak.Runtime).FollowerApply(req.Log)
 	}
 
-	return errors.Wrapf(ErrUnknownMuxRequest, "instance %v", req.Instance)
+	return fmt.Errorf("instance %v: %w", req.Instance, ErrUnknownMuxRequest)
 }
 
 // Fetch handles kayak fetch call.
@@ -84,5 +83,5 @@ func (s *DBKayakMuxService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) 
 		return
 	}
 
-	return errors.Wrapf(ErrUnknownMuxRequest, "instance %v", req.Instance)
+	return fmt.Errorf("instance %v: %w", req.Instance, ErrUnknownMuxRequest)
 }

@@ -17,8 +17,6 @@
 package verifier
 
 import (
-	"github.com/pkg/errors"
-
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 )
@@ -91,7 +89,7 @@ func (i *DefaultHashSignVerifierImpl) VerifyHash(mh MarshalHasher) (err error) {
 	}
 	var h = hash.THashH(enc)
 	if !i.DataHash.IsEqual(&h) {
-		err = errors.WithStack(ErrHashValueNotMatch)
+		err = ErrHashValueNotMatch
 		return
 	}
 	return
@@ -100,7 +98,7 @@ func (i *DefaultHashSignVerifierImpl) VerifyHash(mh MarshalHasher) (err error) {
 // VerifySignature implements HashSignVerifier.VerifySignature.
 func (i *DefaultHashSignVerifierImpl) VerifySignature() (err error) {
 	if !i.Signature.Verify(i.DataHash[:], i.Signee) {
-		err = errors.WithStack(ErrSignatureNotMatch)
+		err = ErrSignatureNotMatch
 		return
 	}
 	return

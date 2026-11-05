@@ -20,12 +20,12 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
+	"fmt"
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -85,7 +85,7 @@ func newConn(cfg *Config) (c *conn, err error) {
 	// get peers from BP
 	var peers *proto.Peers
 	if peers, err = cacheGetPeers(c.dbID, c.privKey); err != nil {
-		return nil, errors.WithMessage(err, "cacheGetPeers failed")
+		return nil, fmt.Errorf("cacheGetPeers failed: %w", err)
 	}
 
 	if cfg.Mirror != "" {
@@ -140,12 +140,12 @@ func newConn(cfg *Config) (c *conn, err error) {
 
 		if c.leader != nil {
 			if err := c.leader.startAckWorkers(); err != nil {
-				return nil, errors.WithMessage(err, "leader startAckWorkers failed")
+				return nil, fmt.Errorf("leader startAckWorkers failed: %w", err)
 			}
 		}
 		if c.follower != nil {
 			if err := c.follower.startAckWorkers(); err != nil {
-				return nil, errors.WithMessage(err, "follower startAckWorkers failed")
+				return nil, fmt.Errorf("follower startAckWorkers failed: %w", err)
 			}
 		}
 	}

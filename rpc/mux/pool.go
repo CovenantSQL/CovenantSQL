@@ -17,11 +17,12 @@
 package mux
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -66,7 +67,7 @@ func (s *Session) Close() error {
 	}
 	s.sess = s.sess[:0]
 	if len(errmsgs) > 0 {
-		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close session %s", s.target)
+		return fmt.Errorf("close session %s: %w", s.target, errors.New(strings.Join(errmsgs, ", ")))
 	}
 	return nil
 }
@@ -122,7 +123,7 @@ func (s *Session) Len() int {
 func newSession(id proto.NodeID, isAnonymous bool) (sess *mux.Session, err error) {
 	var conn net.Conn
 	if conn, err = rpc.DialEx(id, isAnonymous); err != nil {
-		err = errors.Wrap(err, "dialing new session connection failed")
+		err = fmt.Errorf("dialing new session connection failed: %w", err)
 		return
 	}
 	return mux.Client(conn, mux.DefaultConfig())
@@ -174,17 +175,18 @@ func (c *oneOffMuxConn) Close() error {
 // NewOneOffMuxConn wraps a raw conn as a mux.Stream to access a rpc/mux.Server.
 //
 // Combine this with rpc.NewClient:
+//
 //	Dial conn with a corresponding dialer of RPC server
-// 	Wrap conn as stream with NewOneOffMuxConn
-// 	Call rpc.NewClient(stream) to get client.
+//	Wrap conn as stream with NewOneOffMuxConn
+//	Call rpc.NewClient(stream) to get client.
 func NewOneOffMuxConn(conn net.Conn) (net.Conn, error) {
 	sess, err := mux.Client(conn, mux.DefaultConfig())
 	if err != nil {
-		return nil, errors.Wrapf(err, "create session to %s", conn.RemoteAddr())
+		return nil, fmt.Errorf("create session to %s: %w", conn.RemoteAddr(), err)
 	}
 	stream, err := sess.OpenStream()
 	if err != nil {
-		return nil, errors.Wrapf(err, "open stream to %s", conn.RemoteAddr())
+		return nil, fmt.Errorf("open stream to %s: %w", conn.RemoteAddr(), err)
 	}
 	return &oneOffMuxConn{
 		Stream: stream,
@@ -204,7 +206,7 @@ func (p *SessionPool) GetEx(id proto.NodeID, isAnonymous bool) (conn rpc.Client,
 			return
 		}
 		if stream, err = sess.OpenStream(); err != nil {
-			err = errors.Wrapf(err, "open new session to %s failed", id)
+			err = fmt.Errorf("open new session to %s failed: %w", id, err)
 			return
 		}
 		return rpc.NewClient(&oneOffMuxConn{
@@ -239,7 +241,7 @@ func (p *SessionPool) Close() error {
 	}
 	p.sessions = make(map[proto.NodeID]*Session)
 	if len(errmsgs) > 0 {
-		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close session pool")
+		return fmt.Errorf("close session pool: %w", errors.New(strings.Join(errmsgs, ", ")))
 	}
 	return nil
 }

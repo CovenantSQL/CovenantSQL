@@ -26,7 +26,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -40,13 +39,13 @@ func setupChain(testName string) (c *Chain, err error) {
 		fl = path.Join(testingDataDir, strings.Replace(testName, "/", "-", -1))
 	)
 	if c, err = NewChain(fmt.Sprint("file:", fl)); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	}
 	if _, err = c.state.strg.Writer().Exec(
 		`CREATE TABLE "bench" ("k" INT, "v1" TEXT, "v2" TEXT, "v3" TEXT, PRIMARY KEY("k"))`,
 	); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	}
 	return
@@ -138,19 +137,19 @@ func teardownChain(testName string, c *Chain) (err error) {
 		fl = path.Join(testingDataDir, strings.Replace(testName, "/", "-", -1))
 	)
 	if err = c.Stop(); err != nil {
-		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		err = fmt.Errorf("failed to teardown bench environment: : %w", err)
 		return
 	}
 	if err = os.Remove(fl); err != nil {
-		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		err = fmt.Errorf("failed to teardown bench environment: : %w", err)
 		return
 	}
 	if err = os.Remove(fmt.Sprint(fl, "-shm")); err != nil && !os.IsNotExist(err) {
-		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		err = fmt.Errorf("failed to teardown bench environment: : %w", err)
 		return
 	}
 	if err = os.Remove(fmt.Sprint(fl, "-wal")); err != nil && !os.IsNotExist(err) {
-		err = errors.Wrap(err, "failed to teardown bench environment: ")
+		err = fmt.Errorf("failed to teardown bench environment: : %w", err)
 		return
 	}
 

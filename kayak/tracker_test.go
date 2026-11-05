@@ -18,10 +18,10 @@ package kayak
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"

@@ -18,10 +18,11 @@ package interfaces
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/ugorji/go/codec"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -102,7 +103,7 @@ func (w *TransactionWrapper) CodecDecodeSelf(d *codec.Decoder) {
 	case valueTypeMap:
 		w.decodeFromRaw(d)
 	default:
-		panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
+		panic(fmt.Errorf("type %v applied: %w", ct, ErrInvalidContainerType))
 	}
 }
 
@@ -118,19 +119,19 @@ func (w *TransactionWrapper) UnmarshalJSON(data []byte) (err error) {
 	typeDetector.SetTransactionType(TransactionTypeNumber)
 
 	if err = json.Unmarshal(data, &typeDetector); err != nil {
-		err = errors.Wrap(err, "try decode transaction failed")
+		err = fmt.Errorf("try decode transaction failed: %w", err)
 		return
 	}
 
 	txType := typeDetector.GetTransactionType()
 
 	if txType == TransactionTypeNumber {
-		err = errors.Wrapf(ErrInvalidTransactionType, "invalid tx type: %d", txType)
+		err = fmt.Errorf("invalid tx type: %d: %w", txType, ErrInvalidTransactionType)
 		return
 	}
 
 	if w.Transaction, err = NewTransaction(txType); err != nil {
-		err = errors.Wrapf(err, "instantiate transaction type %s failed", txType.String())
+		err = fmt.Errorf("instantiate transaction type %s failed: %w", txType.String(), err)
 		return
 	}
 
@@ -163,7 +164,7 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 			}
 		} else if i == 1 {
 			if ct := decodeDriver.ContainerType(); ct != valueTypeMap {
-				panic(errors.Wrapf(ErrInvalidContainerType, "type %v applied", ct))
+				panic(fmt.Errorf("type %v applied: %w", ct, ErrInvalidContainerType))
 			}
 
 			if !decodeDriver.TryDecodeAsNil() {
@@ -232,13 +233,13 @@ func NewTransaction(t TransactionType) (tx Transaction, err error) {
 	var rt reflect.Type
 
 	if d, ok = txTypeMapping.Load(t); !ok {
-		err = errors.Wrapf(ErrInvalidTransactionType, "transaction not registered")
+		err = fmt.Errorf("transaction not registered: %w", ErrInvalidTransactionType)
 		return
 	}
 	rt = d.(reflect.Type)
 
 	if !rt.Implements(txType) || rt == txWrapperType {
-		err = errors.Wrap(ErrInvalidTransactionType, "invalid transaction registered")
+		err = fmt.Errorf("invalid transaction registered: %w", ErrInvalidTransactionType)
 		return
 	}
 

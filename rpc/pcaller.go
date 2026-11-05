@@ -17,13 +17,12 @@
 package rpc
 
 import (
+	"fmt"
 	"io"
 	"net/rpc"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
@@ -39,8 +38,9 @@ type PersistentCaller struct {
 }
 
 // NewPersistentCallerWithPool returns a persistent RPCCaller.
-//  IMPORTANT: If a PersistentCaller is firstly used by a DHT.Ping, which is an anonymous
-//  ETLS connection. It should not be used by any other RPC except DHT.Ping.
+//
+//	IMPORTANT: If a PersistentCaller is firstly used by a DHT.Ping, which is an anonymous
+//	ETLS connection. It should not be used by any other RPC except DHT.Ping.
 func NewPersistentCallerWithPool(pool NOClientPool, target proto.NodeID) *PersistentCaller {
 	return &PersistentCaller{
 		pool:     pool,
@@ -54,7 +54,7 @@ func (c *PersistentCaller) initClient(isAnonymous bool) (err error) {
 	if c.client == nil {
 		c.client, err = DialToNodeWithPool(c.pool, c.TargetID, isAnonymous)
 		if err != nil {
-			err = errors.Wrap(err, "dial to node failed")
+			err = fmt.Errorf("dial to node failed: %w", err)
 			return
 		}
 		//c.TargetAddr = conn.RemoteAddr().String()
@@ -72,7 +72,7 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 	isAnonymous := (method == route.DHTPing.String())
 	err = c.initClient(isAnonymous)
 	if err != nil {
-		err = errors.Wrap(err, "init PersistentCaller client failed")
+		err = fmt.Errorf("init PersistentCaller client failed: %w", err)
 		return
 	}
 	err = c.client.Call(method, args, reply)
@@ -87,10 +87,10 @@ func (c *PersistentCaller) Call(method string, args interface{}, reply interface
 			_ = c.ResetClient()
 			reconnectErr := c.initClient(isAnonymous)
 			if reconnectErr != nil {
-				err = errors.Wrap(reconnectErr, "reconnect failed")
+				err = fmt.Errorf("reconnect failed: %w", reconnectErr)
 			}
 		}
-		err = errors.Wrapf(err, "call %s failed", method)
+		err = fmt.Errorf("call %s failed: %w", method, err)
 		return
 	}
 	return

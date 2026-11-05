@@ -20,8 +20,6 @@ import (
 	"crypto/rand"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
@@ -40,7 +38,7 @@ func verifyHash(data canMarshalHash, h *hash.Hash) (err error) {
 		return
 	}
 	if !newHash.IsEqual(h) {
-		return errors.Cause(verifier.ErrHashValueNotMatch)
+		return verifier.ErrHashValueNotMatch
 	}
 	return
 }

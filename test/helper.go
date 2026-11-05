@@ -22,8 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -73,14 +71,14 @@ func Create(
 		clientAddr proto.AccountAddress
 	)
 	if clientAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
-		err = errors.Wrap(err, "get local account address failed")
+		err = fmt.Errorf("get local account address failed: %w", err)
 		return
 	}
 	// allocate nonce
 	nonceReq.Addr = clientAddr
 
 	if err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp); err != nil {
-		err = errors.Wrap(err, "allocate create database transaction nonce failed")
+		err = fmt.Errorf("allocate create database transaction nonce failed: %w", err)
 		return
 	}
 
@@ -94,12 +92,12 @@ func Create(
 	})
 
 	if err = req.Tx.Sign(privateKey); err != nil {
-		err = errors.Wrap(err, "sign request failed")
+		err = fmt.Errorf("sign request failed: %w", err)
 		return
 	}
 
 	if err = rpc.RequestBP(route.MCCAddTx.String(), req, resp); err != nil {
-		err = errors.Wrap(err, "call create database transaction failed")
+		err = fmt.Errorf("call create database transaction failed: %w", err)
 		return
 	}
 

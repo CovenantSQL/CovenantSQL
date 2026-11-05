@@ -18,6 +18,7 @@ package mirror
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,8 +26,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -90,7 +89,7 @@ func NewService(database string, server *rpc.Server) (s *Service, err error) {
 	}
 
 	if s.strg, err = xs.NewSqlite(dbPath); err != nil {
-		err = errors.Wrap(err, "open database file failed")
+		err = fmt.Errorf("open database file failed: %w", err)
 		return
 	}
 
@@ -98,7 +97,7 @@ func NewService(database string, server *rpc.Server) (s *Service, err error) {
 
 	// register myself
 	if err = server.RegisterService(route.DBRPCName, s); err != nil {
-		err = errors.Wrap(err, "register rpc failed")
+		err = fmt.Errorf("register rpc failed: %w", err)
 		return
 	}
 
@@ -115,10 +114,9 @@ func (s *Service) start() (err error) {
 	req.DBID = s.dbID
 
 	if err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp); err != nil {
-		err = errors.Wrap(err, "get peers for database failed")
+		err = fmt.Errorf("get peers for database failed: %w", err)
 		return
 	} else if len(resp.Profile.Miners) == 0 {
-		err = errors.Wrap(err, "get empty peers for database")
 		return
 	}
 

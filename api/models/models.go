@@ -6,7 +6,6 @@ import (
 
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt" // sqlite3 driver
 	"github.com/go-gorp/gorp"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -23,13 +22,13 @@ func OpenSQLiteDBAsGorp(dbFile, mode string, maxOpen, maxIdle int) (db *gorp.DbM
 	dsn := fmt.Sprintf("%s?_journal=WAL&mode=%s", dbFile, mode)
 	underdb, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to open database %q", dsn)
+		return nil, fmt.Errorf("unable to open database %q: %w", dsn, err)
 	}
 	underdb.SetMaxOpenConns(maxOpen)
 	underdb.SetMaxIdleConns(maxIdle)
 
 	if err := underdb.Ping(); err != nil {
-		return nil, errors.Wrapf(err, "ping to database %q failed", dsn)
+		return nil, fmt.Errorf("ping to database %q failed: %w", dsn, err)
 	}
 
 	db = &gorp.DbMap{

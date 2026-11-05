@@ -27,8 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
 	bp "github.com/CovenantSQL/CovenantSQL/blockproducer"
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -174,18 +172,18 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 		clientAddr proto.AccountAddress
 	)
 	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		err = errors.Wrap(err, "get local private key failed")
+		err = fmt.Errorf("get local private key failed: %w", err)
 		return
 	}
 	if clientAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
-		err = errors.Wrap(err, "get local account address failed")
+		err = fmt.Errorf("get local account address failed: %w", err)
 		return
 	}
 	// allocate nonce
 	nonceReq.Addr = clientAddr
 
 	if err = requestBP(route.MCCNextAccountNonce, nonceReq, nonceResp); err != nil {
-		err = errors.Wrap(err, "allocate create database transaction nonce failed")
+		err = fmt.Errorf("allocate create database transaction nonce failed: %w", err)
 		return
 	}
 
@@ -217,12 +215,12 @@ func Create(meta ResourceMeta) (txHash hash.Hash, dsn string, err error) {
 	})
 
 	if err = req.Tx.Sign(privateKey); err != nil {
-		err = errors.Wrap(err, "sign request failed")
+		err = fmt.Errorf("sign request failed: %w", err)
 		return
 	}
 
 	if err = requestBP(route.MCCAddTx, req, resp); err != nil {
-		err = errors.Wrap(err, "call create database transaction failed")
+		err = fmt.Errorf("call create database transaction failed: %w", err)
 		return
 	}
 
@@ -293,7 +291,7 @@ func WaitBPDatabaseCreation(
 			fmt.Printf("\rQuerying SQLChain Profile %vs", count*int(period.Seconds()))
 		case <-ctx.Done():
 			if err != nil {
-				return errors.Wrapf(ctx.Err(), "last error: %s", err.Error())
+				return fmt.Errorf("last error: %s: %w", err.Error(), ctx.Err())
 			}
 			return ctx.Err()
 		}
@@ -475,7 +473,7 @@ func WaitTxConfirmation(
 	defer fmt.Printf("\n")
 	for {
 		if err = requestBP(method, req, resp); err != nil {
-			err = errors.Wrapf(err, "failed to call %s", method)
+			err = fmt.Errorf("failed to call %s: %w", method, err)
 			return
 		}
 
@@ -496,7 +494,7 @@ func WaitTxConfirmation(
 			interfaces.TransactionStateNotFound:
 			return
 		default:
-			err = errors.Errorf("unknown transaction state %d", state)
+			err = fmt.Errorf("unknown transaction state %d", state)
 			return
 		}
 
@@ -643,13 +641,13 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 	profileReq.DBID = dbID
 	err = rpc.RequestBP(route.MCCQuerySQLChainProfile.String(), profileReq, profileResp)
 	if err != nil {
-		err = errors.Wrap(err, "get sqlchain profile failed in getPeers")
+		err = fmt.Errorf("get sqlchain profile failed in getPeers: %w", err)
 		return
 	}
 
 	nodeIDs := make([]proto.NodeID, len(profileResp.Profile.Miners))
 	if len(profileResp.Profile.Miners) <= 0 {
-		err = errors.Wrap(ErrInvalidProfile, "unexpected error in getPeers")
+		err = fmt.Errorf("unexpected error in getPeers: %w", ErrInvalidProfile)
 		return
 	}
 	for i, mi := range profileResp.Profile.Miners {
@@ -663,7 +661,7 @@ func getPeers(dbID proto.DatabaseID, privKey *asymmetric.PrivateKey) (peers *pro
 	}
 	err = peers.Sign(privKey)
 	if err != nil {
-		err = errors.Wrap(err, "sign peers failed in getPeers")
+		err = fmt.Errorf("sign peers failed in getPeers: %w", err)
 		return
 	}
 

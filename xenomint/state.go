@@ -19,11 +19,10 @@ package xenomint
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -215,7 +214,7 @@ func (s *State) readWithContext(
 	// TODO(leventeliu): no need to run every read query here.
 	for i, v := range req.Payload.Queries {
 		if cnames, ctypes, data, ierr = readSingle(ctx, s.reader(), &v); ierr != nil {
-			err = errors.Wrapf(ierr, "query at #%d failed", i)
+			err = fmt.Errorf("query at #%d failed: %w", i, ierr)
 			// Add to failed pool list
 			s.pool.setFailed(req)
 			return
@@ -264,7 +263,7 @@ func (s *State) readTx(
 	} else {
 		var tx *sql.Tx
 		if tx, ierr = s.reader().Begin(); ierr != nil {
-			err = errors.Wrap(ierr, "open tx failed")
+			err = fmt.Errorf("open tx failed: %w", ierr)
 			return
 		}
 		querier = tx
@@ -285,7 +284,7 @@ func (s *State) readTx(
 
 	for i, v := range req.Payload.Queries {
 		if cnames, ctypes, data, ierr = readSingle(ctx, querier, &v); ierr != nil {
-			err = errors.Wrapf(ierr, "query at #%d failed", i)
+			err = fmt.Errorf("query at #%d failed: %w", i, ierr)
 			// Add to failed pool list
 			s.Lock()
 			s.pool.setFailed(req)
@@ -406,7 +405,7 @@ func (s *State) write(
 		if qcnt > 1 && s.level == sql.LevelReadUncommitted {
 			// Set savepoint
 			if _, ierr = s.handler.Exec(`SAVEPOINT "?"`, lastSeq); ierr != nil {
-				err = errors.Wrapf(ierr, "failed to create savepoint %d", lastSeq)
+				err = fmt.Errorf("failed to create savepoint %d: %w", lastSeq, ierr)
 				return
 			}
 			defer func() {
@@ -423,7 +422,7 @@ func (s *State) write(
 		for i, v := range req.Payload.Queries {
 			var res sql.Result
 			if res, ierr = s.writeSingle(ctx, &v); ierr != nil {
-				err = errors.Wrapf(ierr, "execute at #%d failed", i)
+				err = fmt.Errorf("execute at #%d failed: %w", i, ierr)
 				// TODO(leventeliu): request may actually be partial succeed without
 				// rolling back.
 				s.pool.setFailed(req)
@@ -438,7 +437,7 @@ func (s *State) write(
 			if qcnt > 1 {
 				// Release savepoint
 				if _, ierr = s.handler.Exec(`RELEASE SAVEPOINT "?"`, lastSeq); ierr != nil {
-					err = errors.Wrapf(ierr, "failed to release savepoint %d", lastSeq)
+					err = fmt.Errorf("failed to release savepoint %d: %w", lastSeq, ierr)
 					return
 				}
 			}
@@ -487,15 +486,13 @@ func (s *State) replay(ctx context.Context, req *types.Request, resp *types.Resp
 	defer s.Unlock()
 	lastSeq = s.getSeq()
 	if resp.Header.ResponseHeader.LogOffset != lastSeq {
-		err = errors.Wrapf(
-			ErrQueryConflict,
-			"local id %d vs replaying id %d", lastSeq, resp.Header.ResponseHeader.LogOffset,
-		)
+		err = fmt.Errorf("local id %d vs replaying id %d: %w",
+			lastSeq, resp.Header.ResponseHeader.LogOffset, ErrQueryConflict)
 		return
 	}
 	for i, v := range req.Payload.Queries {
 		if _, ierr = s.writeSingle(ctx, &v); ierr != nil {
-			err = errors.Wrapf(ierr, "execute at #%d failed", i)
+			err = fmt.Errorf("execute at #%d failed: %w", i, ierr)
 			return
 		}
 	}
@@ -541,11 +538,11 @@ func (s *State) ReplayBlockWithContext(ctx context.Context, block *types.Block) 
 		// Replay query
 		for j, v := range q.Request.Payload.Queries {
 			if q.Request.Header.QueryType != types.WriteQuery {
-				err = errors.Wrapf(ErrInvalidRequest, "replay block at %d:%d", i, j)
+				err = fmt.Errorf("replay block at %d:%d: %w", i, j, ErrInvalidRequest)
 				return
 			}
 			if _, ierr = s.writeSingle(ctx, &v); ierr != nil {
-				err = errors.Wrapf(ierr, "execute at %d:%d failed", i, j)
+				err = fmt.Errorf("execute at %d:%d failed: %w", i, j, ierr)
 				return
 			}
 		}

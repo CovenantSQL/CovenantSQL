@@ -16,7 +16,7 @@
 
 package api
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrTokenApplyDisabled defines token application disabled error.

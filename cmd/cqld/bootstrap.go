@@ -21,7 +21,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/CovenantSQL/CovenantSQL/api"
@@ -183,7 +182,7 @@ func createServer(privateKeyPath, pubKeyStorePath string, masterKey []byte, list
 	server = rpc.NewServer()
 
 	if err = server.InitRPCServer(listenAddr, privateKeyPath, masterKey); err != nil {
-		err = errors.Wrap(err, "init rpc server failed")
+		err = fmt.Errorf("init rpc server failed: %w", err)
 	}
 
 	return

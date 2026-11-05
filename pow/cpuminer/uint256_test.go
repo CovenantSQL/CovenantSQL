@@ -29,7 +29,7 @@ import (
 func TestUint256(t *testing.T) {
 	Convey("uint256 len", t, func() {
 		i := Uint256{}
-		So(unsafe.Sizeof(Uint256{}), ShouldEqual, 32)
+		So(unsafe.Sizeof(Uint256{}), ShouldEqual, uintptr(32))
 		So(len(i.Bytes()), ShouldEqual, 32)
 	})
 	Convey("convert", t, func() {

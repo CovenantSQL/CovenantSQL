@@ -56,6 +56,6 @@ func TestDeepcopier(t *testing.T) {
 		}
 		var p2 = deepcopy.Copy(p1).(*SQLChainProfile)
 		t.Logf("%p %p", p1.Miners[0], p2.Miners[0])
-		So(p1.Miners[0], ShouldNotEqual, p2.Miners[0])
+		So(p1.Miners[0], ShouldNotPointTo, p2.Miners[0])
 	})
 }

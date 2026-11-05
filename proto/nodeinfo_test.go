@@ -68,7 +68,7 @@ func TestNode_InitNodeCryptoInfo(t *testing.T) {
 			node.ID.Difficulty(), node.Nonce, hashTmp.String())
 
 		So(node.ID.Difficulty(), ShouldBeGreaterThan, 1)
-		So(hashTmp.String(), ShouldEqual, node.ID)
+		So(hashTmp.String(), ShouldEqual, string(node.ID))
 	})
 	Convey("NodeID Difficulty", t, func() {
 		var node NodeID

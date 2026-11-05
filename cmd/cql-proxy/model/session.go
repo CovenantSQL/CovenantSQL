@@ -26,8 +26,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 )
 
 // Session defines the session object for user/admin.
@@ -280,7 +280,7 @@ func NewEmptySession(c *gin.Context) (s *Session) {
 
 // NewSession created and save new session to database.
 func NewSession(db *gorp.DbMap, expire int64) (s *Session, err error) {
-	id := uuid.Must(uuid.NewV4()).String()
+	id := uuid.NewString()
 	now := time.Now().Unix()
 	s = &Session{
 		ID:      id,

@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/go-gorp/gorp/v3"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
@@ -68,7 +68,7 @@ func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.Accoun
 
 // AddTokenApplyRecord add new token apply record to database.
 func AddTokenApplyRecord(db *gorp.DbMap, developer int64, account utils.AccountAddress, amount uint64) (r *TokenApply, err error) {
-	applicationID := uuid.Must(uuid.NewV4()).String()
+	applicationID := uuid.NewString()
 
 	r = &TokenApply{
 		ID:        applicationID,

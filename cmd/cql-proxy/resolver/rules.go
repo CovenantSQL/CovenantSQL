@@ -21,8 +21,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/pkg/errors"
-	validator "gopkg.in/go-playground/validator.v9"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )

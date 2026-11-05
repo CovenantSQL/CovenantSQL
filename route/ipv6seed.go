@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/CovenantSQL/beacon/ipv6"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -109,7 +108,7 @@ func (isc *IPv6SeedClient) GetBPFromDNSSeed(BPDomain string) (BPNodes IDNodeMap,
 			return
 		}
 	} else {
-		return nil, errors.Errorf("error public key bytes len: %d", len(pubBuf))
+		return nil, fmt.Errorf("error public key bytes len: %d", len(pubBuf))
 	}
 	var pubKey asymmetric.PublicKey
 	err = pubKey.UnmarshalBinary(pubKeyBuf)

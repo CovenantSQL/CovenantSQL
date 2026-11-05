@@ -16,7 +16,7 @@
 
 package client
 
-import "github.com/pkg/errors"
+import "errors"
 
 // Various errors the driver might returns.
 var (

@@ -17,7 +17,7 @@
 package kayak
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -36,10 +36,10 @@ func (r *Runtime) errorSummary(errs map[proto.NodeID]error) error {
 		return nil
 	}
 
-	return errors.Wrapf(kt.ErrPrepareFailed, "fail on nodes: %v", failNodes)
+	return fmt.Errorf("fail on nodes: %v: %w", failNodes, kt.ErrPrepareFailed)
 }
 
-/// rpc related
+// / rpc related
 func (r *Runtime) applyRPC(l *kt.Log, minCount int) (tracker *rpcTracker) {
 	req := &kt.ApplyRequest{
 		Instance: r.instanceID,

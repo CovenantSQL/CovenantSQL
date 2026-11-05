@@ -17,6 +17,7 @@
 package naconn
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -26,7 +27,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -85,7 +85,8 @@ func TestNAConn(t *testing.T) {
 		RegisterResolver(resolver)
 		// Test dial timeout
 		_, err := Dial(nodeinfo.ID)
-		nerr, ok := errors.Cause(err).(net.Error)
+		var nerr net.Error
+		ok := errors.As(err, &nerr)
 		t.Logf("err: %v\n", err)
 		So(ok, ShouldBeTrue)
 		So(nerr.Timeout(), ShouldBeTrue)

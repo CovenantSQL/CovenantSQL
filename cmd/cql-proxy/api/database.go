@@ -19,12 +19,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"
@@ -249,12 +250,12 @@ func databaseList(c *gin.Context) {
 func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount uint16) (tx hash.Hash, dbID proto.DatabaseID, key *asymmetric.PrivateKey, err error) {
 	p, err := model.GetAccountByID(db, developer, account)
 	if err != nil {
-		err = errors.Wrapf(err, "get account for task failed")
+		err = fmt.Errorf("get account for task failed: %w", err)
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
-		err = errors.Wrapf(err, "decode account private key failed")
+		err = fmt.Errorf("decode account private key failed: %w", err)
 		return
 	}
 
@@ -262,7 +263,7 @@ func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount ui
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		err = errors.Wrapf(err, "decode task account failed")
+		err = fmt.Errorf("decode task account failed: %w", err)
 		return
 	}
 
@@ -272,7 +273,7 @@ func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount ui
 
 	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
 	if err != nil {
-		err = errors.Wrapf(err, "get account nonce failed")
+		err = fmt.Errorf("get account nonce failed: %w", err)
 		return
 	}
 
@@ -307,12 +308,12 @@ func createDatabase(db *gorp.DbMap, developer int64, account int64, nodeCount ui
 	})
 
 	if err = txReq.Tx.Sign(p.Key); err != nil {
-		err = errors.Wrapf(err, "sign create database tx failed")
+		err = fmt.Errorf("sign create database tx failed: %w", err)
 		return
 	}
 
 	if err = rpc.RequestBP(route.MCCAddTx.String(), txReq, txResp); err != nil {
-		err = errors.Wrapf(err, "send add tx transaction rpc failed")
+		err = fmt.Errorf("send add tx transaction rpc failed: %w", err)
 		return
 	}
 
@@ -336,7 +337,7 @@ func waitForTxState(ctx context.Context, tx hash.Hash) (state pi.TransactionStat
 			resp := &types.QueryTxStateResp{}
 			err = rpc.RequestBP(route.MCCQueryTxState.String(), req, resp)
 			if err != nil {
-				err = errors.Wrapf(err, "query tx %s state failed", tx.String())
+				err = fmt.Errorf("query tx %s state failed: %w", tx.String(), err)
 				continue
 			}
 
@@ -347,7 +348,7 @@ func waitForTxState(ctx context.Context, tx hash.Hash) (state pi.TransactionStat
 				return
 			case pi.TransactionStateExpired, pi.TransactionStateNotFound:
 				// set error
-				err = errors.Errorf("tx %s expired", tx.String())
+				err = fmt.Errorf("tx %s expired", tx.String())
 				return
 			}
 		}
@@ -362,13 +363,13 @@ func CreateDatabaseTask(ctx context.Context, _ *config.Config, db *gorp.DbMap, t
 
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
-		err = errors.Wrapf(err, "unmarshal task args failed")
+		err = fmt.Errorf("unmarshal task args failed: %w", err)
 		return
 	}
 
 	tx, dbID, _, err := createDatabase(db, t.Developer, t.Account, args.NodeCount)
 	if err != nil {
-		err = errors.Wrapf(err, "create database failed")
+		err = fmt.Errorf("create database failed: %w", err)
 		return
 	}
 
@@ -395,30 +396,30 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
-		err = errors.Wrapf(err, "unmarshal task args failed")
+		err = fmt.Errorf("unmarshal task args failed: %w", err)
 		return
 	}
 
 	dbAccount, err := args.Database.AccountAddress()
 	if err != nil {
-		err = errors.Wrapf(err, "get database wallet account failed")
+		err = fmt.Errorf("get database wallet account failed: %w", err)
 		return
 	}
 
 	p, err := model.GetAccountByID(db, t.Developer, t.Account)
 	if err != nil {
-		err = errors.Wrapf(err, "get account for task failed")
+		err = fmt.Errorf("get account for task failed: %w", err)
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
-		err = errors.Wrapf(err, "decode account private key failed")
+		err = fmt.Errorf("decode account private key failed: %w", err)
 		return
 	}
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		err = errors.Wrapf(err, "decode task account failed")
+		err = fmt.Errorf("decode task account failed: %w", err)
 		return
 	}
 
@@ -426,7 +427,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 	var profile *types.SQLChainProfile
 	profile, err = getDatabaseProfile(args.Database)
 	if err != nil {
-		err = errors.Wrapf(err, "send get chain profile rpc failed")
+		err = fmt.Errorf("send get chain profile rpc failed: %w", err)
 		return
 	}
 
@@ -449,7 +450,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	err = rpc.RequestBP(route.MCCNextAccountNonce.String(), nonceReq, nonceResp)
 	if err != nil {
-		err = errors.Wrapf(err, "get account nonce failed")
+		err = fmt.Errorf("get account nonce failed: %w", err)
 		return
 	}
 
@@ -463,7 +464,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 
 	err = tx.Sign(p.Key)
 	if err != nil {
-		err = errors.Wrapf(err, "sign database top-up token transfer tx failed")
+		err = fmt.Errorf("sign database top-up token transfer tx failed: %w", err)
 		return
 	}
 
@@ -472,7 +473,7 @@ func TopUpTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *model
 	addTxReq.Tx = tx
 	err = rpc.RequestBP(route.MCCAddTx.String(), addTxReq, addTxResp)
 	if err != nil {
-		err = errors.Wrapf(err, "send add tx transaction rpc failed")
+		err = fmt.Errorf("send add tx transaction rpc failed: %w", err)
 		return
 	}
 

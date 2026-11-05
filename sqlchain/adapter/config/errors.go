@@ -16,7 +16,7 @@
 
 package config
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrInvalidStorageConfig defines error on incomplete storage config.

@@ -17,11 +17,12 @@
 package model
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
@@ -42,7 +43,7 @@ func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.Accoun
 	recordCount, err := db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "developer_id" = ?`,
 		beginOfTheDay, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get developer daily token applied count failed")
+		err = fmt.Errorf("get developer daily token applied count failed: %w", err)
 		return
 	}
 
@@ -54,7 +55,7 @@ func CheckTokenApplyLimits(db *gorp.DbMap, developer int64, account utils.Accoun
 	recordCount, err = db.SelectInt(`SELECT COUNT(1) AS "cnt" FROM "token_apply" WHERE "created" >= ? AND "account" = ?`,
 		beginOfTheDay, account)
 	if err != nil {
-		err = errors.Wrapf(err, "get account daily token applied count failed")
+		err = fmt.Errorf("get account daily token applied count failed: %w", err)
 		return
 	}
 
@@ -81,7 +82,7 @@ func AddTokenApplyRecord(db *gorp.DbMap, developer int64, account utils.AccountA
 	err = db.Insert(r)
 
 	if err != nil {
-		err = errors.Wrapf(err, "add token apply record failed")
+		err = fmt.Errorf("add token apply record failed: %w", err)
 	}
 
 	return

@@ -18,11 +18,11 @@ package metric
 
 import (
 	"expvar"
+	"fmt"
 	"net/http"
 	"runtime"
 	"time"
 
-	"github.com/pkg/errors"
 	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -32,7 +32,7 @@ import (
 func collect(cc *CollectClient) (err error) {
 	mfs, err := cc.Registry.Gather()
 	if err != nil {
-		err = errors.Wrap(err, "gathering node metrics failed")
+		err = fmt.Errorf("gathering node metrics failed: %w", err)
 		return
 	}
 	mm := make(SimpleMetricMap, 0)

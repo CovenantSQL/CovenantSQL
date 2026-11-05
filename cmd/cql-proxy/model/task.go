@@ -18,11 +18,11 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 )
 
 // TaskType defines the task type for async execution.
@@ -176,7 +176,7 @@ func NewTask(db *gorp.DbMap, tt TaskType, developer int64, account int64, args g
 
 	err = db.Insert(t)
 	if err != nil {
-		err = errors.Wrapf(err, "new task failed")
+		err = fmt.Errorf("new task failed: %w", err)
 	}
 
 	return
@@ -187,7 +187,7 @@ func GetTask(db *gorp.DbMap, developer int64, id int64) (t *Task, err error) {
 	err = db.SelectOne(&t,
 		`SELECT * FROM "task" WHERE "id" = ? AND "developer_id" = ? LIMIT 1`, id, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get task failed")
+		err = fmt.Errorf("get task failed: %w", err)
 	}
 	return
 }
@@ -197,7 +197,7 @@ func UpdateTask(db *gorp.DbMap, t *Task) (err error) {
 	t.Updated = time.Now().Unix()
 	_, err = db.Update(t)
 	if err != nil {
-		err = errors.Wrapf(err, "update task failed")
+		err = fmt.Errorf("update task failed: %w", err)
 	}
 	return
 }
@@ -243,12 +243,12 @@ ORDER BY "id" DESC LIMIT ?, ?`
 
 	total, err = db.SelectInt(totalSQL, totalArgs...)
 	if err != nil {
-		err = errors.Wrapf(err, "get total task count failed")
+		err = fmt.Errorf("get total task count failed: %w", err)
 		return
 	}
 	_, err = db.Select(&tasks, listSQL, listArgs...)
 	if err != nil {
-		err = errors.Wrapf(err, "get task list failed")
+		err = fmt.Errorf("get task list failed: %w", err)
 		return
 	}
 
@@ -261,7 +261,7 @@ func ListIncompleteTask(db *gorp.DbMap, limit int64) (tasks []*Task, err error) 
 		`SELECT * FROM "task" WHERE "state" NOT IN (?, ?) ORDER BY "id" ASC LIMIT ?`,
 		TaskSuccess, TaskFailed, limit)
 	if err != nil {
-		err = errors.Wrapf(err, "get incomplete task list failed")
+		err = fmt.Errorf("get incomplete task list failed: %w", err)
 	}
 	return
 }

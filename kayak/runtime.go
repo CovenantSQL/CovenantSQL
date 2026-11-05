@@ -18,13 +18,12 @@ package kayak
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -138,13 +137,15 @@ func newCommitFuture() *commitFuture {
 
 func (f *commitFuture) Get(ctx context.Context) (cr *commitResult, err error) {
 	if f == nil || f.ch == nil {
-		err = errors.Wrap(ctx.Err(), "enqueue commit timeout")
+		if err = ctx.Err(); err != nil {
+			err = fmt.Errorf("enqueue commit timeout: %w", err)
+		}
 		return
 	}
 
 	select {
 	case <-ctx.Done():
-		err = errors.Wrap(ctx.Err(), "get commit result timeout")
+		err = fmt.Errorf("get commit result timeout: %w", ctx.Err())
 		return
 	case cr = <-f.ch:
 		return
@@ -161,20 +162,20 @@ func (f *commitFuture) Set(cr *commitResult) {
 // NewRuntime creates new kayak Runtime.
 func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 	if cfg == nil {
-		err = errors.Wrap(kt.ErrInvalidConfig, "nil config")
+		err = fmt.Errorf("nil config: %w", kt.ErrInvalidConfig)
 		return
 	}
 
 	peers := cfg.Peers
 
 	if peers == nil {
-		err = errors.Wrap(kt.ErrInvalidConfig, "nil peers")
+		err = fmt.Errorf("nil peers: %w", kt.ErrInvalidConfig)
 		return
 	}
 
 	// verify peers
 	if err = peers.Verify(); err != nil {
-		err = errors.Wrap(err, "verify peers during kayak init failed")
+		err = fmt.Errorf("verify peers during kayak init failed: %w", err)
 		return
 	}
 
@@ -198,7 +199,7 @@ func NewRuntime(cfg *kt.RuntimeConfig) (rt *Runtime, err error) {
 	}
 
 	if !exists {
-		err = errors.Wrapf(kt.ErrNotInPeer, "node %v not in peers %v", cfg.NodeID, peers)
+		err = fmt.Errorf("node %v not in peers %v: %w", cfg.NodeID, peers, kt.ErrNotInPeer)
 		return
 	}
 
@@ -412,7 +413,7 @@ func (r *Runtime) markPrepareFinished(ctx context.Context, index uint64) {
 
 func (r *Runtime) followerApply(l *kt.Log, checkPrepare bool) (err error) {
 	if l == nil {
-		err = errors.Wrap(kt.ErrInvalidLog, "log is nil")
+		err = fmt.Errorf("log is nil: %w", kt.ErrInvalidLog)
 		return
 	}
 	if atomic.LoadUint32(&r.started) != 1 {

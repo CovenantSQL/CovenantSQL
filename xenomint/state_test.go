@@ -26,7 +26,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
@@ -90,10 +89,7 @@ func TestState(t *testing.T) {
 					buildQuery(`CREATE TABLE t1 (k INT, v TEXT, PRIMARY KEY(k))`),
 				})
 				_, _, err = st1.Query(req, true)
-				So(err, ShouldNotBeNil)
-				err = errors.Cause(err)
-				So(err, ShouldNotBeNil)
-				So(err, ShouldEqual, sql.ErrTxDone)
+				So(err, ShouldWrap, sql.ErrTxDone)
 			})
 		})
 		Convey("The state will report error on read with uncommitted schema change", func() {
@@ -322,8 +318,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						},
 					},
 				})
-				err = errors.Cause(err)
-				So(err, ShouldEqual, ErrQueryConflict)
+				So(err, ShouldWrap, ErrQueryConflict)
 			})
 			Convey("The state should be reproducible in another instance", func() {
 				var (
@@ -462,7 +457,7 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						// modify response offset
 						blockx.QueryTxs[0].Response.ResponseHeader.LogOffset = 10000
 						err = st2.ReplayBlock(blockx)
-						So(errors.Cause(err), ShouldEqual, ErrMissingParent)
+						So(err, ShouldWrap, ErrMissingParent)
 					},
 				)
 				Convey(
@@ -624,29 +619,29 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			ddlQuery, []types.NamedArg{})
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+		So(err, ShouldWrap, ErrStatefulQueryParts)
 
 		// contains stateful query parts, using time expression
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"SELECT current_timestamp", []types.NamedArg{})
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+		So(err, ShouldWrap, ErrStatefulQueryParts)
 
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"SELECT current_date", []types.NamedArg{})
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+		So(err, ShouldWrap, ErrStatefulQueryParts)
 
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"SELECT current_time", []types.NamedArg{})
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+		So(err, ShouldWrap, ErrStatefulQueryParts)
 
 		// contains stateful query parts, using random function
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 			"SELECT random()", []types.NamedArg{})
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+		So(err, ShouldWrap, ErrStatefulQueryParts)
 
 		// contains stateful query parts, using the current time in date functions
 		for _, q := range []string{
@@ -657,7 +652,7 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		} {
 			containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
 				q, []types.NamedArg{})
-			So(errors.Cause(err), ShouldEqual, ErrStatefulQueryParts)
+			So(err, ShouldWrap, ErrStatefulQueryParts)
 		}
 
 		// counterpart with a fixed time
@@ -695,27 +690,27 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		_, _, _, err = convertQueryAndBuildArgs(
 			ddlQuery, nil)
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+		So(err, ShouldWrap, ErrInvalidTableName)
 
 		// invalid table name to drop
 		ddlQuery = "DROP TABLE sqlite_test"
 		_, _, _, err = convertQueryAndBuildArgs(
 			ddlQuery, nil)
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+		So(err, ShouldWrap, ErrInvalidTableName)
 
 		// invalid table name to alter
 		ddlQuery = "ALTER TABLE sqlite_test RENAME TO normal"
 		_, _, _, err = convertQueryAndBuildArgs(
 			ddlQuery, nil)
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+		So(err, ShouldWrap, ErrInvalidTableName)
 
 		ddlQuery = "ALTER TABLE test RENAME TO sqlite_test"
 		_, _, _, err = convertQueryAndBuildArgs(
 			ddlQuery, nil)
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err), ShouldEqual, ErrInvalidTableName)
+		So(err, ShouldWrap, ErrInvalidTableName)
 
 		// valid counterpart of alter statement
 		ddlQuery = "ALTER TABLE test RENAME to test2"

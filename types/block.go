@@ -17,9 +17,8 @@
 package types
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 
 	ca "github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -123,19 +122,19 @@ func (b *Block) Verify() (err error) {
 func (b *Block) VerifyAsGenesis() (err error) {
 	if !b.SignedHeader.Producer.IsEmpty() {
 		// not empty
-		return errors.Wrap(ErrInvalidGenesis, "invalid producer")
+		return fmt.Errorf("invalid producer: %w", ErrInvalidGenesis)
 	}
 	if !b.SignedHeader.GenesisHash.IsEqual(&hash.Hash{}) {
 		// not empty
-		return errors.Wrap(ErrInvalidGenesis, "invalid genesis hash")
+		return fmt.Errorf("invalid genesis hash: %w", ErrInvalidGenesis)
 	}
 	if !b.SignedHeader.ParentHash.IsEqual(&hash.Hash{}) {
 		// not empty
-		return errors.Wrap(ErrInvalidGenesis, "invalid parent hash")
+		return fmt.Errorf("invalid parent hash: %w", ErrInvalidGenesis)
 	}
 	if !b.SignedHeader.MerkleRoot.IsEqual(&hash.Hash{}) {
 		// not empty
-		return errors.Wrap(ErrInvalidGenesis, "invalid merkle root")
+		return fmt.Errorf("invalid merkle root: %w", ErrInvalidGenesis)
 	}
 
 	return b.SignedHeader.VerifyHash()

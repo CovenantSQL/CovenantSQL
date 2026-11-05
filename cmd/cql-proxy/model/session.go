@@ -27,7 +27,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 // Session defines the session object for user/admin.
@@ -291,7 +290,7 @@ func NewSession(db *gorp.DbMap, expire int64) (s *Session, err error) {
 
 	err = db.Insert(s)
 	if err != nil {
-		err = errors.Wrapf(err, "new session failed")
+		err = fmt.Errorf("new session failed: %w", err)
 		return
 	}
 
@@ -303,12 +302,12 @@ func GetSession(db *gorp.DbMap, id string) (s *Session, err error) {
 	err = db.SelectOne(&s,
 		`SELECT * FROM "session" WHERE "id" = ? LIMIT 1`, id)
 	if err != nil {
-		err = errors.Wrapf(err, "get session failed")
+		err = fmt.Errorf("get session failed: %w", err)
 		return
 	}
 	err = s.Deserialize()
 	if err != nil {
-		err = errors.Wrapf(err, "decode session failed")
+		err = fmt.Errorf("decode session failed: %w", err)
 		return
 	}
 
@@ -324,13 +323,13 @@ func SaveSession(db *gorp.DbMap, s *Session, expire int64) (r *Session, err erro
 	r = s
 	err = r.Serialize()
 	if err != nil {
-		err = errors.Wrapf(err, "encode session failed")
+		err = fmt.Errorf("encode session failed: %w", err)
 		return
 	}
 
 	_, err = db.Update(r)
 	if err != nil {
-		err = errors.Wrapf(err, "update session failed")
+		err = fmt.Errorf("update session failed: %w", err)
 	}
 	return
 }
@@ -339,7 +338,7 @@ func SaveSession(db *gorp.DbMap, s *Session, expire int64) (r *Session, err erro
 func DeleteSession(db *gorp.DbMap, s *Session) (err error) {
 	_, err = db.Delete(s)
 	if err != nil {
-		err = errors.Wrapf(err, "remove session failed")
+		err = fmt.Errorf("remove session failed: %w", err)
 	}
 	return
 }
@@ -350,7 +349,7 @@ func ExpireSessions(db *gorp.DbMap) (expireCount int64, err error) {
 	_, err = db.Select(&sessions, `SELECT * FROM "session" WHERE "expire" <= ?`,
 		time.Now().Unix())
 	if err != nil {
-		err = errors.Wrapf(err, "get sessions to expire failed")
+		err = fmt.Errorf("get sessions to expire failed: %w", err)
 		return
 	}
 
@@ -366,7 +365,7 @@ func ExpireSessions(db *gorp.DbMap) (expireCount int64, err error) {
 
 	expireCount, err = db.Delete(args...)
 	if err != nil {
-		err = errors.Wrapf(err, "remove expired sessions failed")
+		err = fmt.Errorf("remove expired sessions failed: %w", err)
 	}
 
 	return

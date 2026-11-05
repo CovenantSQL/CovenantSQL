@@ -20,12 +20,11 @@ import (
 	"bytes"
 	"context"
 	"expvar"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -81,13 +80,13 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 
 	// init kayak rpc mux
 	if dbms.kayakMux, err = NewDBKayakMuxService(DBKayakRPCName, cfg.Server); err != nil {
-		err = errors.Wrap(err, "register kayak mux service failed")
+		err = fmt.Errorf("register kayak mux service failed: %w", err)
 		return
 	}
 
 	// init sql-chain rpc mux
 	if dbms.chainMux, err = sqlchain.NewMuxService(route.SQLChainRPCName, cfg.Server); err != nil {
-		err = errors.Wrap(err, "register sqlchain mux service failed")
+		err = fmt.Errorf("register sqlchain mux service failed: %w", err)
 		return
 	}
 
@@ -97,11 +96,11 @@ func NewDBMS(cfg *DBMSConfig) (dbms *DBMS, err error) {
 		addr proto.AccountAddress
 	)
 	if pk, err = kms.GetLocalPublicKey(); err != nil {
-		err = errors.Wrap(err, "failed to cache public key")
+		err = fmt.Errorf("failed to cache public key: %w", err)
 		return
 	}
 	if addr, err = crypto.PubKeyHash(pk); err != nil {
-		err = errors.Wrap(err, "generate address failed")
+		err = fmt.Errorf("generate address failed: %w", err)
 		return
 	}
 	dbms.address = addr
@@ -175,7 +174,7 @@ func (dbms *DBMS) Init() (err error) {
 	// read meta
 	var localMeta *DBMSMeta
 	if localMeta, err = dbms.readMeta(); err != nil {
-		err = errors.Wrap(err, "read dbms meta failed")
+		err = fmt.Errorf("read dbms meta failed: %w", err)
 		return
 	}
 
@@ -184,16 +183,16 @@ func (dbms *DBMS) Init() (err error) {
 
 	// init database
 	if err = dbms.initDatabases(localMeta, dbMapping); err != nil {
-		err = errors.Wrap(err, "init databases with meta failed")
+		err = fmt.Errorf("init databases with meta failed: %w", err)
 		return
 	}
 
 	if err = dbms.busService.Subscribe("/CreateDatabase/", dbms.createDatabase); err != nil {
-		err = errors.Wrap(err, "init chain bus failed")
+		err = fmt.Errorf("init chain bus failed: %w", err)
 		return
 	}
 	if err = dbms.busService.Subscribe("/UpdateBilling/", dbms.updateBilling); err != nil {
-		err = errors.Wrap(err, "init chain bus failed")
+		err = fmt.Errorf("init chain bus failed: %w", err)
 		return
 	}
 	dbms.busService.Start()
@@ -594,13 +593,13 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 
 	// perm stat not exists
 	if !ok {
-		err = errors.Wrap(ErrPermissionDeny, "database not exists")
+		err = fmt.Errorf("database not exists: %w", ErrPermissionDeny)
 		return
 	}
 
 	// check if query is enabled
 	if !permStat.Status.EnableQuery() {
-		err = errors.Wrapf(ErrPermissionDeny, "cannot query, status: %d", permStat.Status)
+		err = fmt.Errorf("cannot query, status: %d: %w", permStat.Status, ErrPermissionDeny)
 		return
 	}
 
@@ -608,17 +607,17 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 	switch queryType {
 	case types.ReadQuery:
 		if !permStat.Permission.HasReadPermission() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot read, permission: %v", permStat.Permission)
+			err = fmt.Errorf("cannot read, permission: %v: %w", permStat.Permission, ErrPermissionDeny)
 			return
 		}
 	case types.WriteQuery:
 		if !permStat.Permission.HasWritePermission() {
-			err = errors.Wrapf(ErrPermissionDeny, "cannot write, permission: %v", permStat.Permission)
+			err = fmt.Errorf("cannot write, permission: %v: %w", permStat.Permission, ErrPermissionDeny)
 			return
 		}
 	default:
-		err = errors.Wrapf(ErrInvalidPermission,
-			"invalid permission, permission: %v", permStat.Permission)
+		err = fmt.Errorf("invalid permission, permission: %v: %w",
+			permStat.Permission, ErrInvalidPermission)
 		return
 	}
 
@@ -629,7 +628,7 @@ func (dbms *DBMS) checkPermission(addr proto.AccountAddress,
 	)
 
 	if disallowedQuery, hasDisallowedQuery = permStat.Permission.HasDisallowedQueryPatterns(queries); hasDisallowedQuery {
-		err = errors.Wrapf(ErrPermissionDeny, "disallowed query %s", disallowedQuery)
+		err = fmt.Errorf("disallowed query %s: %w", disallowedQuery, ErrPermissionDeny)
 		log.WithError(err).WithFields(log.Fields{
 			"permission": permStat.Permission,
 			"query":      disallowedQuery,

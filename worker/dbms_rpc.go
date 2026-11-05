@@ -17,7 +17,8 @@
 package worker
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	metrics "github.com/rcrowley/go-metrics"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -82,7 +83,7 @@ func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err e
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
-		err = errors.Wrap(ErrInvalidRequest, "request node id mismatch in query")
+		err = fmt.Errorf("request node id mismatch in query: %w", ErrInvalidRequest)
 		dbQueryFailCounter.Mark(1)
 		return
 	}
@@ -107,7 +108,7 @@ func (rpc *DBMSRPCService) Ack(ack *types.Ack, _ *types.AckResponse) (err error)
 	//}
 	// verify if ack node is the original ack node
 	if ack.Envelope.NodeID.String() != string(ack.Header.Response.Request.NodeID) {
-		err = errors.Wrap(ErrInvalidRequest, "request node id mismatch in ack")
+		err = fmt.Errorf("request node id mismatch in ack: %w", ErrInvalidRequest)
 		return
 	}
 
@@ -121,7 +122,7 @@ func (rpc *DBMSRPCService) Ack(ack *types.Ack, _ *types.AckResponse) (err error)
 func (rpc *DBMSRPCService) Deploy(req *types.UpdateService, _ *types.UpdateServiceResponse) (err error) {
 	// verify request node is block producer
 	if !route.IsPermitted(&req.Envelope, route.DBSDeploy) {
-		err = errors.Wrap(ErrInvalidRequest, "node not permitted for deploy request")
+		err = fmt.Errorf("node not permitted for deploy request: %w", ErrInvalidRequest)
 		return
 	}
 

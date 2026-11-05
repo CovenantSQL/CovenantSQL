@@ -18,12 +18,12 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/resolver"
@@ -339,7 +339,7 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 	project := getCurrentProject(c)
 	projectDB, err = getCurrentProjectDB(c)
 	if err != nil {
-		err = errors.Wrapf(err, "load project database failed")
+		err = fmt.Errorf("load project database failed: %w", err)
 		return
 	}
 
@@ -352,7 +352,7 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 	if userID != 0 {
 		userInfo, err = model.GetProjectUser(projectDB, userID)
 		if err != nil {
-			err = errors.Wrapf(err, "get project user info failed")
+			err = fmt.Errorf("get project user info failed: %w", err)
 			return
 		}
 
@@ -407,14 +407,14 @@ func buildExecuteContext(c *gin.Context, tableName string) (projectDB *gorp.DbMa
 
 	r, err = loadRules(c, project.DB, projectDB)
 	if err != nil {
-		err = errors.Wrapf(err, "load rules failed")
+		err = fmt.Errorf("load rules failed: %w", err)
 		return
 	}
 
 	// load table fields
 	_, ptc, err := model.GetProjectTableConfig(projectDB, tableName)
 	if err != nil {
-		err = errors.Wrapf(err, "get project table config failed")
+		err = fmt.Errorf("get project table config failed: %w", err)
 		return
 	}
 
@@ -445,7 +445,7 @@ func scanRows(rows *sql.Rows) (result []gin.H, err error) {
 	var columns []string
 	columns, err = rows.Columns()
 	if err != nil {
-		err = errors.Wrapf(err, "get column names failed")
+		err = fmt.Errorf("get column names failed: %w", err)
 		return
 	}
 
@@ -459,7 +459,7 @@ func scanRows(rows *sql.Rows) (result []gin.H, err error) {
 			dest[i] = &row[i]
 		}
 		if err = rows.Scan(dest...); err != nil {
-			err = errors.Wrapf(err, "scan row failed")
+			err = fmt.Errorf("scan row failed: %w", err)
 			return
 		}
 

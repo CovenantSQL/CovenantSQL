@@ -17,11 +17,11 @@
 package rpc
 
 import (
+	"errors"
+	"fmt"
 	"net/rpc"
 	"strings"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -86,7 +86,7 @@ func (l *freelist) close() error {
 	}
 	l.freeCh = nil // set to nil explicitly to force close in freelist.put
 	if len(errmsgs) > 0 {
-		return errors.Wrapf(errors.New(strings.Join(errmsgs, ", ")), "close free list %s", l.target)
+		return fmt.Errorf("close free list %s: %w", l.target, errors.New(strings.Join(errmsgs, ", ")))
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ func (l *freelist) len() int {
 func (l *freelist) newClient() (*rpc.Client, error) {
 	conn, err := Dial(l.target)
 	if err != nil {
-		return nil, errors.Wrap(err, "dialing new connection failed")
+		return nil, fmt.Errorf("dialing new connection failed: %w", err)
 	}
 	return NewClient(conn), err
 }
@@ -201,7 +201,7 @@ func (p *ClientPool) Close() error {
 		return true
 	})
 	if len(errmsgs) > 0 {
-		return errors.Wrap(errors.New(strings.Join(errmsgs, ", ")), "close connection pool")
+		return fmt.Errorf("close connection pool: %w", errors.New(strings.Join(errmsgs, ", ")))
 	}
 	return nil
 }

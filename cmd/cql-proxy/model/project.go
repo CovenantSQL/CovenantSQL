@@ -17,8 +17,9 @@
 package model
 
 import (
+	"fmt"
+
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -43,7 +44,7 @@ func AddProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, account 
 	}
 	err = db.Insert(p)
 	if err != nil {
-		err = errors.Wrapf(err, "add project failed")
+		err = fmt.Errorf("add project failed: %w", err)
 	}
 	return
 }
@@ -53,7 +54,7 @@ func GetUserProjects(db *gorp.DbMap, developer int64, account int64) (p []*Proje
 	_, err = db.Select(&p, `SELECT * FROM "project" WHERE "developer_id" = ? AND "account_id" = ?`,
 		developer, account)
 	if err != nil {
-		err = errors.Wrapf(err, "get developer account related projects failed")
+		err = fmt.Errorf("get developer account related projects failed: %w", err)
 	}
 
 	return
@@ -74,7 +75,7 @@ func GetProject(db *gorp.DbMap, name string) (p *Project, err error) {
 
 	err = db.SelectOne(&p, `SELECT * FROM "project" WHERE "alias" = ? LIMIT 1`, name)
 	if err != nil {
-		err = errors.Wrapf(err, "get project failed")
+		err = fmt.Errorf("get project failed: %w", err)
 	}
 	return
 }
@@ -85,7 +86,7 @@ func GetProjectByID(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (p *
 		`SELECT * FROM "project" WHERE "database_id" = ? AND "developer_id" = ? LIMIT 1`,
 		dbID, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get project failed")
+		err = fmt.Errorf("get project failed: %w", err)
 	}
 	return
 }
@@ -99,7 +100,7 @@ func GetProjects(db *gorp.DbMap, developer int64, account int64) (p []*Project, 
 			developer, account)
 	}
 	if err != nil {
-		err = errors.Wrapf(err, "get projects failed")
+		err = fmt.Errorf("get projects failed: %w", err)
 	}
 	return
 }
@@ -110,7 +111,7 @@ func DeleteProject(db *gorp.DbMap, dbID proto.DatabaseID, developer int64) (err 
 		`DELETE FROM "project" WHERE "database_id" = ? AND "developer_id" = ?`,
 		dbID, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "delete project failed")
+		err = fmt.Errorf("delete project failed: %w", err)
 	}
 	return
 }
@@ -124,7 +125,7 @@ func SetProjectAlias(db *gorp.DbMap, dbID proto.DatabaseID, developer int64, ali
 		`UPDATE "project" SET "alias" = ? WHERE "database_id" = ? AND "developer_id" = ?`,
 		alias, dbID, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "set project alias failed")
+		err = fmt.Errorf("set project alias failed: %w", err)
 	}
 	return
 }
@@ -139,7 +140,7 @@ func DeleteProjects(db *gorp.DbMap, projects ...*Project) (err error) {
 
 	_, err = db.Delete(args...)
 	if err != nil {
-		err = errors.Wrapf(err, "delete projects failed")
+		err = fmt.Errorf("delete projects failed: %w", err)
 	}
 
 	return

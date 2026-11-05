@@ -17,9 +17,8 @@
 package sqlchain
 
 import (
+	"fmt"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -40,7 +39,7 @@ func (i *multiAckIndex) addResponse(resp *types.SignedResponseHeader) (err error
 	defer i.Unlock()
 	if oresp, ok := i.respIndex[key]; ok {
 		if oresp.Hash() != resp.Hash() {
-			err = errors.Wrapf(ErrResponseSeqNotMatch, "add key %s <-- resp %s", &key, resp.Hash())
+			err = fmt.Errorf("add key %s <-- resp %s: %w", &key, resp.Hash(), ErrResponseSeqNotMatch)
 			return
 		}
 		return
@@ -60,11 +59,11 @@ func (i *multiAckIndex) register(ack *types.SignedAckHeader) (err error) {
 	i.Lock()
 	defer i.Unlock()
 	if resp, ok = i.respIndex[key]; !ok {
-		err = errors.Wrapf(ErrQueryNotFound, "register key %s <-- ack %s", &key, ack.Hash())
+		err = fmt.Errorf("register key %s <-- ack %s: %w", &key, ack.Hash(), ErrQueryNotFound)
 		return
 	}
 	if resp.Hash() != ack.GetResponseHash() {
-		err = errors.Wrapf(ErrResponseSeqNotMatch, "register key %s <-- ack %s", &key, ack.Hash())
+		err = fmt.Errorf("register key %s <-- ack %s: %w", &key, ack.Hash(), ErrResponseSeqNotMatch)
 	}
 	delete(i.respIndex, key)
 	i.ackIndex[key] = ack
@@ -82,14 +81,14 @@ func (i *multiAckIndex) remove(ack *types.SignedAckHeader) (err error) {
 	}
 	if oack, ok := i.ackIndex[key]; ok {
 		if oack.Hash() != ack.Hash() {
-			err = errors.Wrapf(
-				ErrMultipleAckOfSeqNo, "remove key %s -x- ack %s", &key, ack.Hash())
+			err = fmt.Errorf("remove key %s -x- ack %s: %w",
+				&key, ack.Hash(), ErrMultipleAckOfSeqNo)
 			return
 		}
 		delete(i.ackIndex, key)
 		return
 	}
-	err = errors.Wrapf(ErrQueryNotFound, "remove key %s -x- ack %s", &key, ack.Hash())
+	err = fmt.Errorf("remove key %s -x- ack %s: %w", &key, ack.Hash(), ErrQueryNotFound)
 	return
 }
 
@@ -151,7 +150,7 @@ func (i *ackIndex) load(h int32) (mi *multiAckIndex, err error) {
 	i.Lock()
 	defer i.Unlock()
 	if h < i.barrier {
-		err = errors.Wrapf(ErrQueryExpired, "loading index at height %d barrier %d", h, i.barrier)
+		err = fmt.Errorf("loading index at height %d barrier %d: %w", h, i.barrier, ErrQueryExpired)
 		return
 	}
 	if mi, ok = i.hi[h]; !ok {

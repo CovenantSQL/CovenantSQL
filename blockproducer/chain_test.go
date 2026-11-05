@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -491,7 +490,7 @@ func TestChain(t *testing.T) {
 						}),
 					)
 					chain, err = NewChain(config)
-					So(errors.Cause(err), ShouldEqual, types.ErrMerkleRootVerification)
+					So(err, ShouldWrap, types.ErrMerkleRootVerification)
 					So(chain, ShouldBeNil)
 				})
 

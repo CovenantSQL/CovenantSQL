@@ -18,12 +18,11 @@ package kayak
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -174,7 +173,7 @@ func (r *Runtime) waitForLog(ctx context.Context, index uint64) (l *kt.Log, err 
 		if l != nil {
 			err = nil
 		} else {
-			err = errors.Wrapf(kt.ErrInvalidLog, "could not fetch log %d", index)
+			err = fmt.Errorf("could not fetch log %d: %w", index, kt.ErrInvalidLog)
 		}
 		r.waitLogMap.Delete(index)
 	case <-ctx.Done():

@@ -18,13 +18,13 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -144,7 +144,7 @@ func (m *Manager) Wait(ctx context.Context, id int64) (err error) {
 func (m *Manager) New(tt model.TaskType, developer int64, account int64, args gin.H) (id int64, err error) {
 	t, err := model.NewTask(m.db, tt, developer, account, args)
 	if err != nil {
-		err = errors.Wrapf(err, "new task failed")
+		err = fmt.Errorf("new task failed: %w", err)
 		return
 	}
 
@@ -294,7 +294,7 @@ func (m *Manager) runTask(t *model.Task) {
 		h, ok := m.handleMap[ti.task.Type]
 		if !ok {
 			// invalid task
-			ti.err = errors.Errorf("task %d type %d is invalid", ti.task.ID, ti.task.Type)
+			ti.err = fmt.Errorf("task %d type %d is invalid", ti.task.ID, ti.task.Type)
 			return
 		}
 
@@ -302,7 +302,7 @@ func (m *Manager) runTask(t *model.Task) {
 		ti.result = result
 		if err != nil {
 			// task is failed
-			ti.err = errors.Wrapf(err, "execute task %d failed", ti.task.ID)
+			ti.err = fmt.Errorf("execute task %d failed: %w", ti.task.ID, err)
 		}
 	}()
 }

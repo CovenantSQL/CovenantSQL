@@ -20,8 +20,7 @@ import (
 	"bytes"
 	"container/list"
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -42,7 +41,7 @@ func (db *Database) EncodePayload(request interface{}) (data []byte, err error) 
 	var buf *bytes.Buffer
 
 	if buf, err = utils.EncodeMsgPack(request); err != nil {
-		err = errors.Wrap(err, "encode request failed")
+		err = fmt.Errorf("encode request failed: %w", err)
 		return
 	}
 
@@ -55,7 +54,7 @@ func (db *Database) DecodePayload(data []byte) (request interface{}, err error) 
 	var req *types.Request
 
 	if err = utils.DecodeMsgPack(data, &req); err != nil {
-		err = errors.Wrap(err, "decode request failed")
+		err = fmt.Errorf("decode request failed: %w", err)
 		return
 	}
 
@@ -70,7 +69,7 @@ func (db *Database) Check(rawReq interface{}) (err error) {
 	var req *types.Request
 	var ok bool
 	if req, ok = rawReq.(*types.Request); !ok || req == nil {
-		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
+		err = fmt.Errorf("invalid request payload: %w", ErrInvalidRequest)
 		return
 	}
 
@@ -85,7 +84,7 @@ func (db *Database) Check(rawReq interface{}) (err error) {
 	maxTime := nowTime.Add(db.cfg.MaxWriteTimeGap)
 
 	if req.Header.Timestamp.Before(minTime) || req.Header.Timestamp.After(maxTime) {
-		err = errors.Wrap(ErrInvalidRequest, "invalid request time")
+		err = fmt.Errorf("invalid request time: %w", ErrInvalidRequest)
 		return
 	}
 
@@ -116,7 +115,7 @@ func (db *Database) Commit(rawReq interface{}, isLeader bool) (result interface{
 		ok       bool
 	)
 	if req, ok = rawReq.(*types.Request); !ok || req == nil {
-		err = errors.Wrap(ErrInvalidRequest, "invalid request payload")
+		err = fmt.Errorf("invalid request payload: %w", ErrInvalidRequest)
 		return
 	}
 

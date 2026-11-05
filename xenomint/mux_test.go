@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
@@ -49,10 +48,9 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 		bpSv, mnSv *rpc.Server
 	)
 	if nis, err = createNodesWithPublicKey(priv.PubKey(), testingNonceDifficulty, 3); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	} else if l := len(nis); l != 3 {
-		err = errors.Wrapf(err, "failed to setup bench environment: unexpected length %d", l)
 		return
 	}
 	// Setup block producer RPC and register server address
@@ -60,7 +58,7 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	if err = bpSv.InitRPCServer(
 		"localhost:0", testingPrivateKeyFile, testingMasterKey,
 	); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	}
 	nis[0].Addr = bpSv.Listener.Addr().String()
@@ -70,7 +68,7 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	if err = mnSv.InitRPCServer(
 		"localhost:0", testingPrivateKeyFile, testingMasterKey,
 	); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	}
 	nis[1].Addr = mnSv.Listener.Addr().String()
@@ -93,10 +91,10 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	if dht, err = route.NewDHTService(
 		testingPublicKeyStoreFile, &con.KMSStorage{}, true,
 	); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	} else if err = bpSv.RegisterService(route.DHTRPCName, dht); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	}
 	kms.SetLocalNodeIDNonce(nis[2].ID.ToRawNodeID().CloneBytes(), &nis[2].Nonce)
@@ -110,7 +108,7 @@ func setupMuxParallel(priv *ca.PrivateKey) (
 	}
 	// Register mux service
 	if ms, err = NewMuxService(benchmarkRPCName, mnSv); err != nil {
-		err = errors.Wrap(err, "failed to setup bench environment: ")
+		err = fmt.Errorf("failed to setup bench environment: : %w", err)
 		return
 	}
 

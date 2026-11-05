@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -315,7 +314,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance increased",
 						func() {
 							err = ms.increaseAccountStableBalance(addr3, 1)
-							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
+							So(err, ShouldWrap, ErrAccountNotFound)
 							err = ms.increaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -324,7 +323,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when stable balance decreased",
 						func() {
 							err = ms.decreaseAccountStableBalance(addr3, 1)
-							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
+							So(err, ShouldWrap, ErrAccountNotFound)
 							err = ms.decreaseAccountStableBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -333,7 +332,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance increased",
 						func() {
 							err = ms.increaseAccountCovenantBalance(addr3, 1)
-							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
+							So(err, ShouldWrap, ErrAccountNotFound)
 							err = ms.increaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -342,7 +341,7 @@ func TestMetaState(t *testing.T) {
 						"The metaState should copy object when covenant balance decreased",
 						func() {
 							err = ms.decreaseAccountCovenantBalance(addr3, 1)
-							So(errors.Cause(err), ShouldEqual, ErrAccountNotFound)
+							So(err, ShouldWrap, ErrAccountNotFound)
 							err = ms.decreaseAccountCovenantBalance(addr1, 1)
 							So(err, ShouldBeNil)
 						},
@@ -808,19 +807,19 @@ func TestMetaState(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = ms.apply(&invalidPs, 0)
-				So(errors.Cause(err), ShouldEqual, ErrInsufficientBalance)
+				So(err, ShouldWrap, ErrInsufficientBalance)
 				err = ms.apply(&invalidCd1, 0)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidSender)
+				So(err, ShouldWrap, ErrInvalidSender)
 				err = ms.apply(&invalidCd2, 0)
-				So(errors.Cause(err), ShouldEqual, ErrNoSuchMiner)
+				So(err, ShouldWrap, ErrNoSuchMiner)
 				err = ms.apply(&invalidCd3, 0)
-				So(errors.Cause(err), ShouldEqual, ErrInsufficientAdvancePayment)
+				So(err, ShouldWrap, ErrInsufficientAdvancePayment)
 				err = ms.apply(&invalidCd4, 0)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidGasPrice)
+				So(err, ShouldWrap, ErrInvalidGasPrice)
 				err = ms.apply(&invalidCd5, 0)
-				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+				So(err, ShouldWrap, ErrNoEnoughMiner)
 				err = ms.apply(&invalidCd6, 0)
-				So(errors.Cause(err), ShouldEqual, ErrInvalidMinerCount)
+				So(err, ShouldWrap, ErrInvalidMinerCount)
 				ms.dirty.provider[proto.AccountAddress(hash.HashH([]byte("1")))] = &types.ProviderProfile{
 					TargetUser: nil,
 				}
@@ -869,7 +868,7 @@ func TestMetaState(t *testing.T) {
 					NodeID:        "",
 				}
 				err = ms.apply(&invalidCd7, 0)
-				So(errors.Cause(err), ShouldEqual, ErrNoEnoughMiner)
+				So(err, ShouldWrap, ErrNoEnoughMiner)
 
 				ms.readonly.provider[proto.AccountAddress(hash.HashH([]byte("9")))] = &types.ProviderProfile{
 					TargetUser:    []proto.AccountAddress{addr2},
@@ -981,7 +980,7 @@ func TestMetaState(t *testing.T) {
 				So(loaded, ShouldBeTrue)
 				So(b1-b2, ShouldEqual, conf.GConf.MinProviderDeposit)
 				err = ms.apply(&cd2, 0)
-				So(errors.Cause(err), ShouldEqual, ErrMinerUserNotMatch)
+				So(err, ShouldWrap, ErrMinerUserNotMatch)
 				b1, loaded = ms.loadAccountTokenBalance(addr1, types.Particle)
 				So(loaded, ShouldBeTrue)
 				err = ms.apply(&cd1, 0)
@@ -1009,7 +1008,7 @@ func TestMetaState(t *testing.T) {
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up, 0)
-				So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+				So(err, ShouldWrap, ErrDatabaseNotFound)
 				up.Permission = types.UserPermissionFromRole(types.Void)
 				up.TargetSQLChain = dbAccount
 				err = up.Sign(privKey1)
@@ -1050,13 +1049,13 @@ func TestMetaState(t *testing.T) {
 				err = up.Sign(privKey3)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up, 0)
-				So(errors.Cause(err), ShouldEqual, ErrNoSuperUserLeft)
+				So(err, ShouldWrap, ErrNoSuperUserLeft)
 				// addr1(read) update addr3(admin) fail
 				up.Nonce = cd1.Nonce + 3
 				err = up.Sign(privKey1)
 				So(err, ShouldBeNil)
 				err = ms.apply(&up, 0)
-				So(errors.Cause(err), ShouldEqual, ErrAccountPermissionDeny)
+				So(err, ShouldWrap, ErrAccountPermissionDeny)
 
 				co, loaded = ms.loadSQLChainObject(dbID)
 				for _, user := range co.Users {
@@ -1356,7 +1355,7 @@ func TestMetaState(t *testing.T) {
 					err = ub1.Sign(privKey1)
 					So(err, ShouldBeNil)
 					err = ms.apply(ub1, 0)
-					So(errors.Cause(err), ShouldEqual, ErrDatabaseNotFound)
+					So(err, ShouldWrap, ErrDatabaseNotFound)
 					trans1 := types.NewTransfer(&types.TransferHeader{
 						Sender:    addr1,
 						Receiver:  dbAccount,

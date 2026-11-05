@@ -17,13 +17,12 @@
 package resolver
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // FieldMap defines the field map for future column level acl enforce.
@@ -67,7 +66,7 @@ func ResolveProjection(p map[string]interface{}, availFields FieldMap) (fm Field
 
 	for k, v := range p {
 		if !availFields[k] {
-			err = errors.Errorf("unknown field: %s", k)
+			err = fmt.Errorf("unknown field: %s", k)
 			return
 		}
 
@@ -137,7 +136,7 @@ func ResolveFieldCondition(field string, v interface{}) (statement string, args 
 			switch k {
 			case "$eq", "$gt", "$gte", "$lt", "$lte", "$ne":
 				if !isLiteral(v) {
-					err = errors.Errorf("argument of operator %s is not a literal", k)
+					err = fmt.Errorf("argument of operator %s is not a literal", k)
 					return
 				}
 
@@ -153,7 +152,7 @@ func ResolveFieldCondition(field string, v interface{}) (statement string, args 
 
 				for _, lve := range lv {
 					if !isLiteral(lve) {
-						err = errors.Errorf("can not nest non-literal under %s operator", k)
+						err = fmt.Errorf("can not nest non-literal under %s operator", k)
 						return
 					}
 				}
@@ -189,7 +188,7 @@ func ResolveFieldCondition(field string, v interface{}) (statement string, args 
 			case "$comment":
 				// ignore
 			default:
-				err = errors.Errorf("unknown operator %s", k)
+				err = fmt.Errorf("unknown operator %s", k)
 				return
 			}
 		}
@@ -231,7 +230,7 @@ func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 			)
 			childQuery, err = getNonEmptyArrayOfObjects(v)
 			if err != nil {
-				err = errors.Wrapf(err, "%s operator", k)
+				err = fmt.Errorf("%s operator: %w", k, err)
 				return
 			}
 			childFields, childStatement, childArgs, err = logicRelation(childQuery, availFields, opMap[k])
@@ -255,12 +254,12 @@ func ResolveFilter(q map[string]interface{}, availFields FieldMap) (
 		case k == "$comment":
 			// ignore
 		case strings.HasPrefix(k, "$"):
-			err = errors.Errorf("invalid operator %s", k)
+			err = fmt.Errorf("invalid operator %s", k)
 			return
 		default:
 			// treat key as column
 			if !availFields[k] {
-				err = errors.Errorf("unknown field: %s", k)
+				err = fmt.Errorf("unknown field: %s", k)
 				return
 			}
 
@@ -320,13 +319,13 @@ func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 			)
 
 			if ov, ok = v.(map[string]interface{}); !ok {
-				err = errors.Errorf("$ operator needs object argument")
+				err = fmt.Errorf("$ operator needs object argument")
 				return
 			}
 
 			for field, argument := range ov {
 				if !availFields[field] {
-					err = errors.Errorf("unknown field: %s", field)
+					err = fmt.Errorf("unknown field: %s", field)
 					return
 				}
 
@@ -350,17 +349,17 @@ func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 							subStatements = append(subStatements, fmt.Sprintf(`"%s" = ?`, field))
 							args = append(args, time.Now().UTC().Format("2006-01-02 15:04:05"))
 						default:
-							err = errors.Errorf("invalid $currentDate type %s", oa["$type"])
+							err = fmt.Errorf("invalid $currentDate type %s", oa["$type"])
 							return
 						}
 					} else {
 						// invalid
-						err = errors.Errorf("$currentDate operator requires true or valid type config")
+						err = fmt.Errorf("$currentDate operator requires true or valid type config")
 						return
 					}
 				} else {
 					if !isLiteral(argument) {
-						err = errors.Errorf("%s operator requires literal value as argument", k)
+						err = fmt.Errorf("%s operator requires literal value as argument", k)
 						return
 					}
 
@@ -372,7 +371,7 @@ func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 			// ignore
 		case strings.HasPrefix(k, "$"):
 			// error
-			err = errors.Errorf("invalid operator %s", k)
+			err = fmt.Errorf("invalid operator %s", k)
 			return
 		default:
 			// treat as column
@@ -384,12 +383,12 @@ func ResolveUpdate(q map[string]interface{}, availFields FieldMap) (
 			}
 
 			if !isLiteral(v) {
-				err = errors.Errorf("%s operator requires literal value as argument", k)
+				err = fmt.Errorf("%s operator requires literal value as argument", k)
 				return
 			}
 
 			if !availFields[k] {
-				err = errors.Errorf("unknown field: %s", k)
+				err = fmt.Errorf("unknown field: %s", k)
 				return
 			}
 
@@ -418,7 +417,7 @@ func ResolveInsert(q map[string]interface{}, availFields FieldMap) (fields Field
 
 	for k, v := range q {
 		if !availFields[k] {
-			err = errors.Errorf("unknown field: %s", k)
+			err = fmt.Errorf("unknown field: %s", k)
 			return
 		}
 
@@ -446,12 +445,12 @@ func ResolveOrderBy(q map[string]interface{}, availFields FieldMap) (fields Fiel
 
 	for k, v := range q {
 		if !availFields[k] {
-			err = errors.Errorf("unknown field: %s", k)
+			err = fmt.Errorf("unknown field: %s", k)
 			return
 		}
 
 		if !isLiteral(v) {
-			err = errors.Errorf("invalid sort direction: %v", v)
+			err = fmt.Errorf("invalid sort direction: %v", v)
 			return
 		}
 
@@ -462,7 +461,7 @@ func ResolveOrderBy(q map[string]interface{}, availFields FieldMap) (fields Fiel
 		} else if asInt(v) < 0 {
 			direction = "DESC"
 		} else {
-			err = errors.Errorf("invalid sort direction: %v", v)
+			err = fmt.Errorf("invalid sort direction: %v", v)
 			return
 		}
 

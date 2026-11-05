@@ -20,7 +20,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -76,22 +75,22 @@ func TestDefaultHashSignVerifierImpl(t *testing.T) {
 			Convey("When the hash is modified", func() {
 				obj.HSV.DataHash = hash.Hash{0x0, 0x0, 0x0, 0x1}
 				Convey("The verifier should return hash value not match error", func() {
-					err = errors.Cause(obj.Verify())
-					So(err, ShouldEqual, ErrHashValueNotMatch)
+					err = obj.Verify()
+					So(err, ShouldWrap, ErrHashValueNotMatch)
 				})
 			})
 			Convey("When the signee is not set", func() {
 				obj.HSV.Signee = nil
 				Convey("The verifier should return signature not match error", func() {
-					err = errors.Cause(obj.Verify())
-					So(err, ShouldEqual, ErrSignatureNotMatch)
+					err = obj.Verify()
+					So(err, ShouldWrap, ErrSignatureNotMatch)
 				})
 			})
 			Convey("When the signature is not set", func() {
 				obj.HSV.Signature = nil
 				Convey("The verifier should return signature not match error", func() {
-					err = errors.Cause(obj.Verify())
-					So(err, ShouldEqual, ErrSignatureNotMatch)
+					err = obj.Verify()
+					So(err, ShouldWrap, ErrSignatureNotMatch)
 				})
 			})
 			Convey("When the signee is modified", func() {
@@ -99,16 +98,16 @@ func TestDefaultHashSignVerifierImpl(t *testing.T) {
 				So(err, ShouldBeNil)
 				obj.HSV.Signee = pub
 				Convey("The verifier should return signature not match error", func() {
-					err = errors.Cause(obj.Verify())
-					So(err, ShouldEqual, ErrSignatureNotMatch)
+					err = obj.Verify()
+					So(err, ShouldWrap, ErrSignatureNotMatch)
 				})
 			})
 			Convey("When the signature is modified", func() {
 				var val = obj.HSV.Signature.R
 				val.Add(val, big.NewInt(1))
 				Convey("The verifier should return signature not match error", func() {
-					err = errors.Cause(obj.Verify())
-					So(err, ShouldEqual, ErrSignatureNotMatch)
+					err = obj.Verify()
+					So(err, ShouldWrap, ErrSignatureNotMatch)
 				})
 			})
 		})

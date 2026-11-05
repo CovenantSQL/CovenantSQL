@@ -18,10 +18,10 @@ package mux
 
 import (
 	"context"
+	"fmt"
 	"io"
 	nrpc "net/rpc"
 
-	"github.com/pkg/errors"
 	mux "github.com/xtaci/smux"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -36,7 +36,7 @@ func ServeMux(
 ) {
 	sess, err := mux.Server(rawStream, mux.DefaultConfig())
 	if err != nil {
-		err = errors.Wrap(err, "create mux server failed")
+		err = fmt.Errorf("create mux server failed: %w", err)
 		return
 	}
 	defer func() { _ = sess.Close() }()
@@ -53,7 +53,7 @@ sessionLoop:
 				if err == io.EOF {
 					//log.WithField("remote", remoteNodeID).Debug("session connection closed")
 				} else {
-					err = errors.Wrapf(err, "session accept failed, remote: %s", remote)
+					err = fmt.Errorf("session accept failed, remote: %s: %w", remote, err)
 				}
 				break sessionLoop
 			}

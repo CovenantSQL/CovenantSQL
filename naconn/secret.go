@@ -17,9 +17,8 @@
 package naconn
 
 import (
+	"fmt"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -51,7 +50,7 @@ func GetSharedSecretWith(resolver Resolver, nodeID *proto.RawNodeID, isAnonymous
 		} else if conf.RoleTag[0] == conf.BlockProducerBuildTag[0] {
 			remotePublicKey, err = kms.GetPublicKey(proto.NodeID(nodeID.String()))
 			if err != nil {
-				err = errors.Wrapf(err, "get public key locally failed, node: %s", nodeID)
+				err = fmt.Errorf("get public key locally failed, node: %s: %w", nodeID, err)
 				return
 			}
 		} else {
@@ -59,7 +58,7 @@ func GetSharedSecretWith(resolver Resolver, nodeID *proto.RawNodeID, isAnonymous
 			var nodeInfo *proto.Node
 			nodeInfo, err = resolver.ResolveEx(nodeID)
 			if err != nil {
-				err = errors.Wrapf(err, "get public key failed, node: %s", nodeID)
+				err = fmt.Errorf("get public key failed, node: %s: %w", nodeID, err)
 				return
 			}
 			remotePublicKey = nodeInfo.PublicKey
@@ -68,7 +67,7 @@ func GetSharedSecretWith(resolver Resolver, nodeID *proto.RawNodeID, isAnonymous
 		var localPrivateKey *asymmetric.PrivateKey
 		localPrivateKey, err = kms.GetLocalPrivateKey()
 		if err != nil {
-			err = errors.Wrap(err, "get local private key failed")
+			err = fmt.Errorf("get local private key failed: %w", err)
 			return
 		}
 

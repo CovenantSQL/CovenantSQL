@@ -17,13 +17,13 @@
 package etls
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -185,7 +185,7 @@ func handleClient(conn net.Conn) {
 	if c, ok := conn.(*CryptoConn); ok {
 		conn, err = simpleCipherHandler(c.Conn)
 		if err != nil {
-			err = errors.Wrap(err, "handle ETLS handler failed")
+			err = fmt.Errorf("handle ETLS handler failed: %w", err)
 			return
 		}
 	}
@@ -288,7 +288,7 @@ func TestCryptoConn_RW(t *testing.T) {
 			if c, ok := conn.(*CryptoConn); ok {
 				conn, err = l.CHandler(c.Conn)
 				if err != nil {
-					err = errors.Wrap(err, "handle ETLS handler failed")
+					err = fmt.Errorf("handle ETLS handler failed: %w", err)
 					return
 				}
 			}

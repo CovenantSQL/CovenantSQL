@@ -18,11 +18,11 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )
@@ -97,12 +97,12 @@ func EnsureDeveloper(db *gorp.DbMap, githubID int64, name string, email string, 
 	if exists {
 		_, err = db.Update(d)
 		if err != nil {
-			err = errors.Wrap(err, "update developer user info failed")
+			err = fmt.Errorf("update developer user info failed: %w", err)
 		}
 	} else {
 		err = db.Insert(d)
 		if err != nil {
-			err = errors.Wrapf(err, "add new developer failed")
+			err = fmt.Errorf("add new developer failed: %w", err)
 		}
 	}
 
@@ -114,14 +114,14 @@ func SetMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddr
 	// query account for existence
 	ar, err := GetAccount(db, developerID, account)
 	if err != nil {
-		err = errors.Wrapf(err, "get user account info failed")
+		err = fmt.Errorf("get user account info failed: %w", err)
 		return
 	}
 
 	_, err = db.Exec(
 		`UPDATE "developer" SET "main_account" = ? WHERE "id" = ?`, ar.ID, developerID)
 	if err != nil {
-		err = errors.Wrapf(err, "set account as developer main account failed")
+		err = fmt.Errorf("set account as developer main account failed: %w", err)
 	}
 	return
 }
@@ -130,7 +130,7 @@ func SetMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddr
 func SetIfNoMainAccount(db *gorp.DbMap, developerID int64, account utils.AccountAddress) (err error) {
 	d, err := GetDeveloper(db, developerID)
 	if err != nil {
-		err = errors.Wrapf(err, "get developer user info failed")
+		err = fmt.Errorf("get developer user info failed: %w", err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func SetIfNoMainAccount(db *gorp.DbMap, developerID int64, account utils.Account
 
 	err = SetMainAccount(db, developerID, account)
 	if err != nil {
-		err = errors.Wrapf(err, "set main account failed")
+		err = fmt.Errorf("set main account failed: %w", err)
 	}
 
 	return
@@ -157,7 +157,7 @@ func FixDeletedMainAccount(db *gorp.DbMap, developerID int64, account int64) (er
 		`UPDATE "developer" SET "main_account" = 0 WHERE "id" = ? AND "main_account" = ?`,
 		developerID, account)
 	if err != nil {
-		err = errors.Wrapf(err, "fix deleted main account failed")
+		err = fmt.Errorf("fix deleted main account failed: %w", err)
 	}
 	return
 }
@@ -167,7 +167,7 @@ func GetDeveloper(db *gorp.DbMap, developerID int64) (d *Developer, err error) {
 	err = db.SelectOne(&d,
 		`SELECT * FROM "developer" WHERE "id" = ? LIMIT 1`, developerID)
 	if err != nil {
-		err = errors.Wrapf(err, "get developer info failed")
+		err = fmt.Errorf("get developer info failed: %w", err)
 	}
 	return
 }

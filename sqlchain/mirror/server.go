@@ -17,9 +17,8 @@
 package mirror
 
 import (
+	"fmt"
 	"net"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -28,7 +27,7 @@ import (
 func createServer(listenAddr string) (s *mux.Server, err error) {
 	var l net.Listener
 	if l, err = net.Listen("tcp", listenAddr); err != nil {
-		err = errors.Wrap(err, "listen rpc server failed")
+		err = fmt.Errorf("listen rpc server failed: %w", err)
 		return
 	}
 

@@ -18,8 +18,6 @@ package resolver
 
 import (
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // Find process find query with filter/project/order by/limits like a mongodb.
@@ -32,7 +30,7 @@ func Find(table string, availFields FieldMap, query map[string]interface{}, proj
 	// project segment
 	projectionFields, projectionStatement, err := ResolveProjection(projection, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query result projection failed")
+		err = fmt.Errorf("resolve query result projection failed: %w", err)
 		return
 	}
 	fields.Merge(projectionFields)
@@ -44,7 +42,7 @@ func Find(table string, availFields FieldMap, query map[string]interface{}, proj
 	// where segment
 	filterFields, filterStatement, filterArgs, err := ResolveFilter(query, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query filter failed")
+		err = fmt.Errorf("resolve query filter failed: %w", err)
 		return
 	}
 	fields.Merge(filterFields)
@@ -58,7 +56,7 @@ func Find(table string, availFields FieldMap, query map[string]interface{}, proj
 	// order by segment
 	orderByFields, orderByStatement, err := ResolveOrderBy(orderBy, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve order by failed")
+		err = fmt.Errorf("resolve order by failed: %w", err)
 		return
 	}
 	fields.Merge(orderByFields)
@@ -86,7 +84,7 @@ func Insert(table string, availFields FieldMap, data map[string]interface{}) (
 	statement string, args []interface{}, fields FieldMap, err error) {
 	fields, statement, args, err = ResolveInsert(data, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query insert data failed")
+		err = fmt.Errorf("resolve query insert data failed: %w", err)
 		return
 	}
 
@@ -105,7 +103,7 @@ func Update(table string, availFields FieldMap, filter map[string]interface{},
 	// update set segment
 	updateFields, updateStatement, updateArgs, err := ResolveUpdate(update, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query update data failed")
+		err = fmt.Errorf("resolve query update data failed: %w", err)
 		return
 	}
 	fields.Merge(updateFields)
@@ -115,7 +113,7 @@ func Update(table string, availFields FieldMap, filter map[string]interface{},
 	// update filter statement
 	filterFields, filterStatement, filterArgs, err := ResolveFilter(filter, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query filter failed")
+		err = fmt.Errorf("resolve query filter failed: %w", err)
 		return
 	}
 
@@ -144,7 +142,7 @@ func Remove(table string, availFields FieldMap, filter map[string]interface{}, j
 	// delete filter statement
 	filterFields, filterStatement, filterArgs, err := ResolveFilter(filter, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query filter failed")
+		err = fmt.Errorf("resolve query filter failed: %w", err)
 		return
 	}
 
@@ -172,7 +170,7 @@ func Count(table string, availFields FieldMap, filter map[string]interface{}) (
 	// count filter statement
 	filterFields, filterStatement, filterArgs, err := ResolveFilter(filter, availFields)
 	if err != nil {
-		err = errors.Wrapf(err, "resolve query filter failed")
+		err = fmt.Errorf("resolve query filter failed: %w", err)
 		return
 	}
 

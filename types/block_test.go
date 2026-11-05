@@ -18,11 +18,11 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	"math/rand"
 	"reflect"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -43,7 +43,7 @@ func TestSignAndVerify(t *testing.T) {
 
 	block.SignedHeader.HSV.DataHash[0]++
 
-	if err = errors.Cause(block.Verify()); err != verifier.ErrHashValueNotMatch {
+	if err = block.Verify(); !errors.Is(err, verifier.ErrHashValueNotMatch) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

@@ -19,12 +19,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
@@ -200,32 +200,32 @@ func ApplyTokenTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, t *
 	}{}
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
-		err = errors.Wrapf(err, "unmarshal task args failed")
+		err = fmt.Errorf("unmarshal task args failed: %w", err)
 		return
 	}
 
 	p, err := model.GetAccountByID(db, t.Developer, t.Account)
 	if err != nil {
-		err = errors.Wrapf(err, "get account for task failed")
+		err = fmt.Errorf("get account for task failed: %w", err)
 		return
 	}
 
 	accountAddr, err := p.Account.Get()
 	if err != nil {
-		err = errors.Wrapf(err, "decode task account failed")
+		err = fmt.Errorf("decode task account failed: %w", err)
 		return
 	}
 
 	txHash, err := client.TransferToken(accountAddr, args.Amount, types.Particle)
 	if err != nil {
-		err = errors.Wrapf(err, "send transfer token rpc failed")
+		err = fmt.Errorf("send transfer token rpc failed: %w", err)
 		return
 	}
 
 	// add record
 	ar, err := model.AddTokenApplyRecord(db, t.Developer, p.Account, args.Amount)
 	if err != nil {
-		err = errors.Wrapf(err, "record token application log failed")
+		err = fmt.Errorf("record token application log failed: %w", err)
 		return
 	}
 

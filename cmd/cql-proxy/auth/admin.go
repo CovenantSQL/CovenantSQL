@@ -19,12 +19,12 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 
@@ -128,7 +128,7 @@ func (a *AdminAuth) HandleLogin(ctx context.Context, state string, auth string) 
 		var token *oauth2.Token
 		token, err = oauthCfg.Exchange(ctx, auth)
 		if err != nil {
-			err = errors.Wrapf(err, "oauth token exchange failed")
+			err = fmt.Errorf("oauth token exchange failed: %w", err)
 			return
 		}
 
@@ -136,7 +136,7 @@ func (a *AdminAuth) HandleLogin(ctx context.Context, state string, auth string) 
 		var resp *http.Response
 
 		if resp, err = h.Get(GithubGetUserURL); err != nil {
-			err = errors.Wrapf(err, "request github developer user info failed")
+			err = fmt.Errorf("request github developer user info failed: %w", err)
 			return
 		}
 
@@ -154,19 +154,21 @@ func (a *AdminAuth) HandleLogin(ctx context.Context, state string, auth string) 
 		var respBytes []byte
 		respBytes, err = io.ReadAll(io.LimitReader(resp.Body, MaxGithubResponseSize))
 		if err != nil {
-			err = errors.Wrapf(err, "read github response failed")
+			err = fmt.Errorf("read github response failed: %w", err)
 			return
 		}
 
 		// decode necessary fields to struct
 		if err = json.Unmarshal(respBytes, &userInfo); err != nil || userInfo == nil {
-			err = errors.Wrapf(err, "decode github user info failed")
+			if err != nil {
+				err = fmt.Errorf("decode github user info failed: %w", err)
+			}
 			return
 		}
 
 		// decode all fields to extra
 		if err = json.Unmarshal(respBytes, &userInfo.Extra); err != nil {
-			err = errors.Wrapf(err, "decode extra user info failed")
+			err = fmt.Errorf("decode extra user info failed: %w", err)
 			return
 		}
 

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/sourcegraph/jsonrpc2"
 	wsstream "github.com/sourcegraph/jsonrpc2/websocket"
@@ -110,7 +109,7 @@ func mockData(t *testing.T) {
 	var insertRows = func(writeSQL string, data [][]interface{}) error {
 		for i, row := range data {
 			if _, err := db.Exec(writeSQL, row...); err != nil {
-				return errors.Wrapf(err, "write row #%d failed", i)
+				return fmt.Errorf("write row #%d failed: %w", i, err)
 			}
 		}
 		return nil

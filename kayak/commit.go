@@ -18,10 +18,9 @@ package kayak
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"sync/atomic"
-
-	"github.com/pkg/errors"
 
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -36,7 +35,7 @@ func (r *Runtime) leaderCommitResult(ctx context.Context, tm *timer.Timer, reqPa
 	res = newCommitFuture()
 
 	if prepareLog == nil {
-		res.Set(&commitResult{err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit")})
+		res.Set(&commitResult{err: fmt.Errorf("nil prepare log in commit: %w", kt.ErrInvalidLog)})
 		return
 	}
 
@@ -65,7 +64,7 @@ func (r *Runtime) followerCommitResult(ctx context.Context, tm *timer.Timer, com
 	res = newCommitFuture()
 
 	if prepareLog == nil {
-		res.Set(&commitResult{err: errors.Wrap(kt.ErrInvalidLog, "nil prepare log in commit")})
+		res.Set(&commitResult{err: fmt.Errorf("nil prepare log in commit: %w", kt.ErrInvalidLog)})
 		return
 	}
 
@@ -78,7 +77,7 @@ func (r *Runtime) followerCommitResult(ctx context.Context, tm *timer.Timer, com
 			"head":     myLastCommit,
 			"supplied": lastCommit,
 		}).Warning("invalid last commit log")
-		res.Set(&commitResult{err: errors.Wrap(kt.ErrInvalidLog, "invalid last commit log index")})
+		res.Set(&commitResult{err: fmt.Errorf("invalid last commit log index: %w", kt.ErrInvalidLog)})
 		return
 	}
 
@@ -86,7 +85,7 @@ func (r *Runtime) followerCommitResult(ctx context.Context, tm *timer.Timer, com
 	var logReq interface{}
 	var err error
 	if logReq, err = r.doDecodePayload(ctx, prepareLog.Data); err != nil {
-		res.Set(&commitResult{err: errors.Wrap(err, "decode log payload failed")})
+		res.Set(&commitResult{err: fmt.Errorf("decode log payload failed: %w", err)})
 		return
 	}
 
@@ -234,12 +233,12 @@ func (r *Runtime) getPrepareLog(ctx context.Context, l *kt.Log) (lastCommitIndex
 
 	// decode prepare index
 	if prepareIndex, err = r.bytesToUint64(l.Data); err != nil {
-		err = errors.Wrap(err, "log does not contain valid prepare index")
+		err = fmt.Errorf("log does not contain valid prepare index: %w", err)
 		return
 	}
 
 	if pl, err = r.waitForLog(ctx, prepareIndex); err != nil {
-		err = errors.Wrap(err, "wait for prepare log failed")
+		err = fmt.Errorf("wait for prepare log failed: %w", err)
 		return
 	}
 
@@ -248,7 +247,7 @@ func (r *Runtime) getPrepareLog(ctx context.Context, l *kt.Log) (lastCommitIndex
 		lastCommitIndex, _ = r.bytesToUint64(l.Data[8:])
 
 		if _, err = r.waitForLog(ctx, lastCommitIndex); err != nil {
-			err = errors.Wrap(err, "wait for last commit log failed")
+			err = fmt.Errorf("wait for last commit log failed: %w", err)
 			return
 		}
 	}

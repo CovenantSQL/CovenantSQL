@@ -17,12 +17,12 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/pkg/errors"
 	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -115,7 +115,7 @@ func (c *Config) Validate() (err error) {
 		}
 
 		if len(c.AdminAuth.GithubAppID) != len(c.AdminAuth.GithubAppSecret) {
-			err = errors.Wrap(ErrInvalidProxyConfig, "mismatched admin appid and appsecret")
+			err = fmt.Errorf("mismatched admin appid and appsecret: %w", ErrInvalidProxyConfig)
 			return
 		}
 	}

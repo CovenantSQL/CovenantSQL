@@ -17,13 +17,14 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -135,7 +136,7 @@ func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) 
 	var projectDB *gorp.DbMap
 	projectDB, err = getCurrentProjectDB(c)
 	if err != nil {
-		err = errors.Wrapf(err, "get project database failed")
+		err = fmt.Errorf("get project database failed: %w", err)
 		status = http.StatusBadRequest
 		return
 	}
@@ -143,7 +144,9 @@ func handleUserOAuthCallback(c *gin.Context) (res gin.H, status int, err error) 
 	var miscConfig *model.ProjectMiscConfig
 	_, miscConfig, err = model.GetProjectMiscConfig(projectDB)
 	if err != nil || !miscConfig.IsEnabled() {
-		err = errors.Wrapf(err, "project is disabled for service")
+		if err != nil {
+			err = fmt.Errorf("project is disabled for service: %w", err)
+		}
 		status = http.StatusForbidden
 		return
 	}
@@ -239,7 +242,7 @@ func handleUserOAuthCallbackSuccess(
 		)
 
 		if err != nil {
-			err = errors.Wrapf(err, "user register/login failed")
+			err = fmt.Errorf("user register/login failed: %w", err)
 			status = http.StatusInternalServerError
 			return
 		}
@@ -254,7 +257,7 @@ func handleUserOAuthCallbackSuccess(
 
 		s, err := model.NewSession(projectDB, sessionExpireSeconds)
 		if err != nil {
-			err = errors.Wrapf(err, "new user session failed")
+			err = fmt.Errorf("new user session failed: %w", err)
 			status = http.StatusInternalServerError
 			return
 		}
@@ -382,18 +385,18 @@ func getCurrentProjectDB(c *gin.Context) (db *gorp.DbMap, err error) {
 
 	p, err := model.GetAccountByID(model.GetDB(c), project.Developer, project.Account)
 	if err != nil {
-		err = errors.Wrapf(err, "get project owner user info failed")
+		err = fmt.Errorf("get project owner user info failed: %w", err)
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
-		err = errors.Wrapf(err, "decode account private key failed")
+		err = fmt.Errorf("decode account private key failed: %w", err)
 		return
 	}
 
 	db, err = initProjectDB(project.DB, p.Key)
 	if err != nil {
-		err = errors.Wrapf(err, "init project database failed")
+		err = fmt.Errorf("init project database failed: %w", err)
 	}
 
 	return

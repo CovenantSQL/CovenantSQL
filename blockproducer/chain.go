@@ -26,7 +26,6 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/pkg/errors"
 	mw "github.com/zserge/metric"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
@@ -130,7 +129,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		return
 	}
 	if ierr = cfg.Genesis.VerifyHash(); ierr != nil {
-		err = errors.Wrap(ierr, "failed to verify genesis block hash")
+		err = fmt.Errorf("failed to verify genesis block hash: %w", ierr)
 		return
 	}
 
@@ -140,7 +139,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		existed = true
 	}
 	if st, ierr = openStorage(fmt.Sprintf("file:%s", cfg.DataFile)); ierr != nil {
-		err = errors.Wrap(ierr, "failed to open storage")
+		err = fmt.Errorf("failed to open storage: %w", ierr)
 		return
 	}
 	defer func() {
@@ -169,7 +168,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		var init = newMetaState()
 		for _, v := range cfg.Genesis.Transactions {
 			if ierr = init.apply(v, 0); ierr != nil {
-				err = errors.Wrap(ierr, "failed to initialize immutable state")
+				err = fmt.Errorf("failed to initialize immutable state: %w", ierr)
 				return
 			}
 		}
@@ -177,14 +176,14 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 		sps = append(sps, addBlock(0, cfg.Genesis))
 		sps = append(sps, updateIrreversible(cfg.Genesis.SignedHeader.DataHash))
 		if ierr = store(st, sps, nil); ierr != nil {
-			err = errors.Wrap(ierr, "failed to initialize storage")
+			err = fmt.Errorf("failed to initialize storage: %w", ierr)
 			return
 		}
 	}
 
 	// Load from database
 	if lastIrre, heads, immutable, txPool, ierr = loadDatabase(st); ierr != nil {
-		err = errors.Wrap(ierr, "failed to load data from storage")
+		err = fmt.Errorf("failed to load data from storage: %w", ierr)
 		return
 	}
 
@@ -212,8 +211,8 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 				}
 				var block *types.BPBlock
 				if block, ierr = loadBlock(st, r.hash); ierr != nil {
-					err = errors.Wrapf(
-						ierr, "failed to load block %s from database", r.hash.Short(4))
+					err = fmt.Errorf("failed to load block %s from database: %w",
+						r.hash.Short(4), ierr)
 					return
 				}
 				// Store block object
@@ -222,7 +221,7 @@ func NewChainWithContext(ctx context.Context, cfg *Config) (c *Chain, err error)
 
 			var br *branch
 			if br, ierr = newBranch(lastIrre, v, immutable, txPool); ierr != nil {
-				err = errors.Wrapf(ierr, "failed to rebuild branch with head %s", v.hash.Short(4))
+				err = fmt.Errorf("failed to rebuild branch with head %s: %w", v.hash.Short(4), ierr)
 				return
 			}
 			branches = append(branches, br)
@@ -365,11 +364,11 @@ func (c *Chain) Stop() (err error) {
 func (c *Chain) pushBlock(b *types.BPBlock) (err error) {
 	var ierr error
 	if ierr = b.Verify(); ierr != nil {
-		err = errors.Wrap(ierr, "failed to check block")
+		err = fmt.Errorf("failed to check block: %w", ierr)
 		return
 	}
 	if ierr = c.applyBlock(b); ierr != nil {
-		err = errors.Wrap(ierr, "failed to apply block")
+		err = fmt.Errorf("failed to apply block: %w", ierr)
 		return
 	}
 	return
@@ -864,7 +863,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 		if v.head.hash.IsEqual(bl.ParentHash()) {
 			head = newBlockNode(height, bl, v.head)
 			if br, ierr = v.applyBlock(head); ierr != nil {
-				err = errors.Wrapf(ierr, "failed to apply block %s", head.hash.Short(4))
+				err = fmt.Errorf("failed to apply block %s: %w", head.hash.Short(4), ierr)
 				return
 			}
 			// Grow a branch while the current branch is not changed
@@ -896,7 +895,7 @@ func (c *Chain) applyBlock(bl *types.BPBlock) (err error) {
 		); ok {
 			head = newBlockNode(height, bl, parent)
 			if br, ierr = newBranch(c.lastIrre, head, c.immutable, c.txPool); ierr != nil {
-				err = errors.Wrapf(ierr, "failed to fork from %s", parent.hash.Short(4))
+				err = fmt.Errorf("failed to fork from %s: %w", parent.hash.Short(4), ierr)
 				return
 			}
 			return store(c.storage,
@@ -927,13 +926,13 @@ func (c *Chain) produceAndStoreBlock(
 	if br, bl, ierr = c.headBranch.produceBlock(
 		c.heightOfTime(now), now, c.address, priv,
 	); ierr != nil {
-		err = errors.Wrapf(ierr, "failed to produce block at head %s",
-			c.headBranch.head.hash.Short(4))
+		err = fmt.Errorf("failed to produce block at head %s: %w",
+			c.headBranch.head.hash.Short(4), ierr)
 		return
 	}
 	if ierr = c.replaceAndSwitchToBranch(bl, c.headIndex, br); ierr != nil {
-		err = errors.Wrapf(ierr, "failed to switch branch #%d:%s",
-			c.headIndex, c.headBranch.head.hash.Short(4))
+		err = fmt.Errorf("failed to switch branch #%d:%s: %w",
+			c.headIndex, c.headBranch.head.hash.Short(4), ierr)
 		return
 	}
 	out = bl

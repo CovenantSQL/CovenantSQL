@@ -17,7 +17,8 @@
 package main
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -43,12 +44,12 @@ func startDBMS(server *mux.Server, direct *rpc.Server, onCreateDB func()) (dbms 
 	}
 
 	if dbms, err = worker.NewDBMS(cfg); err != nil {
-		err = errors.Wrap(err, "create new DBMS failed")
+		err = fmt.Errorf("create new DBMS failed: %w", err)
 		return
 	}
 
 	if err = dbms.Init(); err != nil {
-		err = errors.Wrap(err, "init DBMS failed")
+		err = fmt.Errorf("init DBMS failed: %w", err)
 		return
 	}
 

@@ -17,11 +17,11 @@
 package route
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -44,7 +44,7 @@ func zoneLookup(zone string) func(host string) ([]net.IP, error) {
 		if ips, ok := records[host]; ok {
 			return ips, nil
 		}
-		return nil, errors.Errorf("no such host: %s", host)
+		return nil, fmt.Errorf("no such host: %s", host)
 	}
 }
 

@@ -19,12 +19,11 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
 	"regexp"
-
-	"github.com/pkg/errors"
 )
 
 var (

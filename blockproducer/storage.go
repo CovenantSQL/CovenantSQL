@@ -20,8 +20,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
@@ -165,7 +164,7 @@ func openStorage(path string) (st xi.Storage, err error) {
 	}
 	for _, v := range ddls {
 		if _, ierr = st.Writer().Exec(v); ierr != nil {
-			err = errors.Wrap(ierr, v)
+			err = fmt.Errorf("%s: %w", v, ierr)
 			return
 		}
 	}
@@ -538,7 +537,7 @@ func loadBlocks(
 		}
 		// Add normal block
 		if pn, ok = index[ph]; !ok {
-			err = errors.Wrapf(ErrParentNotFound, "parent %s not found", ph.Short(4))
+			err = fmt.Errorf("parent %s not found: %w", ph.Short(4), ErrParentNotFound)
 			return
 		}
 		bn = newNonCacheBlockNode(height, dec, pn)
@@ -550,7 +549,7 @@ func loadBlocks(
 	}
 
 	if lastIrre, ok = index[irreHash]; !ok {
-		err = errors.Wrapf(ErrParentNotFound, "irreversible block %s not found", ph.Short(4))
+		err = fmt.Errorf("irreversible block %s not found: %w", ph.Short(4), ErrParentNotFound)
 		return
 	}
 

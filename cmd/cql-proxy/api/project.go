@@ -27,7 +27,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gorp/gorp/v3"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
@@ -159,13 +158,13 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 
 	err = json.Unmarshal(t.RawArgs, &args)
 	if err != nil {
-		err = errors.Wrapf(err, "unmarshal task args failed")
+		err = fmt.Errorf("unmarshal task args failed: %w", err)
 		return
 	}
 
 	tx, dbID, key, err := createDatabase(db, t.Developer, t.Account, args.NodeCount)
 	if err != nil {
-		err = errors.Wrapf(err, "create database failed")
+		err = fmt.Errorf("create database failed: %w", err)
 		return
 	}
 
@@ -175,7 +174,7 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 
 	lastState, err := waitForTxState(timeoutCtx, tx)
 	if err != nil {
-		err = errors.Wrapf(err, "wait for database creation confirmation failed")
+		err = fmt.Errorf("wait for database creation confirmation failed: %w", err)
 		r = gin.H{
 			"project": dbID,
 			"db":      dbID,
@@ -191,14 +190,14 @@ func CreateProjectTask(ctx context.Context, cfg *config.Config, db *gorp.DbMap, 
 
 	_, err = initProjectDB(dbID, key)
 	if err != nil {
-		err = errors.Wrapf(err, "init project database meta tables failed")
+		err = fmt.Errorf("init project database meta tables failed: %w", err)
 		return
 	}
 
 	// bind database to current developer
 	_, err = model.AddProject(db, dbID, t.Developer, t.Account)
 	if err != nil {
-		err = errors.Wrapf(err, "register project failed")
+		err = fmt.Errorf("register project failed: %w", err)
 	}
 
 	r = gin.H{
@@ -1230,7 +1229,7 @@ func getProjectAudits(c *gin.Context) {
 func initProjectDB(dbID proto.DatabaseID, key *asymmetric.PrivateKey) (db *gorp.DbMap, err error) {
 	nodeID, err := getDatabaseLeaderNodeID(dbID)
 	if err != nil {
-		err = errors.Wrapf(err, "could not get project leader node")
+		err = fmt.Errorf("could not get project leader node: %w", err)
 		return
 	}
 
@@ -1266,24 +1265,24 @@ func getProjectDB(c *gin.Context, dbID proto.DatabaseID) (project *model.Project
 
 	project, err = model.GetProjectByID(model.GetDB(c), dbID, developer)
 	if err != nil {
-		err = errors.Wrapf(err, "get project info failed")
+		err = fmt.Errorf("get project info failed: %w", err)
 		return
 	}
 
 	p, err := model.GetAccountByID(model.GetDB(c), developer, project.Account)
 	if err != nil {
-		err = errors.Wrapf(err, "get project owner user info failed")
+		err = fmt.Errorf("get project owner user info failed: %w", err)
 		return
 	}
 
 	if err = p.LoadPrivateKey(); err != nil {
-		err = errors.Wrapf(err, "decode account private key failed")
+		err = fmt.Errorf("decode account private key failed: %w", err)
 		return
 	}
 
 	db, err = initProjectDB(dbID, p.Key)
 	if err != nil {
-		err = errors.Wrapf(err, "init project database failed")
+		err = fmt.Errorf("init project database failed: %w", err)
 	}
 
 	return
@@ -1299,7 +1298,7 @@ func getRulesContext(dbID proto.DatabaseID, db *gorp.DbMap) (ctx *projectRulesCo
 	var configs []*model.ProjectConfig
 	configs, err = model.GetAllProjectConfig(db)
 	if err != nil {
-		err = errors.Wrapf(err, "get project config failed")
+		err = fmt.Errorf("get project config failed: %w", err)
 		return
 	}
 
@@ -1353,14 +1352,14 @@ func populateRulesContext(c *gin.Context, ctx *projectRulesContext) (r *resolver
 		"rules":  tableRules,
 	})
 	if err != nil {
-		err = errors.Wrapf(err, "compile rules failed")
+		err = fmt.Errorf("compile rules failed: %w", err)
 		return
 	}
 
 	if ctx.toUpdate != nil {
 		err = model.UpdateProjectConfig(ctx.db, ctx.toUpdate)
 		if err != nil {
-			err = errors.Wrapf(err, "execute rules config update failed")
+			err = fmt.Errorf("execute rules config update failed: %w", err)
 			return
 		}
 	}
@@ -1368,7 +1367,7 @@ func populateRulesContext(c *gin.Context, ctx *projectRulesContext) (r *resolver
 	if ctx.toInsert != nil {
 		err = model.AddRawProjectConfig(ctx.db, ctx.toInsert)
 		if err != nil {
-			err = errors.Wrapf(err, "execute new rules creation failed")
+			err = fmt.Errorf("execute new rules creation failed: %w", err)
 			return
 		}
 	}
@@ -1386,13 +1385,13 @@ func loadRules(c *gin.Context, dbID proto.DatabaseID, db *gorp.DbMap) (r *resolv
 		var ctx *projectRulesContext
 		ctx, err = getRulesContext(dbID, db)
 		if err != nil {
-			err = errors.Wrapf(err, "get rules failed")
+			err = fmt.Errorf("get rules failed: %w", err)
 			return
 		}
 
 		r, err = populateRulesContext(c, ctx)
 		if err != nil {
-			err = errors.Wrapf(err, "populate rules failed")
+			err = fmt.Errorf("populate rules failed: %w", err)
 			return
 		}
 

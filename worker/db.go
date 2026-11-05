@@ -18,13 +18,12 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
@@ -183,7 +182,7 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 	// init kayak config
 	kayakWalPath := filepath.Join(cfg.DataDir, KayakWalFileName)
 	if db.kayakWal, err = kl.NewLevelDBWal(kayakWalPath); err != nil {
-		err = errors.Wrap(err, "init kayak log pool failed")
+		err = fmt.Errorf("init kayak log pool failed: %w", err)
 		return
 	}
 
@@ -259,7 +258,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 	switch request.Header.QueryType {
 	case types.ReadQuery:
 		if tracker, response, err = db.chain.Query(request, false); err != nil {
-			err = errors.Wrap(err, "failed to query read query")
+			err = fmt.Errorf("failed to query read query: %w", err)
 			return
 		}
 	case types.WriteQuery:
@@ -267,25 +266,25 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 			// reset context
 			request.SetContext(context.Background())
 			if tracker, response, err = db.chain.Query(request, true); err != nil {
-				err = errors.Wrap(err, "failed to execute with eventual consistency")
+				err = fmt.Errorf("failed to execute with eventual consistency: %w", err)
 				return
 			}
 		} else {
 			if tracker, response, err = db.writeQuery(request); err != nil {
-				err = errors.Wrap(err, "failed to execute")
+				err = fmt.Errorf("failed to execute: %w", err)
 				return
 			}
 		}
 	default:
 		// TODO(xq262144): verbose errors with custom error structure
-		return nil, errors.Wrap(ErrInvalidRequest, "invalid query type")
+		return nil, fmt.Errorf("invalid query type: %w", ErrInvalidRequest)
 	}
 
 	response.Header.ResponseAccount = db.accountAddr
 
 	// build hash
 	if err = response.BuildHash(); err != nil {
-		err = errors.Wrap(err, "failed to build response hash")
+		err = fmt.Errorf("failed to build response hash: %w", err)
 		return
 	}
 
@@ -415,7 +414,7 @@ func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker,
 	// call kayak runtime Process
 	var result interface{}
 	if result, _, err = db.kayakRuntime.Apply(request.GetContext(), request); err != nil {
-		err = errors.Wrap(err, "apply failed")
+		err = fmt.Errorf("apply failed: %w", err)
 		return
 	}
 
@@ -424,7 +423,6 @@ func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker,
 		ok bool
 	)
 	if tr, ok = (result).(*TrackerAndResponse); !ok {
-		err = errors.Wrap(err, "invalid response type")
 		return
 	}
 	tracker = tr.Tracker

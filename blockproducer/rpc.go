@@ -17,7 +17,7 @@
 package blockproducer
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/types"
@@ -111,7 +111,7 @@ func (s *ChainRPCService) QuerySQLChainProfile(req *types.QuerySQLChainProfileRe
 		resp.Profile = *p
 		return
 	}
-	err = errors.Wrap(ErrDatabaseNotFound, "rpc query sqlchain profile failed")
+	err = fmt.Errorf("rpc query sqlchain profile failed: %w", ErrDatabaseNotFound)
 	return
 }
 

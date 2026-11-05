@@ -17,10 +17,11 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/auth"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"
@@ -87,7 +88,7 @@ func getDatabaseProfile(dbID proto.DatabaseID) (profile *types.SQLChainProfile, 
 
 	err = mux.RequestBP(route.MCCQuerySQLChainProfile.String(), req, resp)
 	if err != nil {
-		err = errors.Wrapf(err, "query chain profile failed")
+		err = fmt.Errorf("query chain profile failed: %w", err)
 		return
 	}
 

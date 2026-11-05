@@ -18,11 +18,12 @@ package resolver
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/proto"
 )
@@ -219,7 +220,7 @@ func compileQueryEnforces(cfg *RulesConfig, enforces queryEnforces) (queryRules 
 
 			if _, ok := cfg.Groups[groupName]; !ok {
 				// invalid group
-				err = errors.Errorf("%s: unknown group", groupName)
+				err = fmt.Errorf("%s: unknown group", groupName)
 				return
 			}
 
@@ -243,7 +244,7 @@ func compileQueryEnforces(cfg *RulesConfig, enforces queryEnforces) (queryRules 
 			case UserStatePreRegistered:
 			case UserStateDisabled:
 			default:
-				err = errors.Errorf("invalid user state %s", userState)
+				err = fmt.Errorf("invalid user state %s", userState)
 				return
 			}
 
@@ -252,7 +253,7 @@ func compileQueryEnforces(cfg *RulesConfig, enforces queryEnforces) (queryRules 
 			queryRules.defaultRules = enforceObject
 		default:
 			// invalid enforce type
-			err = errors.Errorf("%s: invalid enforce type", enforceSubject)
+			err = fmt.Errorf("%s: invalid enforce type", enforceSubject)
 			return
 		}
 	}
@@ -365,7 +366,7 @@ func (r *Rules) findRulesToApply(queryRules *QueryRules, uid string, userState s
 	if stateRule, ok = queryRules.userStateRules[userState]; !ok {
 		// open privilege
 	} else if stateRule == nil {
-		err = errors.Errorf("permission denied of user state %s", userState)
+		err = fmt.Errorf("permission denied of user state %s", userState)
 		return
 	}
 
@@ -379,7 +380,7 @@ func (r *Rules) findRulesToApply(queryRules *QueryRules, uid string, userState s
 		if rule, ok = queryRules.groupRules[g]; !ok {
 			continue
 		} else if rule == nil {
-			err = errors.Errorf("permission denied of be in group %s", g)
+			err = fmt.Errorf("permission denied of be in group %s", g)
 			return
 		}
 
@@ -492,7 +493,7 @@ func mergeUpdate(q ...map[string]interface{}) (o map[string]interface{}, err err
 					)
 
 					if ov, ok = v.(map[string]interface{}); !ok {
-						err = errors.Errorf("$ operator needs object argument")
+						err = fmt.Errorf("$ operator needs object argument")
 						return
 					}
 
@@ -505,7 +506,7 @@ func mergeUpdate(q ...map[string]interface{}) (o map[string]interface{}, err err
 				case k == "$comment":
 					// ignore
 				case strings.HasPrefix(k, "$"):
-					err = errors.Errorf("invalid operator %s", k)
+					err = fmt.Errorf("invalid operator %s", k)
 					return
 				}
 			} else if useNormalSet {

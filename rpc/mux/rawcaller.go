@@ -17,13 +17,12 @@
 package mux
 
 import (
+	"fmt"
 	"io"
 	"net"
 	nrpc "net/rpc"
 	"strings"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -61,7 +60,7 @@ func (c *RawCaller) resetClient() (err error) {
 
 	var conn net.Conn
 	if conn, err = net.DialTimeout("tcp", c.targetAddr, conf.TCPDialTimeout); err != nil {
-		err = errors.Wrapf(err, "dial to target %s failed", c.targetAddr)
+		err = fmt.Errorf("dial to target %s failed: %w", c.targetAddr, err)
 		return
 	}
 	stream, err := NewOneOffMuxConn(conn)
@@ -94,10 +93,10 @@ func (c *RawCaller) Call(method string, args interface{}, reply interface{}) (er
 			// if got EOF, retry once
 			reconnectErr := c.resetClient()
 			if reconnectErr != nil {
-				err = errors.Wrap(reconnectErr, "reconnect failed")
+				err = fmt.Errorf("reconnect failed: %w", reconnectErr)
 			}
 		}
-		err = errors.Wrapf(err, "call %s failed", method)
+		err = fmt.Errorf("call %s failed: %w", method, err)
 	}
 	return
 }

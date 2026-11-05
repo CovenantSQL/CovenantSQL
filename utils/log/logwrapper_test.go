@@ -17,11 +17,11 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 

@@ -17,10 +17,10 @@
 package mux
 
 import (
+	"errors"
 	"net"
 	"testing"
 
-	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/rpc"
@@ -59,7 +59,7 @@ func TestRawCaller(t *testing.T) {
 		So(resp, ShouldEqual, 2)
 		err = c.Call("Test.TestFailed", 1, nil)
 		So(err, ShouldNotBeNil)
-		So(errors.Cause(err).Error(), ShouldEqual, "failed")
+		So(errors.Unwrap(err).Error(), ShouldEqual, "failed")
 		err = c.Call("Test.TestReconnect", 1, nil)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "shut down")

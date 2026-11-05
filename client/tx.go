@@ -21,8 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // ExecuteTx starts a transaction, and runs fn in it.
@@ -43,7 +42,7 @@ func ExecuteInTx(tx driver.Tx, fn func() error) (err error) {
 	if err == nil {
 		err = tx.Commit()
 		if err != nil {
-			err = errors.Wrapf(err, "exec in tx")
+			err = fmt.Errorf("exec in tx: %w", err)
 		}
 	} else {
 		_ = tx.Rollback()

@@ -17,7 +17,7 @@
 package crypto
 
 import (
-	"github.com/pkg/errors"
+	"errors"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"

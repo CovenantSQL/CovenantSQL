@@ -18,6 +18,7 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/gin-gonic/gin"
 	githubRPC "github.com/google/go-github/v93/github"
 	"github.com/jmoiron/jsonq"
-	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 	facebookOAuth2 "golang.org/x/oauth2/facebook"
 	githubOAuth2 "golang.org/x/oauth2/github"
@@ -207,7 +207,7 @@ func googleAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := google.UserFromContext(r.Context())
 		if err != nil {
-			err = errors.Wrapf(err, "get user info failed")
+			err = fmt.Errorf("get user info failed: %w", err)
 			fail(err)
 			return
 		}
@@ -218,14 +218,14 @@ func googleAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "marshal user info failed")
+				err = fmt.Errorf("marshal user info failed: %w", err)
 				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "unmarshal extra user info failed")
+				err = fmt.Errorf("unmarshal extra user info failed: %w", err)
 				fail(err)
 				return
 			}
@@ -245,7 +245,7 @@ func facebookAuthCallback(c *gin.Context, success UserSuccessCallback, fail User
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
-			err = errors.Wrapf(err, "get facebook token info failed")
+			err = fmt.Errorf("get facebook token info failed: %w", err)
 			fail(err)
 			return
 		}
@@ -266,7 +266,7 @@ func facebookAuthCallback(c *gin.Context, success UserSuccessCallback, fail User
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get("me?fields=id,name,email,picture").ReceiveSuccess(&resp)
 			if err != nil {
-				err = errors.Wrapf(err, "request facebook user info failed")
+				err = fmt.Errorf("request facebook user info failed: %w", err)
 				fail(err)
 				return
 			}
@@ -292,7 +292,7 @@ func twitterAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserF
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		userInfo, err := twitter.UserFromContext(r.Context())
 		if err != nil {
-			err = errors.Wrapf(err, "get twitter user info failed")
+			err = fmt.Errorf("get twitter user info failed: %w", err)
 			fail(err)
 			return
 		}
@@ -302,14 +302,14 @@ func twitterAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserF
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "marshal user info failed")
+				err = fmt.Errorf("marshal user info failed: %w", err)
 				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "unmarshal extra user info failed")
+				err = fmt.Errorf("unmarshal extra user info failed: %w", err)
 				fail(err)
 				return
 			}
@@ -341,7 +341,7 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 
 		userInfo, _, err := rpc.Users.Get(r.Context(), "")
 		if err != nil {
-			err = errors.Wrapf(err, "get github user info failed")
+			err = fmt.Errorf("get github user info failed: %w", err)
 			fail(err)
 			return
 		}
@@ -351,14 +351,14 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 
 			userInfoJSON, err := json.Marshal(userInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "marshal user info failed")
+				err = fmt.Errorf("marshal user info failed: %w", err)
 				fail(err)
 				return
 			}
 
 			err = json.Unmarshal(userInfoJSON, &extraInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "unmarshal extra user info failed")
+				err = fmt.Errorf("unmarshal extra user info failed: %w", err)
 				fail(err)
 				return
 			}
@@ -373,7 +373,7 @@ func githubAuthCallback(c *gin.Context, success UserSuccessCallback, fail UserFa
 			// userInfo.GetEmail returns the public email, may not be primary email
 			emails, _, err := rpc.Users.ListEmails(r.Context(), nil)
 			if err != nil {
-				err = errors.Wrapf(err, "get github user primary email failed")
+				err = fmt.Errorf("get github user primary email failed: %w", err)
 				fail(err)
 				return
 			}
@@ -406,7 +406,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		token, err := oauth2Login.TokenFromContext(r.Context())
 		if err != nil {
-			err = errors.Wrapf(err, "get weibo token info failed")
+			err = fmt.Errorf("get weibo token info failed: %w", err)
 			fail(err)
 			return
 		}
@@ -423,7 +423,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get("account/get_uid.json").ReceiveSuccess(&uidData)
 			if err != nil {
-				err = errors.Wrapf(err, "get weibo user id failed")
+				err = fmt.Errorf("get weibo user id failed: %w", err)
 				fail(err)
 				return
 			}
@@ -431,7 +431,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 			_, err = oauthClient.New().Set("Accept", "application/json").
 				Get(fmt.Sprintf("users/show.json?uid=%v", uidData["uid"])).ReceiveSuccess(&userInfo)
 			if err != nil {
-				err = errors.Wrapf(err, "get weibo user info failed")
+				err = fmt.Errorf("get weibo user info failed: %w", err)
 				fail(err)
 				return
 			}
@@ -443,7 +443,7 @@ func sinaWeiboAuthCallback(c *gin.Context, success UserSuccessCallback, fail Use
 			res := jsonq.NewQuery(userInfo)
 			idStr, err := res.String("idstr")
 			if err != nil {
-				err = errors.Wrapf(err, "get weibo user id failed")
+				err = fmt.Errorf("get weibo user id failed: %w", err)
 				fail(err)
 				return
 			}
@@ -465,7 +465,7 @@ func wrapFailCallback(c UserFailCallback) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if c != nil {
 			if err := gologin.ErrorFromContext(r.Context()); err != nil {
-				err = errors.Wrapf(err, "login failed")
+				err = fmt.Errorf("login failed: %w", err)
 				c(err)
 			} else {
 				err = errors.New("unknown error")

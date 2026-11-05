@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/model"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
@@ -39,7 +39,7 @@ func adminOAuthAuthorize(c *gin.Context) {
 	}
 
 	authz := getAdminAuth(c)
-	state := uuid.Must(uuid.NewV4()).String()
+	state := uuid.NewString()
 	state, url := authz.AuthURL(state, r.ClientID, r.Callback)
 
 	responseWithData(c, http.StatusOK, gin.H{

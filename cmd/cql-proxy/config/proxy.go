@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/pkg/errors"
 	yaml "go.yaml.in/yaml/v2"
-	validator "gopkg.in/go-playground/validator.v9"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )

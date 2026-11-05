@@ -8,13 +8,13 @@ CovenantSQL is a decentralized SQL database in Go. Block producers (`cqld`) run 
 
 **Less is more. The simplest solution is the best solution.** The action hierarchy for every change: **Delete > Replace > Add**.
 
-1. **Solve at the owner**: Put behavior in the code path that owns or observes it. For fixes, never guard a symptom with a staleness check, initialization flag, skip-first-call branch, or a retry/sleep around broken logic; relocate the trigger and delete the wrong path. For features, extend the existing owner rather than creating a parallel abstraction.
+1. **Solve at the owner**: Put behavior in the code path that owns or observes it. For fixes, do not use staleness checks, initialization flags, skip-first-call branches, or retries/sleeps to hide an unfixed root cause. When such a mechanism is required by the protocol or lifecycle, implement it at the owner. Relocate misplaced triggers and delete the wrong path. For features, extend the existing owner rather than creating a parallel abstraction.
 2. **Search and reuse first**: Search the whole repository before creating a helper, type, or package. Reuse or adapt what exists and delete duplicate paths. Three similar lines beat a helper nobody else calls.
-3. **Delete and modify existing code before creating new code**: Bugfixes are net-negative by default unless deletion and relocation are demonstrably impossible. Before protecting state, check who reads it: state with no reader, or a single reader that can compute it, gets deleted, not locked (#414 fixed a race by deleting counters only a log line read, instead of locking them as #412 did).
-4. **Keep scope minimal**: Implement only the simplest complete solution. Avoid impossible-state handling, speculative flags, compatibility shims, and unrelated cleanup. Rely on existing coverage and focused validation; add test code only for an uncovered, high-risk path (races, consensus, crypto, serialization), and show that it fails without the fix.
+3. **Delete and modify existing code before creating new code**: Before adding code, consider deleting incorrect paths, modifying existing implementations, and moving behavior to its owner. Before protecting state, check who reads it: state with no reader, or a single reader that can compute it, gets deleted, not locked (#414 fixed a race by deleting counters only a log line read, instead of locking them as #412 did).
+4. **Keep scope minimal**: Implement only the simplest complete solution. Avoid impossible-state handling, speculative flags, compatibility shims without a concrete compatibility requirement, and unrelated cleanup. Rely on existing coverage and focused validation; new tests should cover real behavior not already covered. For bugfixes, verify that the regression test fails without the fix and passes with it whenever feasible.
 5. **Ship zero-regression changes**: Understand what you remove instead of keeping broken code as insurance. Remove unused imports, functions, types, files, and comments. Do not break existing behavior unless the PR removes it on purpose, with evidence.
 
-**Review gate:** for every addition, the reviewer decides whether deleting or changing existing code would have fixed the problem instead — if it would, that is a blocking finding.
+**Review gate:** for every addition, check whether deleting or changing existing code would solve the problem just as completely and more simply. If so, reject the duplicate implementation.
 
 ## Consensus invariants
 
@@ -40,7 +40,7 @@ CovenantSQL is a decentralized SQL database in Go. Block producers (`cqld`) run 
 
 - Require a reproducible bug or a broadly useful feature; close speculative changes and AI-generated bloat.
 - Review the full live diff independently; approvals, descriptions, and green CI are supporting evidence, not proof. A race can pass CI: rerun suspect tests with `-race` in fresh processes.
-- Reject compatibility shims, duplicated helpers, dead code, unrelated cleanup, and new fields or data with no reader.
+- Reject compatibility shims without a concrete compatibility requirement, duplicated helpers, dead code, unrelated cleanup, and new fields or data with no reader.
 - Delete tests whose assertions only validate mock setup or interactions.
 
 ## Commands

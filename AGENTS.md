@@ -43,39 +43,21 @@ CovenantSQL is a decentralized SQL database in Go. Block producers (`cqld`) run 
 - Reject compatibility shims without a concrete compatibility requirement, duplicated helpers, dead code, unrelated cleanup, and new fields or data with no reader.
 - Delete tests whose assertions only validate mock setup or interactions.
 
-## Commands
+## Build and test
 
-```bash
-make -j"$(nproc)" all   # bin/cqld, bin/cql-minerd, bin/cql*, and the bin/*.test binaries the node tests start
-./alltest.sh            # the CI test suite; run `make all` first
-make build-release      # release binaries only
-make docker             # static Alpine binaries in the covenantsql/covenantsql image
-./fmtGoImports.sh       # goimports -local github.com/CovenantSQL/CovenantSQL over the tree
-./cleanupDB.sh          # remove *.db, *.ldb, and keystores left behind by interrupted node tests
-```
+Use `Makefile` for build targets and `.github/workflows/ci.yml` for the current Go version and CI environment. Run `make all` before `./alltest.sh` to build the binaries that node tests start.
 
 Builds need cgo (`CGO_ENABLED=1`) and `libicu-dev` for the miner's `sqlite_icu` tag.
 
-Run a single package with the CI tags, e.g. `go test -race -tags "$UNITTESTTAGS" ./sqlchain/` with `UNITTESTTAGS` from `.github/workflows/ci.yml`, so the package builds as it does in CI.
+Export `UNITTESTTAGS` with the value from `.github/workflows/ci.yml` before running `./alltest.sh`; the script defaults to empty tags otherwise. Pass the same tags to individual package tests, e.g. `go test -race -tags "$UNITTESTTAGS" ./sqlchain/`.
 
-`cmd/cqld`, `cmd/cql-minerd`, `cmd/cql-fuse`, `rpc/mux`, `sqlchain/mirror`, and `sqlchain/observer` start BP and miner processes from the `bin/*.test` binaries (built with the `testbinary` tag), on fixed ports. Run them one package at a time (`-p 1`) and with `-count=1`, since `go test` caching cannot see the binaries change.
+The node test packages selected in `alltest.sh` start BP and miner processes from `bin/*.test` on fixed ports. Run them one package at a time (`-p 1`) and with `-count=1`, since `go test` caching cannot see the binaries change.
 
-CI (`.github/workflows/ci.yml`) is one job on `ubuntu-latest` with Go 1.27: `make all`, then `./alltest.sh`, with a 90-minute timeout. It runs no linter and no `go vet`, so run `goimports` and `go vet` on the changed packages yourself. Validate on linux/amd64; limit to 4 CPUs (e.g. `docker run --cpus 4`) to approximate the CI runner for timing-sensitive tests.
-
-Dependabot proposes Go module, Actions, and Docker updates monthly, minor and patch updates grouped. Its `go.mod` edits can move indirect requirements to the direct block; run `go mod tidy` and keep what it says.
-
-## Where to look
-
-- Main chain and block producer → `blockproducer/`, `cmd/cqld/`; chain transactions and blocks → `types/`
-- Miner database service → `worker/`, `cmd/cql-minerd/`; per-database SQL chain → `sqlchain/` (`observer/` and `mirror/` follow chains)
-- SQLite state and eventual consistency (Xenomint) → `xenomint/`; strong consistency (Kayak, BFT-Raft) → `kayak/`, `twopc/`
-- Network: RPC → `rpc/`; node connections over ETLS → `naconn/`; DHT and routing → `route/`, `consistent/`; RPC structs → `proto/`
-- Keys, signatures, hashing → `crypto/`
-- Go `database/sql` driver → `client/`; CLI, FUSE, MySQL adapter, HTTP proxy → `cmd/cql*`
-- Configuration → `conf/`; multi-node test configs → `test/` (`test/GNTE` is a network-emulator submodule)
+Run `goimports` and `go vet` on changed packages. Validate on linux/amd64; limit to 4 CPUs (e.g. `docker run --cpus 4`) to approximate the CI runner for timing-sensitive tests.
 
 ## Conventions
 
 - New Go files start with the Apache 2.0 header of the existing files, with the current year: `Copyright <year> The CovenantSQL Authors.`
-- Tests use goconvey. Since v1.8.1 `ShouldEqual` does not convert between types and compares same-typed values with `reflect.DeepEqual`; use `ShouldResemble` for structs and `ShouldPointTo`/`ShouldNotPointTo` for pointer identity.
+- Tests use goconvey; use `ShouldResemble` for structs and `ShouldPointTo`/`ShouldNotPointTo` for pointer identity.
+- After dependency updates, run `go mod tidy` and let it determine direct and indirect requirements.
 - Never edit generated files: `*_gen.go` (hsp) and `sqlchain/observer/statik/statik.go` (statik).

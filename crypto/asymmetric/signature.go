@@ -23,7 +23,7 @@ import (
 	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/secp256k1"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -33,14 +33,14 @@ var (
 	// BypassSignature is the flag indicate if bypassing signature sign & verify
 	BypassSignature = false
 	bypassS         *Signature
-	verifyCache     *lru.Cache
+	verifyCache     *lru.Cache[string, struct{}]
 )
 
 // For test Signature.Sign mock.
 func init() {
 	priv, _, _ := GenSecp256k1KeyPair()
 	bypassS, _ = priv.Sign(([]byte)("00000000000000000000000000000000"))
-	verifyCache, _ = lru.New(256)
+	verifyCache, _ = lru.New[string, struct{}](256)
 }
 
 // Signature is a type representing an ecdsa signature.
@@ -126,7 +126,7 @@ func (s *Signature) Verify(hash []byte, signee *PublicKey) bool {
 	}
 	valid := secp256k1.VerifySignature(signeeBytes, hash, signature)
 	if valid {
-		verifyCache.Add(string(cacheKey), nil)
+		verifyCache.Add(string(cacheKey), struct{}{})
 	}
 	return valid
 	//return ecdsa.Verify(signee.toECDSA(), hash, s.R, s.S)

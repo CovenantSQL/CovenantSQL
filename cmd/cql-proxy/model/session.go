@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	gorp "gopkg.in/gorp.v2"
 )
 
 // Session defines the session object for user/admin.

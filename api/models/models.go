@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/CovenantSQL/go-sqlite3-encrypt" // sqlite3 driver
-	"github.com/go-gorp/gorp"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/pkg/errors"
 )
 

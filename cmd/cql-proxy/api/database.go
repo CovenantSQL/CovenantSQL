@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/pkg/errors"
-	gorp "gopkg.in/gorp.v2"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
 	"github.com/CovenantSQL/CovenantSQL/client"

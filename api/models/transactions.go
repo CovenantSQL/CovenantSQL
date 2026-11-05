@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/go-gorp/gorp"
+	"github.com/go-gorp/gorp/v3"
 )
 
 // TransactionsModel groups operations on Transactions.

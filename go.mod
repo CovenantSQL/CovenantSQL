@@ -20,7 +20,7 @@ require (
 	github.com/gin-contrib/cors v1.7.10
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-git/go-billy/v5 v5.9.1
-	github.com/go-gorp/gorp v2.2.0+incompatible
+	github.com/go-gorp/gorp/v3 v3.1.0
 	github.com/go-playground/validator/v10 v10.30.6
 	github.com/google/go-github/v93 v93.0.0
 	github.com/google/uuid v1.6.0
@@ -55,7 +55,6 @@ require (
 	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sys v0.49.0
-	gopkg.in/gorp.v2 v2.2.0
 )
 
 require (
@@ -112,7 +111,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pingcap/check v0.0.0-20190102082844-67f458068fc8 // indirect
-	github.com/poy/onpar v0.3.2 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect

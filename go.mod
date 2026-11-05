@@ -55,7 +55,6 @@ require (
 	golang.org/x/sys v0.49.0
 	gopkg.in/go-playground/validator.v9 v9.29.0
 	gopkg.in/gorp.v2 v2.0.1-0.20180226155812-4df78490a9aa
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -137,6 +136,7 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace github.com/siddontang/go-mysql v0.0.0-20181028041111-76c059e36c62 => github.com/CovenantSQL/go-mysql v0.0.0-20181119032421-d8fba0f23b9b

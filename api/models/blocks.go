@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/go-gorp/gorp"
+	"github.com/go-gorp/gorp/v3"
 )
 
 // BlocksModel groups operations on Blocks.

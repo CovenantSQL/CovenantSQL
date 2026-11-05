@@ -20,7 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	gorp "gopkg.in/gorp.v2"
+	"github.com/go-gorp/gorp/v3"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/config"

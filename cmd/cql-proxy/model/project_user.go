@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	gorp "gopkg.in/gorp.v2"
+	"github.com/go-gorp/gorp/v3"
 )
 
 // ProjectUserState defines the state for project user.

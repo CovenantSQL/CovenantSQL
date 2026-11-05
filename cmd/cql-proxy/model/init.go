@@ -16,7 +16,7 @@
 
 package model
 
-import gorp "gopkg.in/gorp.v2"
+import "github.com/go-gorp/gorp/v3"
 
 // AddTables register tables to gorp database map.
 func AddTables(dbMap *gorp.DbMap) {

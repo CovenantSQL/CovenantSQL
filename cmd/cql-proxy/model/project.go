@@ -19,7 +19,7 @@ package model
 import (
 	"fmt"
 
-	gorp "gopkg.in/gorp.v2"
+	"github.com/go-gorp/gorp/v3"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"

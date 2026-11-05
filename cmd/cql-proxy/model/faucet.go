@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-gorp/gorp/v3"
 	"github.com/google/uuid"
-	gorp "gopkg.in/gorp.v2"
 
 	"github.com/CovenantSQL/CovenantSQL/cmd/cql-proxy/utils"
 )

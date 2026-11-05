@@ -29,7 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	gorp "gopkg.in/gorp.v2"
+	"github.com/go-gorp/gorp/v3"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/proto"

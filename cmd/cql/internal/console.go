@@ -34,6 +34,8 @@ import (
 	"time"
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/mattn/go-isatty"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/env"
@@ -161,9 +163,9 @@ func usqlRegister() {
 		ForceParams: drivers.ForceQueryParameters([]string{
 			"loc", "auto",
 		}),
-		Version: func(db drivers.DB) (string, error) {
+		Version: func(ctx context.Context, db drivers.DB) (string, error) {
 			var ver string
-			err := db.QueryRow(`SELECT sqlite_version()`).Scan(&ver)
+			err := db.QueryRowContext(ctx, `SELECT sqlite_version()`).Scan(&ver)
 			if err != nil {
 				return "", err
 			}
@@ -198,7 +200,7 @@ func usqlRegister() {
 	// register CovenantSQL database
 	drivers.Register("covenantsql", drivers.Driver{
 		AllowMultilineComments: true,
-		Version: func(db drivers.DB) (string, error) {
+		Version: func(context.Context, drivers.DB) (string, error) {
 			return Version, nil
 		},
 		Err: func(err error) (string, string) {
@@ -219,11 +221,11 @@ func usqlRegister() {
 		RowsAffected: func(sql.Result) (int64, error) {
 			return 0, nil
 		},
-		Open: func(url *dburl.URL) (handler func(driverName, dataSourceName string) (*sql.DB, error), err error) {
+		Open: func(ctx context.Context, url *dburl.URL, _, _ func() io.Writer) (handler func(driverName, dataSourceName string) (*sql.DB, error), err error) {
 			ConsoleLog.Infof("connecting to %#v", url.DSN)
 
 			// wait for database to become ready
-			ctx, cancel := context.WithTimeout(context.Background(), waitTxConfirmationMaxDuration)
+			ctx, cancel := context.WithTimeout(ctx, waitTxConfirmationMaxDuration)
 			defer cancel()
 			if err = client.WaitDBCreation(ctx, url.DSN); err != nil {
 				return
@@ -236,8 +238,8 @@ func usqlRegister() {
 	// register covenantsql:// scheme to dburl
 	dburl.Register(dburl.Scheme{
 		Driver: "covenantsql",
-		Generator: func(url *dburl.URL) (string, error) {
-			return url.String(), nil
+		Generator: func(url *dburl.URL) (string, string, error) {
+			return url.String(), "", nil
 		},
 	})
 }
@@ -259,18 +261,20 @@ func run(u *user.User) (err error) {
 	}
 
 	// create input/output
-	interactive := command != ""
-	l, err := rline.New(interactive, outFile, env.HistoryFile(u))
+	interactive := isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
+	cygwin := isatty.IsCygwinTerminal(os.Stdout.Fd()) && isatty.IsCygwinTerminal(os.Stdin.Fd())
+	l, err := rline.New(interactive, cygwin, command != "", outFile, env.HistoryFile(u))
 	if err != nil {
 		return err
 	}
 	defer l.Close()
 
-	// create handler
-	h := handler.New(l, u, wd, true)
+	// create handler, without charts
+	h := handler.New(l, u, wd, memfs.New(), true)
 
 	// open dsn
-	if err = h.Open(dsn); err != nil {
+	ctx := context.Background()
+	if err = h.Open(ctx, dsn); err != nil {
 		return err
 	}
 
@@ -279,7 +283,7 @@ func run(u *user.User) (err error) {
 		if h.IO().Interactive() {
 			return text.ErrSingleTransactionCannotBeUsedWithInteractiveMode
 		}
-		if err = h.Begin(); err != nil {
+		if err = h.BeginTx(ctx, nil); err != nil {
 			return err
 		}
 	}

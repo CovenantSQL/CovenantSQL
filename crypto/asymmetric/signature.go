@@ -24,6 +24,7 @@ import (
 	ec "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	lru "github.com/hashicorp/golang-lru"
+	"gitlab.com/yawning/secp256k1-voi/secec"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
@@ -92,17 +93,20 @@ func (private *PrivateKey) Sign(hash []byte) (*Signature, error) {
 	}
 	seckey := utils.PaddedBigBytes(private.D, private.Params().BitSize/8)
 	defer zeroBytes(seckey)
-	var key ec.PrivateKey
-	defer key.Zero()
-	if len(seckey) != PrivateKeyBytesLen || key.Key.SetByteSlice(seckey) || key.Key.IsZero() {
-		return nil, errors.New("invalid private key")
+	// secp256k1-voi signs in constant time, unlike the ecdsa.Sign of btcec, which multiplies
+	// and inverts the nonce in variable time. With RFC6979SHA256 its signatures are the same as
+	// those of libsecp256k1.
+	key, err := secec.NewPrivateKey(seckey)
+	if err != nil {
+		return nil, err
 	}
-	sig := ecdsa.Sign(&key, hash)
-	r, s := sig.R(), sig.S()
-	rb, sb := r.Bytes(), s.Bytes()
+	r, s, _, err := key.SignRaw(secec.RFC6979SHA256(), hash)
+	if err != nil {
+		return nil, err
+	}
 	return &Signature{
-		R: new(big.Int).SetBytes(rb[:]),
-		S: new(big.Int).SetBytes(sb[:]),
+		R: new(big.Int).SetBytes(r.Bytes()),
+		S: new(big.Int).SetBytes(s.Bytes()),
 	}, nil
 }
 
@@ -142,15 +146,16 @@ func verifySignature(pubKey, hash, signature []byte) bool {
 	if len(hash) != 32 {
 		return false
 	}
-	var r, s ec.ModNScalar
-	if r.SetByteSlice(signature[:32]) || s.SetByteSlice(signature[32:]) || s.IsOverHalfOrder() {
+	// ParseCompactSignature rejects an R or S outside [1, N-1].
+	r, s, err := secec.ParseCompactSignature(signature)
+	if err != nil || s.IsGreaterThanHalfN() != 0 {
 		return false
 	}
-	key, err := ec.ParsePubKey(pubKey)
+	key, err := secec.NewPublicKey(pubKey)
 	if err != nil {
 		return false
 	}
-	return ecdsa.NewSignature(&r, &s).Verify(hash, key)
+	return key.VerifyRaw(hash, r, s)
 }
 
 // MarshalBinary does the serialization.

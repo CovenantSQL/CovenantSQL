@@ -49,6 +49,7 @@ require (
 	github.com/xo/usql v0.7.4
 	github.com/xtaci/smux v1.3.4-0.20190522035559-79b3c96b84d1
 	github.com/zserge/metric v0.1.1-0.20190429132510-b0b64cb7bfea
+	gitlab.com/yawning/secp256k1-voi v0.0.0-20230925100816-f2616030848b
 	go.yaml.in/yaml/v2 v2.4.5
 	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
@@ -120,6 +121,7 @@ require (
 	github.com/xo/tblfmt v0.0.0-20190609041254-28c54ec42ce8 // indirect
 	github.com/xo/terminfo v0.0.0-20190125114736-1a4775eeeb62 // indirect
 	github.com/zaf/temp v0.0.0-20170209143821-94e385923345 // indirect
+	gitlab.com/yawning/tuplehash v0.0.0-20230713102510-df83abbf9a02 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.8.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0 // indirect

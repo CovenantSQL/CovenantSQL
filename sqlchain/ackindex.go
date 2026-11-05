@@ -110,7 +110,9 @@ func (i *multiAckIndex) acks() (ret []*types.SignedAckHeader) {
 	return
 }
 
-func (i *multiAckIndex) expire() {
+// expire logs the queries left in i, which has expired, and returns how many responses and acks
+// it holds.
+func (i *multiAckIndex) expire() (responses, acks int) {
 	i.RLock()
 	defer i.RUnlock()
 	// TODO(leventeliu): need further processing.
@@ -139,6 +141,7 @@ func (i *multiAckIndex) expire() {
 			"ack_time":      v.Timestamp,
 		}).Warn("query expires without block producing")
 	}
+	return len(i.respIndex), len(i.ackIndex)
 }
 
 type ackIndex struct {
@@ -190,11 +193,12 @@ func (i *ackIndex) advance(h int32) {
 	}
 	i.barrier = h
 	i.Unlock()
-	// Record expired and not acknowledged queries
+	// Record expired and not acknowledged queries. A query that loaded v before it was removed
+	// from i.hi can still be adding to it, so v is only read under its lock, in expire.
 	for _, v := range dl {
-		v.expire()
-		atomic.AddInt32(&i.responseCount, int32(-len(v.respIndex)))
-		atomic.AddInt32(&i.ackCount, int32(-len(v.ackIndex)))
+		responses, acks := v.expire()
+		atomic.AddInt32(&i.responseCount, int32(-responses))
+		atomic.AddInt32(&i.ackCount, int32(-acks))
 	}
 	atomic.AddInt32(&i.multiIndexCount, int32(-len(dl)))
 }

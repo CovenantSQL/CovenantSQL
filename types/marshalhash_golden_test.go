@@ -47,12 +47,8 @@ const goldenFile = "testdata/marshalhash.golden"
 
 var updateGolden = flag.Bool("update", false, "rewrite "+goldenFile+" with the current MarshalHash output")
 
-type marshaler interface {
-	MarshalHash() ([]byte, error)
-}
-
 // hashedTypes has a value of every type with a generated MarshalHash.
-var hashedTypes = []interface{}{
+var hashedTypes = []verifier.MarshalHasher{
 	// blockproducer/interfaces
 	new(pi.AccountNonce), new(pi.TransactionState), new(pi.TransactionType),
 	new(pi.TransactionTypeMixin),
@@ -98,8 +94,9 @@ var hashedTypes = []interface{}{
 	new(xtypes.SignedBlockHeader),
 }
 
-// filler sets every exported field, element and pointer to a distinct value derived from a
-// counter, so that a moved field or a changed encoding changes the bytes.
+// filler sets every exported field, element and pointer to a value derived from a counter, so
+// that a moved field or a changed encoding changes the bytes. Integers vary their sign and size,
+// and strings and byte slices their length, to use the different encodings of each.
 type filler struct {
 	n   int
 	pub *asymmetric.PublicKey
@@ -118,6 +115,8 @@ func newFiller() *filler {
 func (f *filler) fill(v reflect.Value) {
 	f.n++
 	n := int64(f.n)
+	// 2 to 304 bytes, across the 5-, 8- and 16-bit length encodings.
+	text := fmt.Sprint("s", n) + strings.Repeat("x", f.n%3*150)
 	switch v.Type() {
 	case reflect.TypeOf(f.pub):
 		v.Set(reflect.ValueOf(f.pub))
@@ -134,8 +133,6 @@ func (f *filler) fill(v reflect.Value) {
 		v.Set(reflect.ValueOf(tx))
 		return
 	}
-	// Integers alternate sign and are shifted by 0, 16, 32 or 48 bits, to use several encodings.
-	shift := uint(f.n % 4 * 16)
 	switch v.Kind() {
 	case reflect.Ptr:
 		v.Set(reflect.New(v.Type().Elem()))
@@ -159,7 +156,16 @@ func (f *filler) fill(v reflect.Value) {
 			}
 		}
 	case reflect.Slice:
-		v.Set(reflect.MakeSlice(v.Type(), 2, 2))
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			v.SetBytes([]byte(text))
+			break
+		}
+		// Slices of pointers get a third element, left nil, which encodes as nil.
+		size := 2
+		if v.Type().Elem().Kind() == reflect.Ptr {
+			size = 3
+		}
+		v.Set(reflect.MakeSlice(v.Type(), size, size))
 		f.fill(v.Index(0))
 		f.fill(v.Index(1))
 	case reflect.Array:
@@ -168,21 +174,35 @@ func (f *filler) fill(v reflect.Value) {
 		}
 	case reflect.Interface:
 		// Every type a query argument or a result column holds.
-		v.Set(reflect.ValueOf([]interface{}{nil, true, -n << shift, uint64(n) << shift, float64(n) + 0.5,
-			fmt.Sprint("s", n), []byte{byte(n)}, time.Unix(n, 1000*n).UTC()}))
+		v.Set(reflect.ValueOf([]interface{}{nil, true, false, n, -n << 40, uint64(n) << 40,
+			float64(n) + 0.5, text, []byte(text), time.Unix(n, 1000*n).UTC()}))
 	case reflect.String:
-		v.SetString(fmt.Sprint("s", n))
+		v.SetString(text)
 	case reflect.Bool:
 		v.SetBool(f.n%2 == 0)
+		return
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v.SetInt(n << shift * (1 - n%2*2))
+		v.SetInt(f.integer(v.Type().Bits()) * (1 - n%2*2))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v.SetUint(uint64(n) << shift)
+		v.SetUint(uint64(f.integer(v.Type().Bits())))
 	case reflect.Float32, reflect.Float64:
 		v.SetFloat(float64(n) + 0.5)
 	default:
 		panic("cannot fill " + v.Type().String())
 	}
+	// A struct is zero only when it has no exported fields, like types.AckResponse.
+	if v.Kind() != reflect.Struct && v.IsZero() {
+		panic("filled " + v.Type().String() + " with its zero value")
+	}
+}
+
+// integer returns a non-zero value for an integer of the given width: bytes cycle through 1 to
+// 255, wider integers are the counter shifted by 0, 1/4, 1/2 or 3/4 of their width.
+func (f *filler) integer(bits int) int64 {
+	if bits == 8 {
+		return int64(f.n%255 + 1)
+	}
+	return int64(f.n) << (f.n % 4 * bits / 4)
 }
 
 // generatedMethods returns "package.Type.Method" for every MarshalHash method in the
@@ -233,9 +253,9 @@ func TestMarshalHashGolden(t *testing.T) {
 			typ := reflect.TypeOf(v).Elem()
 			name := strings.TrimPrefix(typ.PkgPath(), "github.com/CovenantSQL/CovenantSQL/") + "." + typ.Name()
 			// The zero value takes the nil, empty and default-version branches.
-			record(name+".MarshalHash/zero", reflect.New(typ).Interface().(marshaler).MarshalHash)
+			record(name+".MarshalHash/zero", reflect.New(typ).Interface().(verifier.MarshalHasher).MarshalHash)
 			newFiller().fill(reflect.ValueOf(v).Elem())
-			record(name+".MarshalHash", v.(marshaler).MarshalHash)
+			record(name+".MarshalHash", v.MarshalHash)
 		}
 		// MarshalHash of UpdateBillingHeader runs one of these, as Version says.
 		h := new(types.UpdateBillingHeader)

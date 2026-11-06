@@ -1,0 +1,269 @@
+/*
+ * Copyright 2026 The CovenantSQL Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package types_test
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
+
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
+	xtypes "github.com/CovenantSQL/CovenantSQL/xenomint/types"
+)
+
+const goldenFile = "testdata/marshalhash.golden"
+
+var updateGolden = flag.Bool("update", false, "rewrite "+goldenFile+" with the current MarshalHash output")
+
+// hashedPackages hold the hsp-generated MarshalHash methods, relative to the repository root.
+var hashedPackages = []string{
+	"blockproducer/interfaces", "crypto/verifier", "proto", "types", "xenomint/types",
+}
+
+// hashedTypes has a value of every type with a generated MarshalHash.
+var hashedTypes = []interface{}{
+	// blockproducer/interfaces
+	new(pi.AccountNonce), new(pi.TransactionState), new(pi.TransactionType),
+	new(pi.TransactionTypeMixin),
+	// crypto/verifier
+	new(verifier.DefaultHashSignVerifierImpl),
+	// proto
+	new(proto.AddrAndGas), new(proto.DatabaseID), new(proto.Envelope), new(proto.FindNeighborReq),
+	new(proto.FindNeighborResp), new(proto.FindNodeReq), new(proto.FindNodeResp), new(proto.Node),
+	new(proto.NodeID), new(proto.NodeKey), new(proto.Peers), new(proto.PeersHeader),
+	new(proto.PingReq), new(proto.PingResp), new(proto.RawNodeID), new(proto.ServerRole),
+	new(proto.ServerRoles), new(proto.UploadMetricsReq), new(proto.UploadMetricsResp),
+	// types
+	new(types.Account), new(types.Ack), new(types.AckHeader), new(types.AckResponse),
+	new(types.BaseAccount), new(types.Block), new(types.Blocks), new(types.BPBlock),
+	new(types.BPHeader), new(types.BPSignedHeader), new(types.CreateDatabase),
+	new(types.CreateDatabaseHeader), new(types.CreateDatabaseRequest),
+	new(types.CreateDatabaseRequestHeader), new(types.CreateDatabaseResponse),
+	new(types.CreateDatabaseResponseHeader), new(types.DropDatabaseRequest),
+	new(types.DropDatabaseRequestHeader), new(types.DropDatabaseResponse),
+	new(types.GetDatabaseRequest), new(types.GetDatabaseRequestHeader),
+	new(types.GetDatabaseResponse), new(types.GetDatabaseResponseHeader), new(types.Header),
+	new(types.InitService), new(types.InitServiceResponse), new(types.InitServiceResponseHeader),
+	new(types.IssueKeys), new(types.IssueKeysHeader), new(types.MinerIncome), new(types.MinerInfo),
+	new(types.MinerKey), new(types.NamedArg), new(types.ProviderProfile), new(types.ProvideService),
+	new(types.ProvideServiceHeader), new(types.Query), new(types.QueryAsTx), new(types.QueryKey),
+	new(types.QueryType), new(types.Range), new(types.Request), new(types.RequestHeader),
+	new(types.RequestPayload), new(types.ResourceMeta), new(types.Response),
+	new(types.ResponseHeader), new(types.ResponsePayload), new(types.ResponseRow),
+	new(types.ServiceInstance), new(types.SignedAckHeader),
+	new(types.SignedCreateDatabaseRequestHeader), new(types.SignedCreateDatabaseResponseHeader),
+	new(types.SignedDropDatabaseRequestHeader), new(types.SignedGetDatabaseRequestHeader),
+	new(types.SignedGetDatabaseResponseHeader), new(types.SignedHeader),
+	new(types.SignedInitServiceResponseHeader), new(types.SignedRequestHeader),
+	new(types.SignedResponseHeader), new(types.SignedUpdateServiceHeader),
+	new(types.SQLChainProfile), new(types.SQLChainRole), new(types.SQLChainUser), new(types.Status),
+	new(types.TokenType), new(types.Transfer), new(types.TransferHeader), new(types.UpdateBilling),
+	new(types.UpdateBillingHeader), new(types.UpdatePermission), new(types.UpdatePermissionHeader),
+	new(types.UpdateService), new(types.UpdateServiceHeader), new(types.UpdateServiceResponse),
+	new(types.UpdateType), new(types.UserArrears), new(types.UserCost), new(types.UserPermission),
+	new(types.UserPermissionRole),
+	// xenomint/types
+	new(xtypes.Block), new(xtypes.BlockHeader), new(xtypes.DefaultHashSignVerifierImpl),
+	new(xtypes.SignedBlockHeader),
+}
+
+// filler sets every exported field, element and pointer to a distinct value derived from a
+// counter, so that a moved field or a changed encoding changes the bytes.
+type filler struct {
+	n   int
+	pub *asymmetric.PublicKey
+	sig *asymmetric.Signature
+}
+
+func newFiller() *filler {
+	priv, pub := asymmetric.PrivKeyFromBytes(bytes.Repeat([]byte{1}, 32))
+	sig, err := priv.Sign(bytes.Repeat([]byte{2}, 32))
+	if err != nil {
+		panic(err)
+	}
+	return &filler{pub: pub, sig: sig}
+}
+
+func (f *filler) fill(v reflect.Value) {
+	f.n++
+	switch v.Type() {
+	case reflect.TypeOf(f.pub):
+		v.Set(reflect.ValueOf(f.pub))
+		return
+	case reflect.TypeOf(f.sig):
+		v.Set(reflect.ValueOf(f.sig))
+		return
+	case reflect.TypeOf(time.Time{}):
+		v.Set(reflect.ValueOf(time.Unix(int64(f.n), int64(f.n)).UTC()))
+		return
+	case reflect.TypeOf((*pi.Transaction)(nil)).Elem():
+		tx := new(types.Transfer)
+		f.fill(reflect.ValueOf(tx).Elem())
+		v.Set(reflect.ValueOf(tx))
+		return
+	}
+	switch v.Kind() {
+	case reflect.Ptr:
+		v.Set(reflect.New(v.Type().Elem()))
+		f.fill(v.Elem())
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			switch {
+			case !v.Field(i).CanSet():
+			case v.Type().Field(i).Tag.Get("hsp") == "v,version":
+				// MarshalHash picks the encoding by this field; use the one new values get.
+				def := v.Addr().Interface().(interface{ HSPDefaultVersion() int }).HSPDefaultVersion()
+				v.Field(i).SetInt(int64(def))
+			default:
+				f.fill(v.Field(i))
+			}
+		}
+	case reflect.Slice:
+		v.Set(reflect.MakeSlice(v.Type(), 2, 2))
+		f.fill(v.Index(0))
+		f.fill(v.Index(1))
+	case reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			f.fill(v.Index(i))
+		}
+	case reflect.Interface:
+		v.Set(reflect.ValueOf(int64(f.n)))
+	case reflect.String:
+		v.SetString(fmt.Sprint("s", f.n))
+	case reflect.Bool:
+		v.SetBool(f.n%2 == 0)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(int64(f.n))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		v.SetUint(uint64(f.n))
+	case reflect.Float32, reflect.Float64:
+		v.SetFloat(float64(f.n) + 0.5)
+	default:
+		panic("cannot fill " + v.Type().String())
+	}
+}
+
+// generatedMethods returns "package.Type.Method" for every MarshalHash method in the
+// hsp-generated files.
+func generatedMethods() (names []string, err error) {
+	for _, pkg := range hashedPackages {
+		files, err := filepath.Glob(filepath.Join("..", pkg, "*_gen.go"))
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range files {
+			f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+			if err != nil {
+				return nil, err
+			}
+			for _, decl := range f.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok || fn.Recv == nil || !strings.HasPrefix(fn.Name.Name, "MarshalHash") {
+					continue
+				}
+				recv := fn.Recv.List[0].Type
+				if star, ok := recv.(*ast.StarExpr); ok {
+					recv = star.X
+				}
+				names = append(names, pkg+"."+recv.(*ast.Ident).Name+"."+fn.Name.Name)
+			}
+		}
+	}
+	return
+}
+
+func TestMarshalHashGolden(t *testing.T) {
+	Convey("MarshalHash of every generated type matches "+goldenFile, t, func() {
+		got := map[string]string{}
+		var failed []string
+		record := func(name string, marshal func() ([]byte, error)) {
+			b, err := marshal()
+			if err != nil {
+				failed = append(failed, name+": "+err.Error())
+			}
+			got[name] = fmt.Sprintf("%x", sha256.Sum256(b))
+		}
+		for _, v := range hashedTypes {
+			newFiller().fill(reflect.ValueOf(v).Elem())
+			typ := reflect.TypeOf(v).Elem()
+			name := strings.TrimPrefix(typ.PkgPath(), "github.com/CovenantSQL/CovenantSQL/") + "." + typ.Name()
+			record(name+".MarshalHash", v.(interface{ MarshalHash() ([]byte, error) }).MarshalHash)
+		}
+		// MarshalHash of UpdateBillingHeader runs one of these, as Version says.
+		h := new(types.UpdateBillingHeader)
+		newFiller().fill(reflect.ValueOf(h).Elem())
+		record("types.UpdateBillingHeader.MarshalHasholdver", h.MarshalHasholdver)
+		record("types.UpdateBillingHeader.MarshalHash9ef447", h.MarshalHash9ef447)
+		So(failed, ShouldBeEmpty)
+
+		generated, err := generatedMethods()
+		So(err, ShouldBeNil)
+		var uncovered []string
+		for _, name := range generated {
+			if _, ok := got[name]; !ok {
+				uncovered = append(uncovered, name)
+			}
+		}
+		So(uncovered, ShouldBeEmpty)
+
+		var lines []string
+		for name, sum := range got {
+			lines = append(lines, name+" "+sum)
+		}
+		sort.Strings(lines)
+		if *updateGolden {
+			So(os.WriteFile(goldenFile, []byte(strings.Join(lines, "\n")+"\n"), 0644), ShouldBeNil)
+		}
+		data, err := os.ReadFile(goldenFile)
+		So(err, ShouldBeNil)
+		want := map[string]string{}
+		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+			name, sum, _ := strings.Cut(line, " ")
+			want[name] = sum
+		}
+		// A name here means its encoding changed. If that is intended, rerun with -update.
+		var changed []string
+		for name, sum := range got {
+			if want[name] != sum {
+				changed = append(changed, name)
+			}
+			delete(want, name)
+		}
+		for name := range want {
+			changed = append(changed, name)
+		}
+		sort.Strings(changed)
+		So(changed, ShouldBeEmpty)
+	})
+}

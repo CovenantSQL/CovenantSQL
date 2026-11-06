@@ -48,7 +48,7 @@ require (
 	github.com/ugorji/go v1.1.4
 	github.com/xo/dburl v0.25.1
 	github.com/xo/usql v0.21.6
-	github.com/xtaci/smux v1.3.4-0.20190522035559-79b3c96b84d1
+	github.com/xtaci/smux v1.5.58
 	github.com/zserge/metric v0.1.1-0.20190429132510-b0b64cb7bfea
 	go.yaml.in/yaml/v2 v2.4.5
 	golang.org/x/crypto v0.58.0
@@ -112,7 +112,6 @@ require (
 	github.com/pingcap/errors v0.11.5-0.20260310054046-9c8b3586e4b2 // indirect
 	github.com/pingcap/log v1.1.1-0.20260227082333-572e590d08f1 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20260504140133-511dba1dbe17 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect

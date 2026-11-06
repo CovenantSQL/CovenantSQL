@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	bazil.org/fuse v0.0.0-20180421153158-65cc252bf669
-	github.com/CovenantSQL/HashStablePack v2.0.1-0.20190327095521-90c11134d028+incompatible
+	github.com/CovenantSQL/HashStablePack/v2 v2.1.0
 	github.com/CovenantSQL/beacon v0.0.0-20261106014602-6eeafaefe30d
 	github.com/CovenantSQL/go-sqlite3-encrypt v1.11.0
 	github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6

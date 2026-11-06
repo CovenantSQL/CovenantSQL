@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+	hsp "github.com/CovenantSQL/HashStablePack/v2/marshalhash"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"

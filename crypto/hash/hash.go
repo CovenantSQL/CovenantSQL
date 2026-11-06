@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+	hsp "github.com/CovenantSQL/HashStablePack/v2/marshalhash"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )

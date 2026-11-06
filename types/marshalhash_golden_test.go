@@ -93,7 +93,8 @@ var hashedTypes = []verifier.MarshalHasher{
 // filler sets every exported field, element and pointer to a value derived from a counter, so
 // that a moved field or a changed encoding changes the bytes. Integers vary their sign and size,
 // and strings and byte slices their length, to use the different encodings of each. Nothing is
-// left zero except bools that are false and, on purpose, the last element of slices of pointers.
+// left zero except bools that are false, the nil interface sample, structs without exported
+// fields and, on purpose, the last element of slices of pointers.
 type filler struct {
 	n   int
 	pub *asymmetric.PublicKey
@@ -112,7 +113,7 @@ func newFiller() *filler {
 func (f *filler) fill(v reflect.Value) {
 	f.n++
 	n := int64(f.n)
-	// 2 to 304 bytes, across the 5-, 8- and 16-bit length encodings.
+	// Short or over 255 bytes, across the 5-, 8- and 16-bit length encodings.
 	text := fmt.Sprint("s", n) + strings.Repeat("x", f.n%3*150)
 	switch v.Type() {
 	case reflect.TypeOf(f.pub):
@@ -184,7 +185,8 @@ func (f *filler) fill(v reflect.Value) {
 		v.SetBool(f.n%2 == 0)
 		return
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		// The sign changes every fourth value, so that each size is used with both signs.
+		// The sign changes every fourth value, so that each size is used with both signs;
+		// truncating to 32 bits can flip it again.
 		x := f.integer(bits(v)) * (1 - n/4%2*2)
 		if bits(v) == 32 {
 			x = int64(int32(x))

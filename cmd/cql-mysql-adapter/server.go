@@ -19,25 +19,41 @@ package main
 import (
 	"net"
 
-	mys "github.com/siddontang/go-mysql/server"
+	my "github.com/go-mysql-org/go-mysql/mysql"
+	mys "github.com/go-mysql-org/go-mysql/server"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// mysqlServer announces what the go-mysql fork the adapter used before did:
+// MySQL 5.7.0, utf8_general_ci and no TLS. It also announces
+// mysql_native_password, which the fork checked passwords with but never
+// announced, so clients that start with another auth method get switched to
+// it. The upstream default server announces 8.0.11 and utf8mb4, and offers TLS
+// with a self-signed certificate.
+var mysqlServer = mys.NewServer("5.7.0", utf8GeneralCI, my.AUTH_NATIVE_PASSWORD, nil, nil)
+
 // Server defines the main logic of mysql protocol adapter.
 type Server struct {
-	listenAddr    string
-	listener      net.Listener
-	mysqlUser     string
-	mysqlPassword string
+	listenAddr string
+	listener   net.Listener
+	mysqlUser  string
+	mysqlAuth  *mys.InMemoryAuthenticationHandler
 }
 
 // NewServer bind the service port and return a runnable adapter.
 func NewServer(listenAddr string, user string, password string) (s *Server, err error) {
 	s = &Server{
-		listenAddr:    listenAddr,
-		mysqlUser:     user,
-		mysqlPassword: password,
+		listenAddr: listenAddr,
+		mysqlUser:  user,
+		// mysqlServer.NewConn would store the password for
+		// caching_sha2_password, whose full authentication needs TLS or an RSA
+		// key that mysqlServer doesn't have.
+		mysqlAuth: mys.NewInMemoryAuthenticationHandler(my.AUTH_NATIVE_PASSWORD),
+	}
+
+	if err = s.mysqlAuth.AddUser(user, password); err != nil {
+		return
 	}
 
 	if s.listener, err = net.Listen("tcp", listenAddr); err != nil {
@@ -63,7 +79,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	cursor := NewCursor(s)
 	defer cursor.Close()
 
-	h, err := mys.NewConn(conn, s.mysqlUser, s.mysqlPassword, cursor)
+	h, err := mysqlServer.NewCustomizedConn(conn, s.mysqlAuth, cursor)
 
 	if err != nil {
 		log.WithError(err).Error("process connection failed")

@@ -24,11 +24,15 @@ import (
 	"strings"
 	"sync"
 
-	my "github.com/siddontang/go-mysql/mysql"
+	my "github.com/go-mysql-org/go-mysql/mysql"
 
 	"github.com/CovenantSQL/CovenantSQL/client"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
+
+// utf8GeneralCI is the collation ID of utf8_general_ci, the collation that
+// mysqlServerVariables reports.
+const utf8GeneralCI = 33
 
 var (
 	dbIDRegex                     = regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
@@ -238,12 +242,17 @@ func (c *Cursor) handleSpecialQuery(query string) (r *my.Result, processed bool,
 
 		switch strings.ToUpper(matches[1]) {
 		case "DATABASE":
+			// Like MySQL, DATABASE() is NULL until a database is selected.
+			var curDB interface{}
 			c.curDBLock.Lock()
+			if c.curDB != "" {
+				curDB = c.curDB
+			}
+			c.curDBLock.Unlock()
 			resultSet, _ = my.BuildSimpleTextResultset(
 				[]string{"DATABASE()"},
-				[][]interface{}{{c.curDB}},
+				[][]interface{}{{curDB}},
 			)
-			c.curDBLock.Unlock()
 		case "USER":
 			resultSet, _ = my.BuildSimpleTextResultset(
 				[]string{"USER()"},
@@ -410,7 +419,7 @@ func (c *Cursor) HandleFieldList(table string, fieldWildcard string) (fields []*
 			OrgTable:     []byte(table),
 			Schema:       []byte(c.curDB),
 			Flag:         colFlag,
-			Charset:      uint16(my.DEFAULT_COLLATION_ID),
+			Charset:      utf8GeneralCI,
 			ColumnLength: 0, // no column length specified
 			Type:         c.detectColumnType(typeString),
 		})

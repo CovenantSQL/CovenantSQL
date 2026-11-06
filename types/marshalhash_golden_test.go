@@ -40,7 +40,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
-	xtypes "github.com/CovenantSQL/CovenantSQL/xenomint/types"
 )
 
 const goldenFile = "testdata/marshalhash.golden"
@@ -89,9 +88,6 @@ var hashedTypes = []verifier.MarshalHasher{
 	new(types.UpdateService), new(types.UpdateServiceHeader), new(types.UpdateServiceResponse),
 	new(types.UpdateType), new(types.UserArrears), new(types.UserCost), new(types.UserPermission),
 	new(types.UserPermissionRole),
-	// xenomint/types
-	new(xtypes.Block), new(xtypes.BlockHeader), new(xtypes.DefaultHashSignVerifierImpl),
-	new(xtypes.SignedBlockHeader),
 }
 
 // filler sets every exported field, element and pointer to a value derived from a counter, so

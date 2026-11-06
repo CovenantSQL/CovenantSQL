@@ -92,7 +92,8 @@ var hashedTypes = []verifier.MarshalHasher{
 
 // filler sets every exported field, element and pointer to a value derived from a counter, so
 // that a moved field or a changed encoding changes the bytes. Integers vary their sign and size,
-// and strings and byte slices their length, to use the different encodings of each.
+// and strings and byte slices their length, to use the different encodings of each. Nothing is
+// left zero except bools that are false and, on purpose, the last element of slices of pointers.
 type filler struct {
 	n   int
 	pub *asymmetric.PublicKey
@@ -169,9 +170,11 @@ func (f *filler) fill(v reflect.Value) {
 			f.fill(v.Index(i))
 		}
 	case reflect.Interface:
-		// One value of each type that hsp.AppendIntf encodes on its own, and a string over 64 KiB.
+		// nil, both bools, each integer and float type, strings (one over 64 KiB), bytes and a
+		// time. AppendIntf also encodes complex numbers, maps, Marshalers and Extensions, which
+		// these samples leave out.
 		v.Set(reflect.ValueOf([]interface{}{nil, true, false,
-			-n, -n << 40, int(n) << 36, int8(-n), int16(n << 4), int32(-n << 12),
+			-n, -n << 40, int(n) << 8, int8(-n), int16(n << 4), int32(-n << 12),
 			uint(n), uint8(n), uint16(n << 4), uint32(n << 12), uint64(n) << 40,
 			float32(n) + 0.5, float64(n) + 0.5, text, strings.Repeat("y", 1<<16+f.n), []byte(text),
 			time.Unix(n, 1000*n).UTC()}))
@@ -182,9 +185,17 @@ func (f *filler) fill(v reflect.Value) {
 		return
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		// The sign changes every fourth value, so that each size is used with both signs.
-		v.SetInt(f.integer(v.Type().Bits()) * (1 - n/4%2*2))
+		x := f.integer(bits(v)) * (1 - n/4%2*2)
+		if bits(v) == 32 {
+			x = int64(int32(x))
+		}
+		v.SetInt(x)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v.SetUint(uint64(f.integer(v.Type().Bits())))
+		x := uint64(f.integer(bits(v)))
+		if bits(v) == 32 {
+			x = uint64(uint32(x))
+		}
+		v.SetUint(x)
 	case reflect.Float32, reflect.Float64:
 		v.SetFloat(float64(n) + 0.5)
 	default:
@@ -203,6 +214,15 @@ func (f *filler) integer(bits int) int64 {
 		return int64(f.n%255 + 1)
 	}
 	return int64(f.n) << (f.n % 4 * bits / 4)
+}
+
+// bits returns the width of an integer the samples use. int and uint get 32-bit values, the
+// size they have on 386 and arm, so that the goldens do not depend on the word size.
+func bits(v reflect.Value) int {
+	if k := v.Kind(); k == reflect.Int || k == reflect.Uint {
+		return 32
+	}
+	return v.Type().Bits()
 }
 
 // generatedMethods returns "package.Type.Method" for every MarshalHash method in the

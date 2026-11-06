@@ -46,8 +46,8 @@ github.com/ClickHouse/ch-go v0.74.0 h1:uYs2m4wIt0ZHSM1E72rg0maCfzhR2V3xWb/vZEgpe
 github.com/ClickHouse/ch-go v0.74.0/go.mod h1:sZ/r+8ttZMjyrP9PuFbgoVbth1ywIu2LIQNA2vgko6M=
 github.com/ClickHouse/clickhouse-go/v2 v2.48.0 h1:auzd4VkapQYhQF8F2Gog7s3x78Bi1JZmByxGbrw3C+4=
 github.com/ClickHouse/clickhouse-go/v2 v2.48.0/go.mod h1:lBjUCPRG6RpRQdMbkXq+JV8rY0/O5lw+Z7jShgReFjM=
-github.com/CovenantSQL/HashStablePack v2.0.1-0.20190327095521-90c11134d028+incompatible h1:uGX+LQ7goT5jCkeVVA5P9gVpeJFpKKeWjojf0uSs8Vk=
-github.com/CovenantSQL/HashStablePack v2.0.1-0.20190327095521-90c11134d028+incompatible/go.mod h1:j3/ZR//Y2JLhvJrwzE0TUe4Jx2L80N7r8xh6gfQkkUg=
+github.com/CovenantSQL/HashStablePack/v2 v2.1.0 h1:t+jC9Ks7fJktGIRKBd5LRqf7RuIbLpZIsQ3yzofJQCU=
+github.com/CovenantSQL/HashStablePack/v2 v2.1.0/go.mod h1:ypqPzo5R03c+WN8CW9UqUQfDvhfaXkD6mUEeZSmU/gY=
 github.com/CovenantSQL/beacon v0.0.0-20261106014602-6eeafaefe30d h1:1c55wx8TSaqc43FMupfwio+4Gv/7Rt/OqsY8kTaHdos=
 github.com/CovenantSQL/beacon v0.0.0-20261106014602-6eeafaefe30d/go.mod h1:KSd38NuQOi+rubo/uBC0iXl89be9PDcdkErBdL150C0=
 github.com/CovenantSQL/go-sqlite3-encrypt v1.11.0 h1:tLpBtjBtOQQ13PuVqVZBmhRscssH4Otxwr4eJX4Qb3U=

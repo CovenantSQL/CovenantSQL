@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	hsp "github.com/CovenantSQL/HashStablePack/marshalhash"
+	hsp "github.com/CovenantSQL/HashStablePack/v2/marshalhash"
 	ec "github.com/btcsuite/btcd/btcec/v2"
 
 	mine "github.com/CovenantSQL/CovenantSQL/pow/cpuminer"

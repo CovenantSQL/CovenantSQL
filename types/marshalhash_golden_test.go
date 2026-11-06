@@ -24,6 +24,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -46,9 +47,8 @@ const goldenFile = "testdata/marshalhash.golden"
 
 var updateGolden = flag.Bool("update", false, "rewrite "+goldenFile+" with the current MarshalHash output")
 
-// hashedPackages hold the hsp-generated MarshalHash methods, relative to the repository root.
-var hashedPackages = []string{
-	"blockproducer/interfaces", "crypto/verifier", "proto", "types", "xenomint/types",
+type marshaler interface {
+	MarshalHash() ([]byte, error)
 }
 
 // hashedTypes has a value of every type with a generated MarshalHash.
@@ -117,6 +117,7 @@ func newFiller() *filler {
 
 func (f *filler) fill(v reflect.Value) {
 	f.n++
+	n := int64(f.n)
 	switch v.Type() {
 	case reflect.TypeOf(f.pub):
 		v.Set(reflect.ValueOf(f.pub))
@@ -125,7 +126,7 @@ func (f *filler) fill(v reflect.Value) {
 		v.Set(reflect.ValueOf(f.sig))
 		return
 	case reflect.TypeOf(time.Time{}):
-		v.Set(reflect.ValueOf(time.Unix(int64(f.n), int64(f.n)).UTC()))
+		v.Set(reflect.ValueOf(time.Unix(1500000000+n, 1000*n).UTC()))
 		return
 	case reflect.TypeOf((*pi.Transaction)(nil)).Elem():
 		tx := new(types.Transfer)
@@ -133,20 +134,28 @@ func (f *filler) fill(v reflect.Value) {
 		v.Set(reflect.ValueOf(tx))
 		return
 	}
+	// Integers alternate sign and are shifted by 0, 16, 32 or 48 bits, to use several encodings.
+	shift := uint(f.n % 4 * 16)
 	switch v.Kind() {
 	case reflect.Ptr:
 		v.Set(reflect.New(v.Type().Elem()))
 		f.fill(v.Elem())
 	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
+		// Fill the fields in name order: hsp sorts them, so the declaration order is not encoded.
+		fields := make([]reflect.StructField, v.NumField())
+		for i := range fields {
+			fields[i] = v.Type().Field(i)
+		}
+		sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+		for _, field := range fields {
 			switch {
-			case !v.Field(i).CanSet():
-			case v.Type().Field(i).Tag.Get("hsp") == "v,version":
+			case field.PkgPath != "": // unexported, not encoded
+			case field.Tag.Get("hsp") == "v,version":
 				// MarshalHash picks the encoding by this field; use the one new values get.
 				def := v.Addr().Interface().(interface{ HSPDefaultVersion() int }).HSPDefaultVersion()
-				v.Field(i).SetInt(int64(def))
+				v.FieldByIndex(field.Index).SetInt(int64(def))
 			default:
-				f.fill(v.Field(i))
+				f.fill(v.FieldByIndex(field.Index))
 			}
 		}
 	case reflect.Slice:
@@ -158,48 +167,54 @@ func (f *filler) fill(v reflect.Value) {
 			f.fill(v.Index(i))
 		}
 	case reflect.Interface:
-		v.Set(reflect.ValueOf(int64(f.n)))
+		// Every type a query argument or a result column holds.
+		v.Set(reflect.ValueOf([]interface{}{nil, true, -n << shift, uint64(n) << shift, float64(n) + 0.5,
+			fmt.Sprint("s", n), []byte{byte(n)}, time.Unix(n, 1000*n).UTC()}))
 	case reflect.String:
-		v.SetString(fmt.Sprint("s", f.n))
+		v.SetString(fmt.Sprint("s", n))
 	case reflect.Bool:
 		v.SetBool(f.n%2 == 0)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v.SetInt(int64(f.n))
+		v.SetInt(n << shift * (1 - n%2*2))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v.SetUint(uint64(f.n))
+		v.SetUint(uint64(n) << shift)
 	case reflect.Float32, reflect.Float64:
-		v.SetFloat(float64(f.n) + 0.5)
+		v.SetFloat(float64(n) + 0.5)
 	default:
 		panic("cannot fill " + v.Type().String())
 	}
 }
 
 // generatedMethods returns "package.Type.Method" for every MarshalHash method in the
-// hsp-generated files.
+// hsp-generated files of the repository.
 func generatedMethods() (names []string, err error) {
-	for _, pkg := range hashedPackages {
-		files, err := filepath.Glob(filepath.Join("..", pkg, "*_gen.go"))
+	err = filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case d.IsDir() && d.Name() != ".." && strings.HasPrefix(d.Name(), "."):
+			return filepath.SkipDir
+		case d.IsDir() || !strings.HasSuffix(path, "_gen.go"):
+			return nil
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		for _, file := range files {
-			f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
-			if err != nil {
-				return nil, err
+		pkg := filepath.ToSlash(filepath.Dir(strings.TrimPrefix(path, ".."+string(filepath.Separator))))
+		for _, decl := range f.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv == nil || !strings.HasPrefix(fn.Name.Name, "MarshalHash") {
+				continue
 			}
-			for _, decl := range f.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok || fn.Recv == nil || !strings.HasPrefix(fn.Name.Name, "MarshalHash") {
-					continue
-				}
-				recv := fn.Recv.List[0].Type
-				if star, ok := recv.(*ast.StarExpr); ok {
-					recv = star.X
-				}
-				names = append(names, pkg+"."+recv.(*ast.Ident).Name+"."+fn.Name.Name)
+			recv := fn.Recv.List[0].Type
+			if star, ok := recv.(*ast.StarExpr); ok {
+				recv = star.X
 			}
+			names = append(names, pkg+"."+recv.(*ast.Ident).Name+"."+fn.Name.Name)
 		}
-	}
+		return nil
+	})
 	return
 }
 
@@ -215,10 +230,12 @@ func TestMarshalHashGolden(t *testing.T) {
 			got[name] = fmt.Sprintf("%x", sha256.Sum256(b))
 		}
 		for _, v := range hashedTypes {
-			newFiller().fill(reflect.ValueOf(v).Elem())
 			typ := reflect.TypeOf(v).Elem()
 			name := strings.TrimPrefix(typ.PkgPath(), "github.com/CovenantSQL/CovenantSQL/") + "." + typ.Name()
-			record(name+".MarshalHash", v.(interface{ MarshalHash() ([]byte, error) }).MarshalHash)
+			// The zero value takes the nil, empty and default-version branches.
+			record(name+".MarshalHash/zero", reflect.New(typ).Interface().(marshaler).MarshalHash)
+			newFiller().fill(reflect.ValueOf(v).Elem())
+			record(name+".MarshalHash", v.(marshaler).MarshalHash)
 		}
 		// MarshalHash of UpdateBillingHeader runs one of these, as Version says.
 		h := new(types.UpdateBillingHeader)

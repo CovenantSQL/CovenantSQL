@@ -25,10 +25,12 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-// mysqlServer handshakes like the go-mysql fork the adapter used before:
-// MySQL 5.7.0, utf8_general_ci, mysql_native_password and no TLS. The
-// upstream default server announces 8.0.11 and utf8mb4, and offers TLS with a
-// self-signed certificate.
+// mysqlServer announces what the go-mysql fork the adapter used before did:
+// MySQL 5.7.0, utf8_general_ci and no TLS. It also announces
+// mysql_native_password, which the fork checked passwords with but never
+// announced, so clients that start with another auth method get switched to
+// it. The upstream default server announces 8.0.11 and utf8mb4, and offers TLS
+// with a self-signed certificate.
 var mysqlServer = mys.NewServer("5.7.0", utf8GeneralCI, my.AUTH_NATIVE_PASSWORD, nil, nil)
 
 // Server defines the main logic of mysql protocol adapter.

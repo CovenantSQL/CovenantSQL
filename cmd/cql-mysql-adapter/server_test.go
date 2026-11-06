@@ -25,6 +25,24 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func TestServerHandshake(t *testing.T) {
+	Convey("the adapter handshakes as MySQL 5.7.0 and checks the password", t, func() {
+		s, err := NewServer("127.0.0.1:0", "root", "calvin")
+		So(err, ShouldBeNil)
+		go s.Serve()
+		defer s.Shutdown()
+
+		conn, err := myclient.Connect(s.listener.Addr().String(), "root", "calvin", "")
+		So(err, ShouldBeNil)
+		So(conn.GetServerVersion(), ShouldEqual, "5.7.0")
+		So(conn.Close(), ShouldBeNil)
+
+		_, err = myclient.Connect(s.listener.Addr().String(), "root", "wrong", "")
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "ERROR 1045 (28000)")
+	})
+}
+
 func TestConnClosesDatabases(t *testing.T) {
 	Convey("a connection closes the databases it opened", t, func() {
 		s, err := NewServer("127.0.0.1:0", "root", "calvin")
@@ -40,12 +58,19 @@ func TestConnClosesDatabases(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(conn.Close(), ShouldBeNil)
 		}
+		// go-mysql opens the handshake's database before it checks the
+		// password, so a failed login opens one too.
+		failedLogin := func() {
+			_, err := myclient.Connect(s.listener.Addr().String(), "root", "wrong", "db1")
+			So(err, ShouldNotBeNil)
+		}
 
 		// The first session starts whatever runs for the life of the process.
 		session()
 		before := runtime.NumGoroutine()
 		for i := 0; i < 20; i++ {
 			session()
+			failedLogin()
 		}
 
 		// Every open sql.DB keeps a goroutine until it is closed, and the

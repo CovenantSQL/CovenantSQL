@@ -19,16 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"runtime/trace"
 	"time"
-
-	graphite "github.com/cyberdelia/go-metrics-graphite"
-	metrics "github.com/rcrowley/go-metrics"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
@@ -66,15 +62,13 @@ var (
 	// config
 	configFile string
 	genKeyPair bool
-	metricLog  bool
 	metricWeb  string
 
 	// profile
-	cpuProfile     string
-	memProfile     string
-	profileServer  string
-	metricGraphite string
-	traceFile      string
+	cpuProfile    string
+	memProfile    string
+	profileServer string
+	traceFile     string
 
 	// other
 	noLogo      bool
@@ -87,7 +81,6 @@ const desc = `CovenantSQL is a Distributed Database running on BlockChain`
 
 func init() {
 	flag.BoolVar(&noLogo, "nologo", false, "Do not print logo")
-	flag.BoolVar(&metricLog, "metric-log", false, "Print metrics in log")
 	flag.BoolVar(&showVersion, "version", false, "Show version information and exit")
 	flag.BoolVar(&genKeyPair, "gen-keypair", false, "Gen new key pair when no private key found")
 	flag.BoolVar(&asymmetric.BypassSignature, "bypass-signature", false,
@@ -98,7 +91,6 @@ func init() {
 	flag.StringVar(&profileServer, "profile-server", "", "Profile server address, default not started")
 	flag.StringVar(&cpuProfile, "cpu-profile", "", "Path to file for CPU profiling information")
 	flag.StringVar(&memProfile, "mem-profile", "", "Path to file for memory profiling information")
-	flag.StringVar(&metricGraphite, "metric-graphite-server", "", "Metric graphite server to push metrics")
 	flag.StringVar(&metricWeb, "metric-web", "", "Address and port to get internal metrics")
 
 	flag.StringVar(&traceFile, "trace-file", "", "Trace profile")
@@ -259,20 +251,6 @@ func main() {
 	}
 
 	defer dbms.Shutdown()
-
-	if metricLog {
-		go metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.StandardLogger())
-	}
-
-	if metricGraphite != "" {
-		addr, err := net.ResolveTCPAddr("tcp", metricGraphite)
-		if err != nil {
-			log.WithError(err).Error("resolve metric graphite server addr failed")
-			return
-		}
-		minerName := fmt.Sprintf("miner-%s", conf.GConf.ThisNodeID[len(conf.GConf.ThisNodeID)-5:])
-		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, minerName, addr)
-	}
 
 	if traceFile != "" {
 		f, err := os.Create(traceFile)

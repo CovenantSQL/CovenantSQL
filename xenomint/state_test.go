@@ -721,7 +721,8 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		So(sanitizedQuery, ShouldEqual, ddlQuery)
 
 		// transaction statements, which sqlparser cannot parse, pass as they are
-		for _, q := range []string{"BEGIN", "commit", "Rollback;", " BEGIN TRANSACTION ", "COMMIT TRANSACTION;"} {
+		for _, q := range []string{"BEGIN", "commit", "Rollback;", " BEGIN TRANSACTION ", "COMMIT TRANSACTION;",
+			"BEGIN IMMEDIATE", "begin exclusive transaction;"} {
 			containsDDL, sanitizedQuery, _, err = convertQueryAndBuildArgs(q, nil)
 			So(err, ShouldBeNil)
 			So(containsDDL, ShouldBeFalse)

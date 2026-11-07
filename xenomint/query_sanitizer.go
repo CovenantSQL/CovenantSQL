@@ -32,7 +32,8 @@ import (
 var (
 	// transactionStatement matches a pattern that is a single BEGIN, COMMIT or ROLLBACK.
 	// sqlparser has no grammar for them, and they hold nothing to check.
-	transactionStatement = regexp.MustCompile(`(?i)^\s*(?:begin|commit|rollback)(?:\s+transaction)?\s*;?\s*$`)
+	transactionStatement = regexp.MustCompile(
+		`(?i)^\s*(?:begin(?:\s+(?:deferred|immediate|exclusive))?|commit|rollback)(?:\s+transaction)?\s*;?\s*$`)
 
 	sanitizeFunctionMap = map[string]map[string]bool{
 		"load_extension": nil,

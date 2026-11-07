@@ -70,6 +70,58 @@ func TestStorage(t *testing.T) {
 				So(fixed, ShouldEqual, "2000-01-02")
 			}
 		})
+		Convey("Random functions should be denied wherever SQLite compiles them", func() {
+			// The query sanitizer does not check column defaults, CHECK constraints, trigger
+			// bodies or views.
+			w := st.Writer()
+			Convey("In a query on every connection", func() {
+				for _, db := range []*sql.DB{w, st.Reader(), st.DirtyReader()} {
+					_, err = db.Exec(`SELECT random()`)
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "not authorized")
+				}
+			})
+			Convey("In a query that reads the SQLite build", func() {
+				_, err = w.Exec(`SELECT sqlite_version()`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+				_, err = w.Exec(`SELECT sqlite_compileoption_used('ENABLE_ICU')`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a column default", func() {
+				_, err = w.Exec(`CREATE TABLE "d" ("a" INT, "b" INT DEFAULT (RANDOM()))`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a CHECK constraint", func() {
+				_, err = w.Exec(`CREATE TABLE "c" ("x" INT CHECK (random() > 0))`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a trigger body", func() {
+				_, err = w.Exec(`CREATE TABLE "g" ("a" INT, "b" BLOB)`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`CREATE TRIGGER "tr" AFTER INSERT ON "g" BEGIN UPDATE "g" SET "b" = randomblob(4); END`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`INSERT INTO "g" ("a") VALUES (1)`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a view", func() {
+				_, err = w.Exec(`CREATE VIEW "v" AS SELECT random() AS "r"`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`SELECT "r" FROM "v"`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("But not SQLite's own functions, which ALTER TABLE runs", func() {
+				_, err = w.Exec(`CREATE TABLE "g" ("a" INT)`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`ALTER TABLE "g" RENAME TO "g2"`)
+				So(err, ShouldBeNil)
+			})
+		})
 		Convey("When a basic KV table is created", func(c C) {
 			// Create basic table for testing
 			_, err = st.Writer().Exec(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`)

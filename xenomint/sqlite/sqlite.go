@@ -18,6 +18,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
@@ -31,6 +32,24 @@ const (
 	serializableDriver = "sqlite3-custom"
 	dirtyReadDriver    = "sqlite3-dirty-reader"
 )
+
+// deniedFuncs are the functions that would make the miners of a database diverge: random
+// values, loaded code, and the SQLite build and file layout. The query sanitizer rejects them
+// too, but only where sqlparser reaches; SQLite asks the authorizer wherever it compiles a
+// function call, including column defaults, CHECK constraints, triggers and views. Other
+// sqlite_* functions stay allowed, because ALTER TABLE runs SQLite's own sqlite_rename_*.
+var deniedFuncs = map[string]bool{
+	"random": true, "randomblob": true, "load_extension": true,
+	"sqlite_version": true, "sqlite_source_id": true, "sqlite_compileoption_used": true,
+	"sqlite_compileoption_get": true, "sqlite_offset": true,
+}
+
+func denyFuncs(op int, _, name, _ string) int {
+	if op == sqlite3.SQLITE_FUNCTION && deniedFuncs[strings.ToLower(name)] {
+		return sqlite3.SQLITE_DENY
+	}
+	return sqlite3.SQLITE_OK
+}
 
 func init() {
 	encryptFunc := func(in, pass, salt []byte) (out []byte, err error) {
@@ -51,6 +70,7 @@ func init() {
 	}
 
 	regCustomFunc := func(c *sqlite3.SQLiteConn) (err error) {
+		c.RegisterAuthorizer(denyFuncs)
 		if err = c.RegisterFunc("sleep", sleepFunc, true); err != nil {
 			return
 		}
@@ -65,10 +85,10 @@ func init() {
 
 	sql.Register(dirtyReadDriver, &sqlite3.SQLiteDriver{
 		ConnectHook: func(c *sqlite3.SQLiteConn) (err error) {
-			if _, err = c.Exec("PRAGMA read_uncommitted=1", nil); err != nil {
+			if err = regCustomFunc(c); err != nil {
 				return
 			}
-			if err = regCustomFunc(c); err != nil {
+			if _, err = c.Exec("PRAGMA read_uncommitted=1", nil); err != nil {
 				return
 			}
 			return

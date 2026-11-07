@@ -33,10 +33,16 @@ const (
 	dirtyReadDriver    = "sqlite3-dirty-reader"
 )
 
-// deniedFuncs are the functions that would make the miners of a database diverge. The query
-// sanitizer rejects them too, but only where sqlparser reaches; SQLite asks the authorizer
-// wherever it compiles a function call, including column defaults, triggers and views.
-var deniedFuncs = map[string]bool{"random": true, "randomblob": true, "load_extension": true}
+// deniedFuncs are the functions that would make the miners of a database diverge: random
+// values, loaded code, and the SQLite build and file layout. The query sanitizer rejects them
+// too, but only where sqlparser reaches; SQLite asks the authorizer wherever it compiles a
+// function call, including column defaults, CHECK constraints, triggers and views. Other
+// sqlite_* functions stay allowed, because ALTER TABLE runs SQLite's own sqlite_rename_*.
+var deniedFuncs = map[string]bool{
+	"random": true, "randomblob": true, "load_extension": true,
+	"sqlite_version": true, "sqlite_source_id": true, "sqlite_compileoption_used": true,
+	"sqlite_compileoption_get": true, "sqlite_offset": true,
+}
 
 func denyFuncs(op int, _, name, _ string) int {
 	if op == sqlite3.SQLITE_FUNCTION && deniedFuncs[strings.ToLower(name)] {

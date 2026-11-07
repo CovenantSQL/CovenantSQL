@@ -71,8 +71,8 @@ func TestStorage(t *testing.T) {
 			}
 		})
 		Convey("Random functions should be denied wherever SQLite compiles them", func() {
-			// The column default, the trigger body and the view are not checked by the query
-			// sanitizer.
+			// The query sanitizer does not check column defaults, CHECK constraints, trigger
+			// bodies or views.
 			w := st.Writer()
 			Convey("In a query on every connection", func() {
 				for _, db := range []*sql.DB{w, st.Reader(), st.DirtyReader()} {
@@ -81,8 +81,21 @@ func TestStorage(t *testing.T) {
 					So(err.Error(), ShouldContainSubstring, "not authorized")
 				}
 			})
+			Convey("In a query that reads the SQLite build", func() {
+				_, err = w.Exec(`SELECT sqlite_version()`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+				_, err = w.Exec(`SELECT sqlite_compileoption_used('ENABLE_ICU')`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
 			Convey("In a column default", func() {
 				_, err = w.Exec(`CREATE TABLE "d" ("a" INT, "b" INT DEFAULT (RANDOM()))`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a CHECK constraint", func() {
+				_, err = w.Exec(`CREATE TABLE "c" ("x" INT CHECK (random() > 0))`)
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldContainSubstring, "not authorized")
 			})

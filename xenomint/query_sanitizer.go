@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/CovenantSQL/sqlparser"
@@ -29,6 +30,10 @@ import (
 )
 
 var (
+	// transactionStatement matches a pattern that is a single BEGIN, COMMIT or ROLLBACK.
+	// sqlparser has no grammar for them, and they hold nothing to check.
+	transactionStatement = regexp.MustCompile(`(?i)^\s*(?:begin|commit|rollback)(?:\s+transaction)?\s*;?\s*$`)
+
 	sanitizeFunctionMap = map[string]map[string]bool{
 		"load_extension": nil,
 		"unlikely":       nil,
@@ -82,8 +87,7 @@ var (
 )
 
 func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
-	if lower := strings.ToLower(pattern); strings.Contains(lower, "begin") ||
-		strings.Contains(lower, "rollback") || strings.Contains(lower, "commit") {
+	if transactionStatement.MatchString(pattern) {
 		return false, pattern, nil, nil
 	}
 	var (

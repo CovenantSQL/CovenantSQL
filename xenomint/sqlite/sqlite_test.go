@@ -70,6 +70,33 @@ func TestStorage(t *testing.T) {
 				So(fixed, ShouldEqual, "2000-01-02")
 			}
 		})
+		Convey("Random functions should be denied wherever SQLite compiles them", func() {
+			for _, db := range []*sql.DB{st.Writer(), st.Reader(), st.DirtyReader()} {
+				_, err = db.Exec(`SELECT random()`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			}
+			w := st.Writer()
+			// A column default, a trigger body and a view, which the query sanitizer does not check.
+			_, err = w.Exec(`CREATE TABLE "d" ("a" INT, "b" INT DEFAULT (RANDOM()))`)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "not authorized")
+			_, err = w.Exec(`CREATE TABLE "g" ("a" INT, "b" BLOB)`)
+			So(err, ShouldBeNil)
+			_, err = w.Exec(`CREATE TRIGGER "tr" AFTER INSERT ON "g" BEGIN UPDATE "g" SET "b" = randomblob(4); END`)
+			So(err, ShouldBeNil)
+			_, err = w.Exec(`INSERT INTO "g" ("a") VALUES (1)`)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "not authorized")
+			_, err = w.Exec(`CREATE VIEW "v" AS SELECT random() AS "r"`)
+			So(err, ShouldBeNil)
+			_, err = w.Exec(`SELECT "r" FROM "v"`)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "not authorized")
+			// ALTER TABLE runs SQLite's own sqlite_rename_* functions through the authorizer.
+			_, err = w.Exec(`ALTER TABLE "g" RENAME TO "g2"`)
+			So(err, ShouldBeNil)
+		})
 		Convey("When a basic KV table is created", func(c C) {
 			// Create basic table for testing
 			_, err = st.Writer().Exec(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`)

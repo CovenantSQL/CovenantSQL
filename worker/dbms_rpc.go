@@ -19,18 +19,11 @@ package worker
 import (
 	"fmt"
 
-	metrics "github.com/rcrowley/go-metrics"
-
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	"github.com/CovenantSQL/CovenantSQL/rpc"
 	"github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
-)
-
-var (
-	dbQuerySuccCounter metrics.Meter
-	dbQueryFailCounter metrics.Meter
 )
 
 // ObserverFetchBlockReq defines the request for observer to fetch block.
@@ -65,11 +58,6 @@ func NewDBMSRPCService(
 		direct.RegisterService(serviceName, service)
 	}
 
-	dbQuerySuccCounter = metrics.NewMeter()
-	metrics.Register("db-query-succ", dbQuerySuccCounter)
-	dbQueryFailCounter = metrics.NewMeter()
-	metrics.Register("db-query-fail", dbQueryFailCounter)
-
 	return
 }
 
@@ -77,25 +65,21 @@ func NewDBMSRPCService(
 func (rpc *DBMSRPCService) Query(req *types.Request, res *types.Response) (err error) {
 	// Just need to verify signature in db.saveAck
 	//if err = req.Verify(); err != nil {
-	//	dbQueryFailCounter.Mark(1)
 	//	return
 	//}
 	// verify query is sent from the request node
 	if req.Envelope.NodeID.String() != string(req.Header.NodeID) {
 		// node id mismatch
 		err = fmt.Errorf("request node id mismatch in query: %w", ErrInvalidRequest)
-		dbQueryFailCounter.Mark(1)
 		return
 	}
 
 	var r *types.Response
 	if r, err = rpc.dbms.Query(req); err != nil {
-		dbQueryFailCounter.Mark(1)
 		return
 	}
 
 	*res = *r
-	dbQuerySuccCounter.Mark(1)
 
 	return
 }

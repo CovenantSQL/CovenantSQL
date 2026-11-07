@@ -9,7 +9,6 @@ require (
 	github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6
 	github.com/btcsuite/btcd/btcec/v2 v2.5.1
 	github.com/btcsuite/btcd/btcutil v1.2.0
-	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/derekstavis/go-qs v0.0.0-20180720192143-9eef69e6c4e7
 	github.com/dghubble/gologin/v2 v2.5.0
@@ -39,7 +38,6 @@ require (
 	github.com/prometheus/common v0.73.1
 	github.com/prometheus/procfs v0.23.0
 	github.com/rakyll/statik v0.1.8
-	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/sirupsen/logrus v1.10.2
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/sourcegraph/jsonrpc2 v0.2.3

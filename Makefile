@@ -189,18 +189,6 @@ bin/cql.static:
 		-o bin/cql \
 		github.com/CovenantSQL/CovenantSQL/cmd/cql
 
-bin/cql-fuse:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client_simple_log)" \
-		-o bin/cql-fuse \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
-
-bin/cql-fuse.static:
-	$(GOBUILD) \
-		-ldflags "$(ldflags_role_client_simple_log) $(static_flags)" \
-		-o bin/cql-fuse \
-		github.com/CovenantSQL/CovenantSQL/cmd/cql-fuse
-
 bin/cql-mysql-adapter:
 	$(GOBUILD) \
 		-ldflags "$(ldflags_role_client)" \
@@ -229,15 +217,15 @@ bp: bin/cqld.test bin/cqld
 
 miner: bin/cql-minerd.test bin/cql-minerd
 
-client: bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy
+client: bin/cql bin/cql.test bin/cql-mysql-adapter bin/cql-proxy
 
 all: bp miner client
 
-build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy
+build-release: bin/cqld bin/cql-minerd bin/cql bin/cql-mysql-adapter bin/cql-proxy
 
 # This should only called in alpine docker builder
 build-release-static: bin/cqld.static bin/cql-minerd.static bin/cql.static \
-	bin/cql-fuse.static bin/cql-mysql-adapter.static bin/cql-proxy.static
+	bin/cql-mysql-adapter.static bin/cql-proxy.static
 
 release:
 ifeq ($(unamestr),Linux)
@@ -248,7 +236,7 @@ ifeq ($(unamestr),Linux)
 	fi
 else
 	make -j$(JOBS) build-release
-	tar czvf app-bin.tgz bin/cqld bin/cql-minerd bin/cql bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy
+	tar czvf app-bin.tgz bin/cqld bin/cql-minerd bin/cql bin/cql-mysql-adapter bin/cql-proxy
 endif
 
 android-release: status
@@ -268,5 +256,5 @@ clean:
 
 .PHONY: status start stop logs push push_testnet clean \
 	bin/cqld.test bin/cqld bin/cql-minerd.test bin/cql-minerd \
-	bin/cql bin/cql.test bin/cql-fuse bin/cql-mysql-adapter bin/cql-proxy \
+	bin/cql bin/cql.test bin/cql-mysql-adapter bin/cql-proxy \
 	release android-release

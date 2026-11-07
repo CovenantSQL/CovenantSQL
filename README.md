@@ -122,7 +122,7 @@ CQL database consistency mode and node count can be selected in database creatio
 | **Open Source**              | Y                 | Y                      | N           | Y                                                            |
 | **Nodes for HA**             | 3                 | 15                     | ?           | 3                                                            |
 | **Column Level ACL**         | N                 | Y                      | ?           | Y                                                            |
-| **Data Format**              | File              | Key-value              | Document    | File<sup>[fuse](#fuse)</sup>, Key-value, Structured          |
+| **Data Format**              | File              | Key-value              | Document    | Key-value, Structured                                        |
 | **Storage Encryption**       | N                 | API                    | Y           | Y                                                            |
 | **Data Desensitization**     | N                 | N                      | N           | Y                                                            |
 | **Multi-tenant**             | DIY               | DIY                    | N           | Y                                                            |
@@ -136,12 +136,6 @@ CQL database consistency mode and node count can be selected in database creatio
 - <a name="bft-raft">BFT-Raft</a>: A CQL leader offline needs CQL Block Producer to decide whether to wait for leader online for data integrity or promote a follower node for availability. This part is still under construction and any advice is welcome.  
 
 - <a name="transaction">Transaction</a>: Talking about `ACID`, CQL has full "Consistency, Isolation, Durability" and a limited `Atomicity` support. That is even under strong consistency mode, CQL transaction is only supported on the leader node. If you want to do "read `v`, `v++`, write `v` back" parallelly and atomically, then the only way is "read `v` from the leader, `v++`, write `v` back to leader"
-
-- <a name="fuse">FUSE</a>: CQL has a [simple FUSE](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse) support adopted from CockroachDB. The performance is not very ideal and still has some issues. But it can pass fio test like:
-
-  ```bash
-  fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
-  ```
 
 ### Network Stack
 

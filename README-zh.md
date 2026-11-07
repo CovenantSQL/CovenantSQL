@@ -99,7 +99,7 @@ CQL 支持两种共识算法：
 | **是否开源**                  | Y                 | Y                      | N           | Y                                                            |
 | **高可用节点**                | 3                 | 15                     | ?           | 3                                                            |
 | **列级别 ACL**                | N                 | Y                      | ?           | Y                                                            |
-| **数据格式**                  | File              | Key-value              | Document    | File<sup>[fuse](#fuse)</sup>, Key-value, Structured     |
+| **数据格式**                  | File              | Key-value              | Document    | Key-value, Structured                                        |
 | **存储加密**                  | N                 | API                    | Y           | Y                                                            |
 | **数据脱敏**                  | N                 | N                      | N           | Y                                                            |
 | **多租户**                  | DIY               | DIY                    | N           | Y                                                            |
@@ -117,12 +117,6 @@ CQL 支持两种共识算法：
 - <a name="bft-raft">BFT-Raft</a>: 在一个 CQL leader 离线的情况下，有两种可能的选择：等待 leader 上线，以保证数据的完整性，或者提拔 follwers 以保证服务可用性；目前是需要一定的人工介入来进行策略选择，这部分仍在迭代中，欢迎任何建议。
 
 - <a name="transaction">事务 (Transaction)</a>: 说到 `ACID`，CQL 具有完整的 "一致性，隔离性，持久化" 和特定的 `Atomicity` 支持。即使在强一致性的模式下，CQL 事务只支持在 leader 节点上执行。如果你想要并发执行事务："读取 `v`, `v++`, 写回 `v` ", 仅有的办法是："从 leader 读取 `v` , `v++`, 从 leader 写回 `v`"
-
-- <a name="fuse">FUSE</a>: CQL 有一个从 CockroachDB 移植过来的 [FUSE 客户端](https://github.com/CovenantSQL/CovenantSQL/tree/develop/cmd/cql-fuse)，目前性能不是很理想，仍然存在一些小问题。但它可以通过如下的 fio 测试：
-
-  ```bash
-  fio --debug=io --loops=1 --size=8m --filename=../mnt/fiotest.tmp --stonewall --direct=1 --name=Seqread --bs=128k --rw=read --name=Seqwrite --bs=128k --rw=write --name=4krandread --bs=4k --rw=randread --name=4krandwrite --bs=4k --rw=randwrite
-  ```
 
 
 ## Demos

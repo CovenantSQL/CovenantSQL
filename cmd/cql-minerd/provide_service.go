@@ -58,13 +58,25 @@ func sendProvideService() {
 		return
 	}
 
-	host := metric.ReadHost(conf.GConf.Miner.RootDir)
-	loadAvg := host.Load15 / float64(runtime.NumCPU())
+	// A resource that cannot be read is reported as 0.
+	memory, err := metric.MemAvailable()
+	if err != nil {
+		log.WithError(err).Error("read available memory failed")
+	}
+	load, err := metric.LoadAvg()
+	if err != nil {
+		log.WithError(err).Error("read load averages failed")
+	}
+	space, err := metric.DiskAvailable(conf.GConf.Miner.RootDir)
+	if err != nil {
+		log.WithError(err).Error("read available disk space failed")
+	}
+	loadAvg := load[2] / float64(runtime.NumCPU())
 
 	log.WithFields(log.Fields{
-		"memory":  host.MemAvailable,
+		"memory":  memory,
 		"loadAvg": loadAvg,
-		"space":   host.DiskAvailable,
+		"space":   space,
 	}).Info("sending provide service transaction with resource parameters")
 
 	var (
@@ -84,8 +96,8 @@ func sendProvideService() {
 
 	tx := types.NewProvideService(
 		&types.ProvideServiceHeader{
-			Space:         host.DiskAvailable,
-			Memory:        host.MemAvailable,
+			Space:         space,
+			Memory:        memory,
 			LoadAvgPerCPU: loadAvg,
 			GasPrice:      defaultGasPrice,
 			TokenType:     types.Particle,

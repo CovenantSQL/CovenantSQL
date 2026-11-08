@@ -25,18 +25,28 @@ import (
 	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
+	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+// collect adds a sample to each gauge whose reading succeeded.
 func collect(dir string) {
-	h := ReadHost(dir)
-	for k, v := range map[string]float64{
-		"mem_avail": float64(h.MemAvailable),
-		"load1":     h.Load1,
-		"load5":     h.Load5,
-		"load15":    h.Load15,
-		"fs_avail":  float64(h.DiskAvailable),
-		"cpu_count": float64(runtime.NumCPU()),
-	} {
+	samples := map[string]float64{"cpu_count": float64(runtime.NumCPU())}
+	if mem, err := MemAvailable(); err != nil {
+		log.WithError(err).Warning("read available memory failed")
+	} else {
+		samples["mem_avail"] = float64(mem)
+	}
+	if load, err := LoadAvg(); err != nil {
+		log.WithError(err).Warning("read load averages failed")
+	} else {
+		samples["load1"], samples["load5"], samples["load15"] = load[0], load[1], load[2]
+	}
+	if disk, err := DiskAvailable(dir); err != nil {
+		log.WithError(err).Warning("read available disk space failed")
+	} else {
+		samples["fs_avail"] = float64(disk)
+	}
+	for k, v := range samples {
 		var val expvar.Var
 		if val = expvar.Get(k); val == nil {
 			expvar.Publish(k, mw.NewGauge("1h1m"))

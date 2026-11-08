@@ -17,44 +17,17 @@
 package metric
 
 import (
-	"github.com/mackerelio/go-osstat/loadavg"
-	"github.com/mackerelio/go-osstat/memory"
-	"golang.org/x/sys/unix"
+	"os"
 
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
+	"golang.org/x/sys/unix"
 )
 
-// Host holds the resources of the host a node runs on.
-type Host struct {
-	// MemAvailable is the memory in bytes that is not in use, which
-	// go-osstat derives from MemAvailable on Linux and from free and cached
-	// pages on darwin.
-	MemAvailable         uint64
-	Load1, Load5, Load15 float64
-	// DiskAvailable is the space in bytes that an unprivileged process can
-	// still write on the file system holding the directory given to ReadHost.
-	DiskAvailable uint64
-}
-
-// ReadHost reads the host's memory, load averages and the space available
-// on the file system holding dir. It logs what it cannot read and leaves
-// that zero.
-func ReadHost(dir string) (h Host) {
-	if m, err := memory.Get(); err != nil {
-		log.WithError(err).Error("read memory stats failed")
-	} else {
-		h.MemAvailable = m.Total - m.Used
-	}
-	if l, err := loadavg.Get(); err != nil {
-		log.WithError(err).Error("read load averages failed")
-	} else {
-		h.Load1, h.Load5, h.Load15 = l.Loadavg1, l.Loadavg5, l.Loadavg15
-	}
+// DiskAvailable returns the bytes that unprivileged processes can still
+// allocate on the file system holding dir.
+func DiskAvailable(dir string) (uint64, error) {
 	var fs unix.Statfs_t
 	if err := unix.Statfs(dir, &fs); err != nil {
-		log.WithError(err).WithField("dir", dir).Error("read file system stats failed")
-	} else {
-		h.DiskAvailable = uint64(fs.Bavail) * uint64(fs.Bsize)
+		return 0, &os.PathError{Op: "statfs", Path: dir, Err: err}
 	}
-	return
+	return uint64(fs.Bavail) * uint64(fs.Bsize), nil
 }

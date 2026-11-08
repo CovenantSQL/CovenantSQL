@@ -17,16 +17,27 @@
 package metric
 
 import (
+	"path/filepath"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestReadHost(t *testing.T) {
+func TestHostResources(t *testing.T) {
 	Convey("read host resources", t, func() {
-		h := ReadHost(t.TempDir())
-		So(h.MemAvailable, ShouldBeGreaterThan, 0)
-		So(h.DiskAvailable, ShouldBeGreaterThan, 0)
-		So(h.Load15, ShouldBeGreaterThanOrEqualTo, 0)
+		mem, err := MemAvailable()
+		So(err, ShouldBeNil)
+		So(mem, ShouldBeGreaterThan, 0)
+
+		load, err := LoadAvg()
+		So(err, ShouldBeNil)
+		So(load[2], ShouldBeGreaterThanOrEqualTo, 0)
+
+		disk, err := DiskAvailable(t.TempDir())
+		So(err, ShouldBeNil)
+		So(disk, ShouldBeGreaterThan, 0)
+
+		_, err = DiskAvailable(filepath.Join(t.TempDir(), "missing"))
+		So(err, ShouldNotBeNil)
 	})
 }

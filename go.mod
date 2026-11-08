@@ -30,7 +30,6 @@ require (
 	github.com/ivpusic/grpool v1.0.0
 	github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e
 	github.com/jordwest/mock-conn v0.0.0-20180617021051-4896c6bd1641
-	github.com/mackerelio/go-osstat v0.2.8
 	github.com/mattn/go-isatty v0.0.24
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/rakyll/statik v0.1.8

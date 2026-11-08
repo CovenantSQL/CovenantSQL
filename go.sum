@@ -48,8 +48,8 @@ github.com/CovenantSQL/HashStablePack/v2 v2.1.0 h1:t+jC9Ks7fJktGIRKBd5LRqf7RuIbL
 github.com/CovenantSQL/HashStablePack/v2 v2.1.0/go.mod h1:ypqPzo5R03c+WN8CW9UqUQfDvhfaXkD6mUEeZSmU/gY=
 github.com/CovenantSQL/beacon v0.0.0-20261106014602-6eeafaefe30d h1:1c55wx8TSaqc43FMupfwio+4Gv/7Rt/OqsY8kTaHdos=
 github.com/CovenantSQL/beacon v0.0.0-20261106014602-6eeafaefe30d/go.mod h1:KSd38NuQOi+rubo/uBC0iXl89be9PDcdkErBdL150C0=
-github.com/CovenantSQL/go-sqlite3-encrypt v1.12.0 h1:soxY8lXaucwWx/eTw6rqlD95U1YIfz2Rgi8H+5+mEFg=
-github.com/CovenantSQL/go-sqlite3-encrypt v1.12.0/go.mod h1:q/FkjaNy87PElsnrDIoU0MqYrpDryqP5hiJVip/Zpy8=
+github.com/CovenantSQL/go-sqlite3-encrypt v1.13.0 h1:nTZ0+NmYRlc6cuHkLU3wYFus0xnchk2/56ila1lAU3k=
+github.com/CovenantSQL/go-sqlite3-encrypt v1.13.0/go.mod h1:q/FkjaNy87PElsnrDIoU0MqYrpDryqP5hiJVip/Zpy8=
 github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6 h1:a3BgrZT+0Po7xggIN789+lJHySEPpUpHCT2YbPdUPwU=
 github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6/go.mod h1:0nyvStvq7NsxxLPM+rxTIeKq8CDFBmk9XI6NG9Iqet8=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=

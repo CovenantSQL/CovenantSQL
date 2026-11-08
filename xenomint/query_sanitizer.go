@@ -118,22 +118,31 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 		case *sqlparser.Show:
 			origQuery = queryParts[i]
 
+			// The table name goes into the rewritten query as a string literal, which
+			// PRAGMA table_info also accepts. SQLite stops reading a query at a NUL, so a
+			// name with one would cut the query short.
+			name := stmt.OnTable.Name.String()
+			if strings.ContainsRune(name, 0) {
+				err = fmt.Errorf("table name %q contains a NUL", name)
+				return
+			}
+			name = "'" + strings.ReplaceAll(name, "'", "''") + "'"
+
 			switch stmt.Type {
 			case "table":
 				if stmt.ShowCreate {
 					query = fmt.Sprintf(`SELECT sql
 FROM sqlite_master
-WHERE type = "table" AND tbl_name = "%s"
-	AND tbl_name NOT LIKE "sqlite%%"`,
-						stmt.OnTable.Name.String())
+WHERE type = "table" AND tbl_name = %s
+	AND tbl_name NOT LIKE "sqlite%%"`, name)
 				} else {
-					query = fmt.Sprintf(`PRAGMA table_info(%s)`, stmt.OnTable.Name.String())
+					query = fmt.Sprintf(`PRAGMA table_info(%s)`, name)
 				}
 			case "index":
 				query = fmt.Sprintf(`SELECT name
 FROM sqlite_master
-WHERE type = "index" AND tbl_name = "%s"
-	AND name NOT LIKE "sqlite%%"`, stmt.OnTable.Name.String())
+WHERE type = "index" AND tbl_name = %s
+	AND name NOT LIKE "sqlite%%"`, name)
 			case "tables":
 				query = `SELECT name FROM sqlite_master WHERE type = "table" AND name NOT LIKE "sqlite%"`
 			}

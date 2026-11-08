@@ -30,10 +30,16 @@ import (
 )
 
 var (
-	// transactionStatement matches a pattern that is a single BEGIN, COMMIT or ROLLBACK.
-	// sqlparser has no grammar for them, and they hold nothing to check.
-	transactionStatement = regexp.MustCompile(
-		`(?i)^\s*(?:begin(?:\s+(?:deferred|immediate|exclusive))?|commit|rollback)(?:\s+transaction)?\s*;?\s*$`)
+	// transactionStatement matches a pattern that is exactly one SQLite BEGIN, COMMIT, END or
+	// ROLLBACK, but not ROLLBACK TO, with comments anywhere between its words and at most one
+	// trailing semicolon. sqlparser has no grammar for them, and they hold nothing to check.
+	transactionStatement = func() *regexp.Regexp {
+		gap := `(?:\s|--[^\n]*|/\*(?:[^*]|\*+[^*/])*\*+/)` // whitespace or a comment
+		name := `(?:[a-z_][a-z0-9_$]*|"(?:[^"]|"")*"|` + "`(?:[^`]|``)*`" + `|\[[^\]]*\]|'(?:[^']|'')*')`
+		return regexp.MustCompile(strings.NewReplacer("~", gap, "NAME", name).Replace(
+			`(?i)^~*(?:begin(?:~+(?:deferred|immediate|exclusive))?|commit|end|rollback)` +
+				`(?:~+transaction(?:~+NAME)?)?~*(?:;~*)?$`))
+	}()
 
 	sanitizeFunctionMap = map[string]map[string]bool{
 		"load_extension": nil,

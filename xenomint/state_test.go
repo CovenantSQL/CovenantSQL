@@ -108,6 +108,65 @@ func TestState(t *testing.T) {
 			// any schema change query will trigger performance degradation mode in current block
 			So(err, ShouldBeNil)
 		})
+		Convey("SHOW should take the table name as a name, not as SQL", func() {
+			var (
+				// "name" is also a column of sqlite_master.
+				names = []string{"a b", `q"d`, "s'q", "[b]", "name"}
+				qs    = []types.Query{buildQuery(`CREATE TABLE r (k INT)`)}
+				read  = func(q string) []types.ResponseRow {
+					_, resp, err := st1.Query(buildRequest(types.ReadQuery, []types.Query{
+						buildQuery(q),
+					}), true)
+					So(err, ShouldBeNil)
+					return resp.Payload.Rows
+				}
+			)
+			for _, n := range names {
+				qs = append(qs,
+					buildQuery(fmt.Sprintf("CREATE TABLE `%s` (k INT)", n)),
+					buildQuery(fmt.Sprintf("CREATE INDEX `i%s` ON `%s` (k)", n, n)),
+				)
+			}
+			_, _, err = st1.Query(buildRequest(types.WriteQuery, qs), true)
+			So(err, ShouldBeNil)
+			So(st1.commit(), ShouldBeNil)
+
+			Convey("So a name cannot end PRAGMA table_info and run another statement", func() {
+				_, _, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
+					buildQuery("DESC `r); INSERT INTO r VALUES (1); --`"),
+				}), true)
+				So(err, ShouldBeNil)
+				So(st1.commit(), ShouldBeNil)
+				So(read(`SELECT k FROM r`), ShouldBeEmpty)
+			})
+			Convey("So a name cannot end the string and match every table", func() {
+				So(read("SHOW CREATE TABLE `x\" OR 1=1 --`"), ShouldBeEmpty)
+			})
+			Convey("And every SHOW form should find the table", func() {
+				for _, n := range names {
+					id := "`" + n + "`"
+					for _, q := range []string{"SHOW TABLE ", "DESC ", "SHOW COLUMNS FROM "} {
+						rows := read(q + id)
+						So(rows, ShouldHaveLength, 1)
+						So(fmt.Sprintf("%s", rows[0].Values[1]), ShouldEqual, "k")
+					}
+					rows := read("SHOW CREATE TABLE " + id)
+					So(rows, ShouldHaveLength, 1)
+					So(fmt.Sprintf("%s", rows[0].Values[0]), ShouldEqual, fmt.Sprintf("CREATE TABLE %s (k INT)", id))
+					rows = read("SHOW INDEX FROM TABLE " + id)
+					So(rows, ShouldHaveLength, 1)
+					So(fmt.Sprintf("%s", rows[0].Values[0]), ShouldEqual, "i"+n)
+				}
+				var tables []string
+				for _, row := range read(`SHOW TABLES`) {
+					tables = append(tables, fmt.Sprintf("%s", row.Values[0]))
+				}
+				So(tables, ShouldHaveLength, len(names)+1)
+				for _, n := range names {
+					So(tables, ShouldContain, n)
+				}
+			})
+		})
 		Convey("When a basic KV table is created", func() {
 			var (
 				values = [][]interface{}{
@@ -710,6 +769,10 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		_, _, _, err = convertQueryAndBuildArgs(
 			ddlQuery, nil)
 		So(err, ShouldNotBeNil)
+		So(err, ShouldWrap, ErrInvalidTableName)
+
+		// SQLite would stop reading the rewritten query at the NUL
+		_, _, _, err = convertQueryAndBuildArgs("DESC `t\x00`", nil)
 		So(err, ShouldWrap, ErrInvalidTableName)
 
 		// valid counterpart of alter statement

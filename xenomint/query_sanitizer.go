@@ -104,8 +104,8 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 		err = fmt.Errorf("parse sql failed: %w", err)
 		return
 	}
-	// SQLite gets the pattern as it is, and the drivers refuse a pattern that SQLite reads as
-	// more than one statement, so the statement checked here is the one that runs.
+	// One statement per query. SQLite gets the pattern as it is, and the drivers refuse a
+	// pattern that SQLite reads as more than one statement.
 	switch {
 	case len(statements) == 0:
 		err = errors.New("query has no statement")

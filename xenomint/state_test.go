@@ -179,18 +179,22 @@ func TestState(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(st2.Replay(setup, resp), ShouldBeNil)
 
-			// sqlparser and SQLite split these into different statements; see #443. The INSERT
-			// adds a constant, because the authorizer already denies random().
+			// sqlparser and SQLite split these into statements differently (#443): sqlparser skips
+			// the rest of a CREATE INDEX or an EXPLAIN up to the first semicolon, even one in a
+			// string, and reads "#" as the start of a comment where SQLite reads a parameter,
+			// which takes the argument. The INSERT adds a constant, because the authorizer
+			// already denies random().
 			for _, q := range []string{
 				`create index i on t(a) where a = 'x;select 2 --'; insert into r values(1)`,
 				`explain select #p; insert into r values(1)`,
+				`select 1 #p; insert into r values(1)`,
 			} {
 				for _, qt := range []types.QueryType{types.WriteQuery, types.ReadQuery} {
-					_, _, err = st1.Query(buildRequest(qt, []types.Query{buildQuery(q)}), true)
+					_, _, err = st1.Query(buildRequest(qt, []types.Query{buildQuery(q, 1)}), true)
 					So(err, ShouldWrap, sqlite3.ErrMultipleStatements)
 				}
 				var (
-					req = buildRequest(types.WriteQuery, []types.Query{buildQuery(q)})
+					req = buildRequest(types.WriteQuery, []types.Query{buildQuery(q, 1)})
 					hdr = types.SignedResponseHeader{
 						ResponseHeader: types.ResponseHeader{LogOffset: st2.getSeq()},
 					}

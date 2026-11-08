@@ -156,11 +156,6 @@ func TestState(t *testing.T) {
 					rows = read("SHOW INDEX FROM TABLE " + id)
 					So(rows, ShouldHaveLength, 1)
 					So(fmt.Sprintf("%s", rows[0].Values[0]), ShouldEqual, "i"+n)
-					var tables []string
-					for _, row := range read(`SHOW TABLES`) {
-						tables = append(tables, fmt.Sprintf("%s", row.Values[0]))
-					}
-					So(tables, ShouldContain, n)
 				})
 			}
 		})

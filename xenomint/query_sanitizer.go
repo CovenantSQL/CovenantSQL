@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/CovenantSQL/sqlparser"
@@ -29,6 +30,17 @@ import (
 )
 
 var (
+	// transactionStatement matches a pattern that is exactly one SQLite BEGIN, COMMIT, END or
+	// ROLLBACK, but not ROLLBACK TO, with comments anywhere between its words and at most one
+	// trailing semicolon. sqlparser has no grammar for them, and they hold nothing to check.
+	transactionStatement = func() *regexp.Regexp {
+		gap := `(?:\s|--[^\n]*|/\*(?:[^*]|\*+[^*/])*\*+/)` // whitespace or a comment
+		name := `(?:[a-z_][a-z0-9_$]*|"(?:[^"]|"")*"|` + "`(?:[^`]|``)*`" + `|\[[^\]]*\]|'(?:[^']|'')*')`
+		return regexp.MustCompile(strings.NewReplacer("~", gap, "NAME", name).Replace(
+			`(?i)^~*(?:begin(?:~+(?:deferred|immediate|exclusive))?|commit|end|rollback)` +
+				`(?:~+transaction(?:~+NAME)?)?~*(?:;~*)?$`))
+	}()
+
 	sanitizeFunctionMap = map[string]map[string]bool{
 		"load_extension": nil,
 		"unlikely":       nil,
@@ -82,8 +94,7 @@ var (
 )
 
 func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDDL bool, p string, ifs []interface{}, err error) {
-	if lower := strings.ToLower(pattern); strings.Contains(lower, "begin") ||
-		strings.Contains(lower, "rollback") || strings.Contains(lower, "commit") {
+	if transactionStatement.MatchString(pattern) {
 		return false, pattern, nil, nil
 	}
 	var (

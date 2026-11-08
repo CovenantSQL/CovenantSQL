@@ -719,6 +719,43 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(containsDDL, ShouldBeTrue)
 		So(sanitizedQuery, ShouldEqual, ddlQuery)
+
+		// transaction statements, which sqlparser cannot parse, pass as they are
+		for _, q := range []string{"BEGIN", "commit", "Rollback;", " BEGIN TRANSACTION ", "COMMIT TRANSACTION;",
+			"BEGIN IMMEDIATE", "begin exclusive transaction;", "BEGIN /* trace */ IMMEDIATE TRANSACTION;",
+			"COMMIT; -- done", "BEGIN TRANSACTION tx1;", "END", "ROLLBACK TRANSACTION \"t x\""} {
+			containsDDL, sanitizedQuery, _, err = convertQueryAndBuildArgs(q, nil)
+			So(err, ShouldBeNil)
+			So(containsDDL, ShouldBeFalse)
+			So(sanitizedQuery, ShouldEqual, q)
+		}
+
+		// other SQL that merely contains their keywords is checked
+		for _, q := range []string{
+			"INSERT INTO t VALUES (random()) -- commit",
+			"INSERT INTO t VALUES (random(), 'begin')",
+			"INSERT INTO t (commit_time) VALUES (random())",
+		} {
+			_, _, _, err = convertQueryAndBuildArgs(q, nil)
+			So(err, ShouldWrap, ErrStatefulQueryParts)
+		}
+		_, _, sanitizedArgs, err = convertQueryAndBuildArgs(
+			"INSERT INTO t (commit_time) VALUES (?)", []types.NamedArg{{Value: 1}})
+		So(err, ShouldBeNil)
+		So(sanitizedArgs, ShouldHaveLength, 1)
+
+		// a transaction statement mixed with other SQL is rejected, also behind comments, and
+		// so are ROLLBACK TO and triggers, whose BEGIN ... END sqlparser cannot parse
+		for _, q := range []string{
+			"BEGIN; INSERT INTO t VALUES (1)",
+			"COMMIT; -- done\nINSERT INTO t VALUES (random())",
+			"COMMIT /* a */; INSERT INTO t VALUES (random()) /* b */",
+			"ROLLBACK TO sp",
+			"CREATE TRIGGER tr AFTER INSERT ON t BEGIN UPDATE t SET a = 1; END",
+		} {
+			_, _, _, err = convertQueryAndBuildArgs(q, nil)
+			So(err, ShouldNotBeNil)
+		}
 	})
 }
 

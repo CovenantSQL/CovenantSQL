@@ -70,6 +70,84 @@ func TestStorage(t *testing.T) {
 				So(fixed, ShouldEqual, "2000-01-02")
 			}
 		})
+		Convey("Functions that make miners diverge should be denied wherever SQLite compiles them", func() {
+			// The query sanitizer does not check column defaults, CHECK constraints, trigger
+			// bodies or views.
+			w := st.Writer()
+			Convey("In a query on every connection", func() {
+				for _, db := range []*sql.DB{w, st.Reader(), st.DirtyReader()} {
+					_, err = db.Exec(`SELECT random()`)
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "not authorized")
+				}
+			})
+			Convey("In a query that reads the SQLite build", func() {
+				_, err = w.Exec(`SELECT sqlite_version()`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+				_, err = w.Exec(`SELECT sqlite_compileoption_used('ENABLE_ICU')`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a column default", func() {
+				_, err = w.Exec(`CREATE TABLE "d" ("a" INT, "b" INT DEFAULT (RANDOM()))`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a CHECK constraint", func() {
+				_, err = w.Exec(`CREATE TABLE "c" ("x" INT CHECK (random() > 0))`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a trigger body", func() {
+				_, err = w.Exec(`CREATE TABLE "g" ("a" INT, "b" BLOB)`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`CREATE TRIGGER "tr" AFTER INSERT ON "g" BEGIN UPDATE "g" SET "b" = randomblob(4); END`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`INSERT INTO "g" ("a") VALUES (1)`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("In a view", func() {
+				_, err = w.Exec(`CREATE VIEW "v" AS SELECT random() AS "r"`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`SELECT "r" FROM "v"`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("But not SQLite's own functions, which ALTER TABLE runs", func() {
+				_, err = w.Exec(`CREATE TABLE "g" ("a" INT)`)
+				So(err, ShouldBeNil)
+				_, err = w.Exec(`ALTER TABLE "g" RENAME TO "g2"`)
+				So(err, ShouldBeNil)
+			})
+			Convey("In connection history", func() {
+				_, err = w.Exec(`SELECT total_changes()`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+		})
+		Convey("PRAGMAs other than the ones CovenantSQL runs should be denied", func() {
+			w := st.Writer()
+			Convey("Even under EXPLAIN, where SQLite still acts on them when it compiles", func() {
+				_, err = w.Exec(`EXPLAIN PRAGMA case_sensitive_like = 1`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("Through a pragma table", func() {
+				err = w.QueryRow(`SELECT count(*) FROM pragma_compile_options`).Scan(new(int))
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("But the dirty reader and SHOW, which run read_uncommitted and table_info, work", func() {
+				_, err = w.Exec(`CREATE TABLE "s" ("a" INT)`)
+				So(err, ShouldBeNil)
+				_, err = st.DirtyReader().Exec(`SELECT "a" FROM "s"`)
+				So(err, ShouldBeNil)
+				_, err = st.Reader().Exec(`PRAGMA table_info("s")`)
+				So(err, ShouldBeNil)
+			})
+		})
 		Convey("When a basic KV table is created", func(c C) {
 			// Create basic table for testing
 			_, err = st.Writer().Exec(`CREATE TABLE "t1" ("k" INT, "v" TEXT, PRIMARY KEY("k"))`)
@@ -1190,3 +1268,23 @@ func idleWriteTx(
 //	})
 //	teardownBenchmarkStorage(b, st)
 //}
+
+func TestRekeyDenied(t *testing.T) {
+	Convey("A client should not be able to rekey the database", t, func() {
+		dsn := fmt.Sprint("file:", path.Join(testingDataDir, t.Name()), "?_crypto_key=k1")
+		st, err := NewSqlite(dsn)
+		So(err, ShouldBeNil)
+		_, err = st.Writer().Exec(`CREATE TABLE "k" ("a" INT)`)
+		So(err, ShouldBeNil)
+		// SQLCipher rekeys when SQLite compiles the PRAGMA, even under EXPLAIN.
+		_, err = st.Writer().Exec(`EXPLAIN PRAGMA rekey = 'x'`)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "not authorized")
+		So(st.Close(), ShouldBeNil)
+		st, err = NewSqlite(dsn)
+		So(err, ShouldBeNil)
+		_, err = st.Reader().Exec(`SELECT * FROM "k"`)
+		So(err, ShouldBeNil)
+		So(st.Close(), ShouldBeNil)
+	})
+}

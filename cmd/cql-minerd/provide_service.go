@@ -17,13 +17,13 @@
 package main
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
+	"runtime"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/metric"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/route"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
@@ -33,27 +33,14 @@ import (
 
 const (
 	defaultGasPrice = 1
-	maxUint64       = 1<<64 - 1
 )
 
-var (
-	metricKeyMemory   = "node_memory_MemAvailable_bytes"
-	metricKeyLoadAvg  = "node_load15"
-	metricKeyCPUCount = "node_cpu_count"
-	metricKeySpace    = "node_filesystem_free_bytes"
-)
-
-func sendProvideService(reg *prometheus.Registry) {
+func sendProvideService() {
 	var (
-		memoryBytes uint64
-		cpuCount    float64
-		loadAvg     float64
-		keySpace    uint64
-		nodeID      proto.NodeID
-		privateKey  *asymmetric.PrivateKey
-		mf          []*dto.MetricFamily
-		err         error
-		minerAddr   proto.AccountAddress
+		nodeID     proto.NodeID
+		privateKey *asymmetric.PrivateKey
+		err        error
+		minerAddr  proto.AccountAddress
 	)
 
 	if nodeID, err = kms.GetLocalNodeID(); err != nil {
@@ -71,60 +58,25 @@ func sendProvideService(reg *prometheus.Registry) {
 		return
 	}
 
-	if mf, err = reg.Gather(); err != nil {
-		log.WithError(err).Error("gathering node metrics failed")
-		return
+	// A resource that cannot be read is reported as 0.
+	memory, err := metric.MemAvailable()
+	if err != nil {
+		log.WithError(err).Error("read available memory failed")
 	}
-
-	for _, m := range mf {
-		switch m.GetName() {
-		case metricKeyMemory, metricKeyCPUCount, metricKeyLoadAvg, metricKeySpace:
-		default:
-			continue
-		}
-
-		var metricVal float64
-
-		switch m.GetType() {
-		case dto.MetricType_GAUGE:
-			metricVal = m.GetMetric()[0].GetGauge().GetValue()
-		case dto.MetricType_COUNTER:
-			metricVal = m.GetMetric()[0].GetCounter().GetValue()
-		case dto.MetricType_HISTOGRAM:
-			metricVal = m.GetMetric()[0].GetHistogram().GetBucket()[0].GetUpperBound()
-		case dto.MetricType_SUMMARY:
-			metricVal = m.GetMetric()[0].GetSummary().GetQuantile()[0].GetValue()
-		case dto.MetricType_UNTYPED:
-			metricVal = m.GetMetric()[0].GetUntyped().GetValue()
-		default:
-			continue
-		}
-
-		switch m.GetName() {
-		case metricKeyMemory:
-			if metricVal > 0 && metricVal < maxUint64 {
-				memoryBytes = uint64(metricVal)
-			}
-		case metricKeySpace:
-			if metricVal > 0 && metricVal < maxUint64 {
-				keySpace = uint64(metricVal)
-			}
-		case metricKeyCPUCount:
-			cpuCount = metricVal
-		case metricKeyLoadAvg:
-			loadAvg = metricVal
-		default:
-		}
+	load, err := metric.LoadAvg()
+	if err != nil {
+		log.WithError(err).Error("read load averages failed")
 	}
-
-	if cpuCount > 0 {
-		loadAvg = loadAvg / cpuCount
+	space, err := metric.DiskAvailable(conf.GConf.Miner.RootDir)
+	if err != nil {
+		log.WithError(err).Error("read available disk space failed")
 	}
+	loadAvg := load[2] / float64(runtime.NumCPU())
 
 	log.WithFields(log.Fields{
-		"memory":  memoryBytes,
+		"memory":  memory,
 		"loadAvg": loadAvg,
-		"space":   keySpace,
+		"space":   space,
 	}).Info("sending provide service transaction with resource parameters")
 
 	var (
@@ -144,8 +96,8 @@ func sendProvideService(reg *prometheus.Registry) {
 
 	tx := types.NewProvideService(
 		&types.ProvideServiceHeader{
-			Space:         keySpace,
-			Memory:        memoryBytes,
+			Space:         space,
+			Memory:        memory,
 			LoadAvgPerCPU: loadAvg,
 			GasPrice:      defaultGasPrice,
 			TokenType:     types.Particle,

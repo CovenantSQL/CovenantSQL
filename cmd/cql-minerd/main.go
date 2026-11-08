@@ -145,6 +145,11 @@ func main() {
 		log.Warning("miner disk usage interval not provided, set to default 10 minutes")
 		conf.GConf.Miner.DiskUsageInterval = time.Minute * 10
 	}
+	// ProvideService reports the space on the file system holding RootDir,
+	// which otherwise only exists once the first database is created.
+	if err = os.MkdirAll(conf.GConf.Miner.RootDir, 0755); err != nil {
+		log.WithError(err).Fatal("create miner root dir failed")
+	}
 
 	log.Debugf("config:\n%#v", conf.GConf)
 
@@ -183,15 +188,8 @@ func main() {
 	}
 
 	if len(metricWeb) > 0 {
-		err = metric.InitMetricWeb(metricWeb)
-		if err != nil {
-			log.Errorf("start metric web server on %s failed: %v", metricWeb, err)
-			os.Exit(-1)
-		}
+		metric.InitMetricWeb(metricWeb, conf.GConf.Miner.RootDir)
 	}
-
-	// start prometheus collector
-	reg := metric.StartMetricCollector()
 
 	// start periodic provide service transaction generator
 	go func() {
@@ -199,7 +197,7 @@ func main() {
 		defer tick.Stop()
 
 		for {
-			sendProvideService(reg)
+			sendProvideService()
 
 			select {
 			case <-stopCh:
@@ -242,7 +240,7 @@ func main() {
 	// start dbms
 	var dbms *worker.DBMS
 	if dbms, err = startDBMS(server, direct, func() {
-		sendProvideService(reg)
+		sendProvideService()
 	}); err != nil {
 		// FIXME(auxten): if restart all miners with the same db,
 		// miners will fail to start

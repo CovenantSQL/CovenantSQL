@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-// Package metric implements CPU, Mem, Disk etc metrics gathering and storing
-//    Metric Types: https://prometheus.io/docs/concepts/metric_types/.
+// Package metric reads the resources of the host a node runs on and serves
+// them, with Go runtime statistics, on /debug/metrics.
 package metric

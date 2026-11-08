@@ -18,7 +18,6 @@ package metric
 
 import (
 	"expvar"
-	"fmt"
 	"net/http"
 	"runtime"
 	"time"
@@ -29,19 +28,25 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-func collect(cc *CollectClient) (err error) {
-	mfs, err := cc.Registry.Gather()
-	if err != nil {
-		err = fmt.Errorf("gathering node metrics failed: %w", err)
-		return
+// collect adds a sample to each gauge whose reading succeeded.
+func collect(dir string) {
+	samples := map[string]float64{"cpu_count": float64(runtime.NumCPU())}
+	if mem, err := MemAvailable(); err != nil {
+		log.WithError(err).Warning("read available memory failed")
+	} else {
+		samples["mem_avail"] = float64(mem)
 	}
-	mm := make(SimpleMetricMap, 0)
-	for _, mf := range mfs {
-		mm[*mf.Name] = mf
-		log.Debugf("gathered node: %v", mf)
+	if load, err := LoadAvg(); err != nil {
+		log.WithError(err).Warning("read load averages failed")
+	} else {
+		samples["load1"], samples["load5"], samples["load15"] = load[0], load[1], load[2]
 	}
-	crucialMetrics := mm.FilterCrucialMetrics()
-	for k, v := range crucialMetrics {
+	if disk, err := DiskAvailable(dir); err != nil {
+		log.WithError(err).Warning("read available disk space failed")
+	} else {
+		samples["fs_avail"] = float64(disk)
+	}
+	for k, v := range samples {
 		var val expvar.Var
 		if val = expvar.Get(k); val == nil {
 			expvar.Publish(k, mw.NewGauge("1h1m"))
@@ -49,29 +54,21 @@ func collect(cc *CollectClient) (err error) {
 		}
 		val.(mw.Metric).Add(v)
 	}
-
-	return
 }
 
-// InitMetricWeb initializes the /debug/metrics web.
-func InitMetricWeb(metricWeb string) (err error) {
+// InitMetricWeb serves /debug/metrics on metricWeb, with fs_avail measuring
+// the file system holding dir.
+func InitMetricWeb(metricWeb, dir string) {
 	// Some Go internal metrics
 	expvar.Publish("go:numgoroutine", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 	expvar.Publish("go:numcgocall", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 	expvar.Publish("go:alloc", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 	expvar.Publish("go:alloctotal", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 
-	// start period provide service transaction generator
-	// start prometheus collector
-	cc := NewCollectClient()
-	err = collect(cc)
-	if err != nil {
-		return
-	}
-
+	collect(dir)
 	go func() {
 		for range time.Tick(time.Minute) {
-			_ = collect(cc)
+			collect(dir)
 		}
 	}()
 
@@ -89,5 +86,4 @@ func InitMetricWeb(metricWeb string) (err error) {
 	go func() {
 		_ = http.ListenAndServe(metricWeb, nil)
 	}()
-	return
 }

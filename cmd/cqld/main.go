@@ -129,11 +129,7 @@ func main() {
 	}
 
 	if len(metricWeb) > 0 {
-		err = metric.InitMetricWeb(metricWeb)
-		if err != nil {
-			log.Errorf("start metric web server on %s failed: %v", metricWeb, err)
-			os.Exit(-1)
-		}
+		metric.InitMetricWeb(metricWeb, conf.GConf.WorkingRoot)
 	}
 	// init profile, if cpuProfile, memProfile length is 0, nothing will be done
 	_ = utils.StartProfile(cpuProfile, memProfile)

@@ -123,7 +123,7 @@ func convertQueryAndBuildArgs(pattern string, args []types.NamedArg) (containsDD
 			// name with one would cut the query short.
 			name := stmt.OnTable.Name.String()
 			if strings.ContainsRune(name, 0) {
-				err = fmt.Errorf("%q: %w", name, ErrInvalidTableName)
+				err = fmt.Errorf("table name %q contains a NUL", name)
 				return
 			}
 			name = "'" + strings.ReplaceAll(name, "'", "''") + "'"

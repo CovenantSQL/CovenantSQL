@@ -30,6 +30,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
 	xi "github.com/CovenantSQL/CovenantSQL/xenomint/interfaces"
 )
 
@@ -156,32 +157,46 @@ func TestStorage(t *testing.T) {
 			_, err = st.Writer().Exec(`CREATE INDEX "a.b.c" ON "t1" ("v")`)
 			So(err, ShouldBeNil)
 
-			Convey("Test custom encrypt decrypt func", func() {
-				_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, encrypt(?, "pass", "salt"))`, 0, "v0enc")
+			Convey("Test custom decrypt func", func() {
+				encrypt := func(in string) []byte {
+					out, err := symmetric.EncryptWithPassword([]byte(in), []byte("pass"), []byte("salt"))
+					So(err, ShouldBeNil)
+					return out
+				}
+				_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, ?)`, 0, encrypt("v0enc"))
 				So(err, ShouldBeNil)
-				_, err = st.Writer().Exec(`INSERT INTO "t1" ("k", "v") VALUES (?, encrypt(?)`, 1, "v0enc")
-				So(err.Error(), ShouldContainSubstring, "incomplete input")
 				var destStr string
-				err = st.Reader().QueryRow(`SELECT "v" FROM "t1" WHERE "k"=?`, 0).Scan(&destStr)
-				So(err, ShouldBeNil)
-				So(destStr, ShouldNotContainSubstring, "enc")
 				err = st.Reader().QueryRow(`SELECT decrypt("v", "pass", "salt") FROM "t1" WHERE "k"=?`, 0).Scan(&destStr)
 				So(err, ShouldBeNil)
 				So(destStr, ShouldEqual, "v0enc")
 
 				var destSlice []byte
-				_, err = st.Writer().Exec(`UPDATE "t1" SET v = encrypt(@1, "pass", "salt") WHERE "k"=@2`, "", 0)
+				_, err = st.Writer().Exec(`UPDATE "t1" SET v = @1 WHERE "k"=@2`, encrypt(""), 0)
 				So(err, ShouldBeNil)
 				err = st.Reader().QueryRow(`SELECT decrypt("v", "pass", "salt") FROM "t1" WHERE "k"=?`, 0).Scan(&destSlice)
 				So(err, ShouldBeNil)
 				So(len(destSlice), ShouldEqual, 0)
 
 				largeText := strings.Repeat("s", 10000)
-				_, err = st.Writer().Exec(`UPDATE "t1" SET v = encrypt(:1, "pass", "salt") WHERE "k"=:2`, largeText, 0)
+				_, err = st.Writer().Exec(`UPDATE "t1" SET v = :1 WHERE "k"=:2`, encrypt(largeText), 0)
 				So(err, ShouldBeNil)
 				err = st.Reader().QueryRow(`SELECT decrypt("v", "pass", "salt") FROM "t1" WHERE "k"=?`, 0).Scan(&destStr)
 				So(err, ShouldBeNil)
 				So(destStr, ShouldEqual, largeText)
+			})
+			Convey("There should be no encrypt func, which draws a random IV", func() {
+				Convey("In a query", func() {
+					_, err = st.Writer().Exec(`SELECT encrypt(?, "pass", "salt")`, "v0enc")
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "no such function: encrypt")
+				})
+				Convey("In a column default, which SQLite resolves when a row needs it", func() {
+					_, err = st.Writer().Exec(`CREATE TABLE "e" ("a" INT, "b" BLOB DEFAULT (encrypt('x', 'pass', 'salt')))`)
+					So(err, ShouldBeNil)
+					_, err = st.Writer().Exec(`INSERT INTO "e" ("a") VALUES (1)`)
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "unknown function: encrypt()")
+				})
 			})
 			Convey("When storage is closed", func() {
 				err = st.Close()

@@ -61,11 +61,6 @@ func authorize(op int, arg1, arg2, _ string) int {
 }
 
 func init() {
-	encryptFunc := func(in, pass, salt []byte) (out []byte, err error) {
-		out, err = symmetric.EncryptWithPassword(in, pass, salt)
-		return
-	}
-
 	decryptFunc := func(in, pass, salt []byte) (out []byte, err error) {
 		out, err = symmetric.DecryptWithPassword(in, pass, salt)
 		return
@@ -81,9 +76,6 @@ func init() {
 	regCustomFunc := func(c *sqlite3.SQLiteConn) (err error) {
 		c.RegisterAuthorizer(authorize)
 		if err = c.RegisterFunc("sleep", sleepFunc, true); err != nil {
-			return
-		}
-		if err = c.RegisterFunc("encrypt", encryptFunc, true); err != nil {
 			return
 		}
 		if err = c.RegisterFunc("decrypt", decryptFunc, true); err != nil {

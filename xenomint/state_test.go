@@ -26,6 +26,7 @@ import (
 	"sync"
 	"testing"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
@@ -158,6 +159,61 @@ func TestState(t *testing.T) {
 					So(fmt.Sprintf("%s", rows[0].Values[0]), ShouldEqual, "i"+n)
 				})
 			}
+		})
+		Convey("A query should run only as the one statement the sanitizer checked", func() {
+			var (
+				setup = buildRequest(types.WriteQuery, []types.Query{
+					buildQuery(`CREATE TABLE t (a TEXT)`),
+					buildQuery(`CREATE TABLE r (v INT)`),
+				})
+				resp  *types.Response
+				count = func(st *State, q string) interface{} {
+					_, resp, err := st.Query(buildRequest(types.ReadQuery, []types.Query{
+						buildQuery(q),
+					}), true)
+					So(err, ShouldBeNil)
+					return resp.Payload.Rows[0].Values[0]
+				}
+			)
+			_, resp, err = st1.Query(setup, true)
+			So(err, ShouldBeNil)
+			So(st2.Replay(setup, resp), ShouldBeNil)
+
+			// sqlparser and SQLite split these into statements differently (#443): sqlparser skips
+			// the rest of a CREATE INDEX or an EXPLAIN up to the first semicolon, even one in a
+			// string, and the parameter #p takes the argument. The INSERT adds a constant,
+			// because the authorizer already denies random().
+			for _, q := range []string{
+				`create index i on t(a) where a = 'x;select 2 --'; insert into r values(1)`,
+				`explain select #p; insert into r values(1)`,
+			} {
+				for _, qt := range []types.QueryType{types.WriteQuery, types.ReadQuery} {
+					_, _, err = st1.Query(buildRequest(qt, []types.Query{buildQuery(q, 1)}), true)
+					So(err, ShouldWrap, sqlite3.ErrMultipleStatements)
+				}
+				var (
+					req = buildRequest(types.WriteQuery, []types.Query{buildQuery(q, 1)})
+					hdr = types.SignedResponseHeader{
+						ResponseHeader: types.ResponseHeader{LogOffset: st2.getSeq()},
+					}
+				)
+				So(st2.Replay(req, &types.Response{Header: hdr}), ShouldWrap, sqlite3.ErrMultipleStatements)
+				So(st2.ReplayBlock(&types.Block{QueryTxs: []*types.QueryAsTx{
+					{Request: req, Response: &hdr},
+				}}), ShouldWrap, sqlite3.ErrMultipleStatements)
+			}
+			So(st1.commit(), ShouldBeNil)
+			So(st2.commit(), ShouldBeNil)
+			for _, st := range []*State{st1, st2} {
+				So(count(st, `SELECT count(*) FROM r`), ShouldEqual, int64(0))
+				So(count(st, `SELECT count(*) FROM sqlite_master WHERE name = 'i'`), ShouldEqual, int64(0))
+			}
+			// One statement may still end with a semicolon.
+			_, _, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
+				buildQuery(`INSERT INTO r VALUES (1);`),
+			}), true)
+			So(err, ShouldBeNil)
+			So(count(st1, `SELECT count(*) FROM r;`), ShouldEqual, int64(1))
 		})
 		Convey("When a basic KV table is created", func() {
 			var (
@@ -711,10 +767,12 @@ func TestConvertQueryAndBuildArgs(t *testing.T) {
 			"SELECT unixepoch('2000-01-01'), timediff('2000-01-02', '2000-01-01')", []types.NamedArg{})
 		So(err, ShouldBeNil)
 
-		// counterpart to prove successful parsing of normal query
-		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(
-			"SELECT 1; SELECT func(); SELECT * FROM a", []types.NamedArg{})
+		// one statement per query, which may end with a semicolon
+		_, _, _, err = convertQueryAndBuildArgs("SELECT 1; SELECT func(); SELECT * FROM a", nil)
+		So(err, ShouldWrap, sqlite3.ErrMultipleStatements)
+		_, sanitizedQuery, _, err = convertQueryAndBuildArgs("SELECT * FROM a;", nil)
 		So(err, ShouldBeNil)
+		So(sanitizedQuery, ShouldEqual, "SELECT * FROM a;")
 
 		// counterpart to prove successful parsing of normal query
 		containsDDL, sanitizedQuery, sanitizedArgs, err = convertQueryAndBuildArgs(

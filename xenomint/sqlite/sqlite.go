@@ -84,7 +84,10 @@ func init() {
 		return
 	}
 
+	// Each query runs as one statement, so that what SQLite runs is the statement the query
+	// sanitizer checked; SQLite and sqlparser may split a script differently.
 	sql.Register(dirtyReadDriver, &sqlite3.SQLiteDriver{
+		SingleStatement: true,
 		ConnectHook: func(c *sqlite3.SQLiteConn) (err error) {
 			if err = regCustomFunc(c); err != nil {
 				return
@@ -96,6 +99,7 @@ func init() {
 		},
 	})
 	sql.Register(serializableDriver, &sqlite3.SQLiteDriver{
+		SingleStatement: true,
 		ConnectHook: func(c *sqlite3.SQLiteConn) (err error) {
 			if err = regCustomFunc(c); err != nil {
 				return

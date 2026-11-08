@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	sqlite3 "github.com/CovenantSQL/go-sqlite3-encrypt"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/symmetric"
@@ -148,6 +149,19 @@ func TestStorage(t *testing.T) {
 				_, err = st.Reader().Exec(`PRAGMA table_info("s")`)
 				So(err, ShouldBeNil)
 			})
+		})
+		Convey("A query with more than one statement should be refused on every connection before it runs", func() {
+			_, err = st.Writer().Exec(`CREATE TABLE "m" ("a" INT)`)
+			So(err, ShouldBeNil)
+			for _, db := range []*sql.DB{st.Writer(), st.Reader(), st.DirtyReader()} {
+				_, err = db.Exec(`INSERT INTO "m" VALUES (1); SELECT 2`)
+				So(err, ShouldEqual, sqlite3.ErrMultipleStatements)
+				_, err = db.Query(`INSERT INTO "m" VALUES (1); SELECT 2`)
+				So(err, ShouldEqual, sqlite3.ErrMultipleStatements)
+			}
+			var n int
+			So(st.Writer().QueryRow(`SELECT count(*) FROM "m"`).Scan(&n), ShouldBeNil)
+			So(n, ShouldEqual, 0)
 		})
 		Convey("When a basic KV table is created", func(c C) {
 			// Create basic table for testing

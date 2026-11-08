@@ -18,7 +18,6 @@ package metric
 
 import (
 	"expvar"
-	"fmt"
 	"net/http"
 	"runtime"
 	"time"
@@ -26,22 +25,18 @@ import (
 	mw "github.com/zserge/metric"
 
 	"github.com/CovenantSQL/CovenantSQL/utils"
-	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
-func collect(cc *CollectClient) (err error) {
-	mfs, err := cc.Registry.Gather()
-	if err != nil {
-		err = fmt.Errorf("gathering node metrics failed: %w", err)
-		return
-	}
-	mm := make(SimpleMetricMap, 0)
-	for _, mf := range mfs {
-		mm[*mf.Name] = mf
-		log.Debugf("gathered node: %v", mf)
-	}
-	crucialMetrics := mm.FilterCrucialMetrics()
-	for k, v := range crucialMetrics {
+func collect(dir string) {
+	h := ReadHost(dir)
+	for k, v := range map[string]float64{
+		"mem_avail": float64(h.MemAvailable),
+		"load1":     h.Load1,
+		"load5":     h.Load5,
+		"load15":    h.Load15,
+		"fs_avail":  float64(h.DiskAvailable),
+		"cpu_count": float64(runtime.NumCPU()),
+	} {
 		var val expvar.Var
 		if val = expvar.Get(k); val == nil {
 			expvar.Publish(k, mw.NewGauge("1h1m"))
@@ -49,29 +44,21 @@ func collect(cc *CollectClient) (err error) {
 		}
 		val.(mw.Metric).Add(v)
 	}
-
-	return
 }
 
-// InitMetricWeb initializes the /debug/metrics web.
-func InitMetricWeb(metricWeb string) (err error) {
+// InitMetricWeb serves /debug/metrics on metricWeb, with fs_avail measuring
+// the file system holding dir.
+func InitMetricWeb(metricWeb, dir string) {
 	// Some Go internal metrics
 	expvar.Publish("go:numgoroutine", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 	expvar.Publish("go:numcgocall", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 	expvar.Publish("go:alloc", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 	expvar.Publish("go:alloctotal", mw.NewGauge("1m1s", "5m5s", "1h1m"))
 
-	// start period provide service transaction generator
-	// start prometheus collector
-	cc := NewCollectClient()
-	err = collect(cc)
-	if err != nil {
-		return
-	}
-
+	collect(dir)
 	go func() {
 		for range time.Tick(time.Minute) {
-			_ = collect(cc)
+			collect(dir)
 		}
 	}()
 
@@ -89,5 +76,4 @@ func InitMetricWeb(metricWeb string) (err error) {
 	go func() {
 		_ = http.ListenAndServe(metricWeb, nil)
 	}()
-	return
 }

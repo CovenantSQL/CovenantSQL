@@ -30,13 +30,9 @@ require (
 	github.com/ivpusic/grpool v1.0.0
 	github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e
 	github.com/jordwest/mock-conn v0.0.0-20180617021051-4896c6bd1641
-	github.com/lufia/iostat v1.2.1
+	github.com/mackerelio/go-osstat v0.2.8
 	github.com/mattn/go-isatty v0.0.24
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/prometheus/client_golang v1.25.0
-	github.com/prometheus/client_model v0.6.3
-	github.com/prometheus/common v0.73.1
-	github.com/prometheus/procfs v0.23.0
 	github.com/rakyll/statik v0.1.8
 	github.com/sirupsen/logrus v1.10.2
 	github.com/smartystreets/goconvey v1.8.1
@@ -60,7 +56,6 @@ require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
-	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
@@ -101,14 +96,15 @@ require (
 	github.com/mattn/go-sixel v0.0.12 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nathan-fiscaletti/consolesize-go v0.0.0-20260406063853-3bac975de715 // indirect
-	github.com/pandatix/go-abnf v0.5.3 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pingcap/errors v0.11.5-0.20260310054046-9c8b3586e4b2 // indirect
 	github.com/pingcap/log v1.1.1-0.20260227082333-572e590d08f1 // indirect
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20260504140133-511dba1dbe17 // indirect
+	github.com/prometheus/client_golang v1.25.0 // indirect
+	github.com/prometheus/common v0.73.1 // indirect
+	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect

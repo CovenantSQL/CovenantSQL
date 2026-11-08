@@ -34,18 +34,27 @@ const (
 )
 
 // deniedFuncs are the functions that would make the miners of a database diverge: random
-// values, loaded code, and the SQLite build and file layout. The query sanitizer rejects them
-// too, but only where sqlparser reaches; SQLite asks the authorizer wherever it compiles a
-// function call, including column defaults, CHECK constraints, triggers and views. Other
-// sqlite_* functions stay allowed, because ALTER TABLE runs SQLite's own sqlite_rename_*.
+// values, loaded code, the SQLite build and file layout, and the changes a connection has
+// counted since it opened. The query sanitizer rejects most of them too, but only where
+// sqlparser reaches; SQLite asks the authorizer wherever it compiles a function call,
+// including column defaults, CHECK constraints, triggers and views. Other sqlite_* functions
+// stay allowed, because ALTER TABLE runs SQLite's own sqlite_rename_*.
 var deniedFuncs = map[string]bool{
 	"random": true, "randomblob": true, "load_extension": true,
 	"sqlite_version": true, "sqlite_source_id": true, "sqlite_compileoption_used": true,
-	"sqlite_compileoption_get": true, "sqlite_offset": true,
+	"sqlite_compileoption_get": true, "sqlite_offset": true, "total_changes": true,
 }
 
-func denyFuncs(op int, _, name, _ string) int {
-	if op == sqlite3.SQLITE_FUNCTION && deniedFuncs[strings.ToLower(name)] {
+// allowedPragmas are the only PRAGMAs these connections run after the authorizer is installed:
+// the dirty reader's read_uncommitted and the table_info that SHOW is rewritten to. The DSN
+// PRAGMAs run before ConnectHook. Any other PRAGMA may report the build or the host, and some,
+// like rekey and case_sensitive_like, act as soon as SQLite compiles them, even under EXPLAIN.
+var allowedPragmas = map[string]bool{"read_uncommitted": true, "table_info": true}
+
+func authorize(op int, arg1, arg2, _ string) int {
+	switch {
+	case op == sqlite3.SQLITE_FUNCTION && deniedFuncs[strings.ToLower(arg2)],
+		op == sqlite3.SQLITE_PRAGMA && !allowedPragmas[strings.ToLower(arg1)]:
 		return sqlite3.SQLITE_DENY
 	}
 	return sqlite3.SQLITE_OK
@@ -70,7 +79,7 @@ func init() {
 	}
 
 	regCustomFunc := func(c *sqlite3.SQLiteConn) (err error) {
-		c.RegisterAuthorizer(denyFuncs)
+		c.RegisterAuthorizer(authorize)
 		if err = c.RegisterFunc("sleep", sleepFunc, true); err != nil {
 			return
 		}

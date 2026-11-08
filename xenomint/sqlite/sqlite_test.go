@@ -70,7 +70,7 @@ func TestStorage(t *testing.T) {
 				So(fixed, ShouldEqual, "2000-01-02")
 			}
 		})
-		Convey("Random functions should be denied wherever SQLite compiles them", func() {
+		Convey("Functions that make miners diverge should be denied wherever SQLite compiles them", func() {
 			// The query sanitizer does not check column defaults, CHECK constraints, trigger
 			// bodies or views.
 			w := st.Writer()
@@ -119,6 +119,53 @@ func TestStorage(t *testing.T) {
 				_, err = w.Exec(`CREATE TABLE "g" ("a" INT)`)
 				So(err, ShouldBeNil)
 				_, err = w.Exec(`ALTER TABLE "g" RENAME TO "g2"`)
+				So(err, ShouldBeNil)
+			})
+			Convey("In connection history", func() {
+				_, err = w.Exec(`SELECT total_changes()`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+		})
+		Convey("PRAGMAs other than the ones CovenantSQL runs should be denied", func() {
+			w := st.Writer()
+			Convey("Even under EXPLAIN, where SQLite still acts on them when it compiles", func() {
+				_, err = w.Exec(`EXPLAIN PRAGMA case_sensitive_like = 1`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("Through a pragma table", func() {
+				err = w.QueryRow(`SELECT count(*) FROM pragma_compile_options`).Scan(new(int))
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+			})
+			Convey("So that a client cannot rekey the database", func() {
+				enc := fmt.Sprint("file:", fl, "-enc?_crypto_key=k1")
+				defer func() {
+					for _, suffix := range []string{"-enc", "-enc-shm", "-enc-wal"} {
+						_ = os.Remove(fl + suffix)
+					}
+				}()
+				es, err := NewSqlite(enc)
+				So(err, ShouldBeNil)
+				_, err = es.Writer().Exec(`CREATE TABLE "k" ("a" INT)`)
+				So(err, ShouldBeNil)
+				_, err = es.Writer().Exec(`EXPLAIN PRAGMA rekey = 'x'`)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "not authorized")
+				So(es.Close(), ShouldBeNil)
+				es, err = NewSqlite(enc)
+				So(err, ShouldBeNil)
+				_, err = es.Reader().Exec(`SELECT * FROM "k"`)
+				So(err, ShouldBeNil)
+				So(es.Close(), ShouldBeNil)
+			})
+			Convey("But the dirty reader and SHOW, which run read_uncommitted and table_info, work", func() {
+				_, err = w.Exec(`CREATE TABLE "s" ("a" INT)`)
+				So(err, ShouldBeNil)
+				_, err = st.DirtyReader().Exec(`SELECT "a" FROM "s"`)
+				So(err, ShouldBeNil)
+				_, err = st.Reader().Exec(`PRAGMA table_info("s")`)
 				So(err, ShouldBeNil)
 			})
 		})

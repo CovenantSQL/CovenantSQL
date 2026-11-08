@@ -98,20 +98,6 @@ func buildRequest(qt types.QueryType, qs []types.Query) *types.Request {
 	}
 }
 
-func concat(args [][]interface{}) (ret []interface{}) {
-	var (
-		tlen int
-	)
-	for _, v := range args {
-		tlen += len(v)
-	}
-	ret = make([]interface{}, 0, tlen)
-	for _, v := range args {
-		ret = append(ret, v...)
-	}
-	return
-}
-
 func createNodesWithPublicKey(
 	pub *ca.PublicKey, diff int, num int) (nis []proto.Node, err error,
 ) {

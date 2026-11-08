@@ -275,8 +275,8 @@ func TestState(t *testing.T) {
 
 				_, resp, err = st1.Query(buildRequest(types.WriteQuery, []types.Query{
 					buildQuery(`INSERT INTO t1 ("k", "v") VALUES (?, ?)`, values[1]...),
-					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?);
-INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
+					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[2]...),
+					buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[3]...),
 				}), true)
 				So(err, ShouldBeNil)
 				So(resp.Header.RowCount, ShouldEqual, 0)
@@ -380,8 +380,8 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						}),
 						buildRequest(types.WriteQuery, []types.Query{
 							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[1]...),
-							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?);
-INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[2]...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[3]...),
 						}),
 						buildRequest(types.WriteQuery, []types.Query{
 							buildQuery(`DELETE FROM t1 WHERE k=?`, values[2][0]),
@@ -422,8 +422,8 @@ INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
 						}),
 						buildRequest(types.WriteQuery, []types.Query{
 							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[1]...),
-							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?);
-INSERT INTO t1 (k, v) VALUES (?, ?)`, concat(values[2:4])...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[2]...),
+							buildQuery(`INSERT INTO t1 (k, v) VALUES (?, ?)`, values[3]...),
 						}),
 						buildRequest(types.WriteQuery, []types.Query{
 							buildQuery(`DELETE FROM t1 WHERE k=?`, values[2][0]),

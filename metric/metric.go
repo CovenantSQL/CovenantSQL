@@ -17,10 +17,14 @@
 package metric
 
 import (
+	"log/slog"
+	"runtime"
 	"sort"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors/version"
+	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
@@ -29,9 +33,15 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("CovenantSQL"))
 }
 
-// StartMetricCollector starts collector registered in NewNodeCollector().
+// StartMetricCollector starts the node_exporter collectors for memory, load and file systems.
 func StartMetricCollector() (registry *prometheus.Registry) {
-	nc, err := NewNodeCollector()
+	// node_exporter sets its defaults, such as the procfs path, as kingpin
+	// flag defaults, which only a parse applies.
+	if _, err := kingpin.CommandLine.Parse(nil); err != nil {
+		log.WithError(err).Error("couldn't parse node collector flags")
+		return
+	}
+	nc, err := collector.NewNodeCollector(slog.Default(), "meminfo", "loadavg", "filesystem")
 	if err != nil {
 		log.WithError(err).Error("couldn't create node collector")
 		return
@@ -43,6 +53,10 @@ func StartMetricCollector() (registry *prometheus.Registry) {
 		log.WithError(err).Error("couldn't register collector")
 		return nil
 	}
+	registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "node_cpu_count",
+		Help: "Number of logical CPUs usable by the process.",
+	}, func() float64 { return float64(runtime.NumCPU()) }))
 
 	log.Info("enabled collectors:")
 	var collectors []string

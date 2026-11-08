@@ -41,6 +41,10 @@ var (
 	metricKeyLoadAvg  = "node_load15"
 	metricKeyCPUCount = "node_cpu_count"
 	metricKeySpace    = "node_filesystem_free_bytes"
+
+	// Darwin exports no MemAvailable; its free and inactive memory sum to it.
+	metricKeyMemoryFree     = "node_memory_free_bytes"
+	metricKeyMemoryInactive = "node_memory_inactive_bytes"
 )
 
 func sendProvideService(reg *prometheus.Registry) {
@@ -78,7 +82,8 @@ func sendProvideService(reg *prometheus.Registry) {
 
 	for _, m := range mf {
 		switch m.GetName() {
-		case metricKeyMemory, metricKeyCPUCount, metricKeyLoadAvg, metricKeySpace:
+		case metricKeyMemory, metricKeyMemoryFree, metricKeyMemoryInactive,
+			metricKeyCPUCount, metricKeyLoadAvg, metricKeySpace:
 		default:
 			continue
 		}
@@ -101,9 +106,9 @@ func sendProvideService(reg *prometheus.Registry) {
 		}
 
 		switch m.GetName() {
-		case metricKeyMemory:
+		case metricKeyMemory, metricKeyMemoryFree, metricKeyMemoryInactive:
 			if metricVal > 0 && metricVal < maxUint64 {
-				memoryBytes = uint64(metricVal)
+				memoryBytes += uint64(metricVal)
 			}
 		case metricKeySpace:
 			if metricVal > 0 && metricVal < maxUint64 {

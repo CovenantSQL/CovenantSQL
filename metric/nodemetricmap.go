@@ -94,6 +94,9 @@ func (mfm *SimpleMetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 		"node_ntp_offset_seconds":        "ntp_offset",
 		"node_filesystem_free_bytes":     "fs_avail",
 		"node_cpu_count":                 "cpu_count",
+		// Darwin exports no MemAvailable; its free and inactive memory sum to it.
+		"node_memory_free_bytes":     "mem_avail",
+		"node_memory_inactive_bytes": "mem_avail",
 	}
 	ret = make(map[string]float64)
 	for _, v := range *mfm {
@@ -113,7 +116,7 @@ func (mfm *SimpleMetricMap) FilterCrucialMetrics() (ret map[string]float64) {
 			default:
 				continue
 			}
-			ret[newName] = metricVal
+			ret[newName] += metricVal
 		}
 	}
 	log.Debugf("crucial Metric added: %v", ret)

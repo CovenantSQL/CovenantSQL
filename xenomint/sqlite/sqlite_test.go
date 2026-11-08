@@ -139,27 +139,6 @@ func TestStorage(t *testing.T) {
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldContainSubstring, "not authorized")
 			})
-			Convey("So that a client cannot rekey the database", func() {
-				enc := fmt.Sprint("file:", fl, "-enc?_crypto_key=k1")
-				defer func() {
-					for _, suffix := range []string{"-enc", "-enc-shm", "-enc-wal"} {
-						_ = os.Remove(fl + suffix)
-					}
-				}()
-				es, err := NewSqlite(enc)
-				So(err, ShouldBeNil)
-				_, err = es.Writer().Exec(`CREATE TABLE "k" ("a" INT)`)
-				So(err, ShouldBeNil)
-				_, err = es.Writer().Exec(`EXPLAIN PRAGMA rekey = 'x'`)
-				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "not authorized")
-				So(es.Close(), ShouldBeNil)
-				es, err = NewSqlite(enc)
-				So(err, ShouldBeNil)
-				_, err = es.Reader().Exec(`SELECT * FROM "k"`)
-				So(err, ShouldBeNil)
-				So(es.Close(), ShouldBeNil)
-			})
 			Convey("But the dirty reader and SHOW, which run read_uncommitted and table_info, work", func() {
 				_, err = w.Exec(`CREATE TABLE "s" ("a" INT)`)
 				So(err, ShouldBeNil)
@@ -1289,3 +1268,23 @@ func idleWriteTx(
 //	})
 //	teardownBenchmarkStorage(b, st)
 //}
+
+func TestRekeyDenied(t *testing.T) {
+	Convey("A client should not be able to rekey the database", t, func() {
+		dsn := fmt.Sprint("file:", path.Join(testingDataDir, t.Name()), "?_crypto_key=k1")
+		st, err := NewSqlite(dsn)
+		So(err, ShouldBeNil)
+		_, err = st.Writer().Exec(`CREATE TABLE "k" ("a" INT)`)
+		So(err, ShouldBeNil)
+		// SQLCipher rekeys when SQLite compiles the PRAGMA, even under EXPLAIN.
+		_, err = st.Writer().Exec(`EXPLAIN PRAGMA rekey = 'x'`)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "not authorized")
+		So(st.Close(), ShouldBeNil)
+		st, err = NewSqlite(dsn)
+		So(err, ShouldBeNil)
+		_, err = st.Reader().Exec(`SELECT * FROM "k"`)
+		So(err, ShouldBeNil)
+		So(st.Close(), ShouldBeNil)
+	})
+}

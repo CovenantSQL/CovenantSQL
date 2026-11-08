@@ -6,7 +6,7 @@ require (
 	github.com/CovenantSQL/HashStablePack/v2 v2.1.0
 	github.com/CovenantSQL/beacon v0.0.0-20261106014602-6eeafaefe30d
 	github.com/CovenantSQL/go-sqlite3-encrypt v1.13.0
-	github.com/CovenantSQL/sqlparser v0.0.0-20190618091803-c4a6cf6cebb6
+	github.com/CovenantSQL/sqlparser v0.1.0
 	github.com/btcsuite/btcd/btcec/v2 v2.5.1
 	github.com/btcsuite/btcd/btcutil v1.2.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc

@@ -179,10 +179,11 @@ func TestState(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(st2.Replay(setup, resp), ShouldBeNil)
 
-			// sqlparser and SQLite split these into statements differently (#443): sqlparser skips
-			// the rest of a CREATE INDEX or an EXPLAIN up to the first semicolon, even one in a
-			// string, and the parameter #p takes the argument. The INSERT adds a constant,
-			// because the authorizer already denies random().
+			// sqlparser also finds two statements in the first, so the sanitizer refuses it. In the
+			// second, sqlparser reads "#p; ..." in the EXPLAIN tail it skips as a comment, while
+			// SQLite reads a parameter, which takes the argument, and a second statement, so only
+			// the driver refuses it. The INSERT adds a constant, because the authorizer already
+			// denies random().
 			for _, q := range []string{
 				`create index i on t(a) where a = 'x;select 2 --'; insert into r values(1)`,
 				`explain select #p; insert into r values(1)`,
@@ -214,6 +215,49 @@ func TestState(t *testing.T) {
 			}), true)
 			So(err, ShouldBeNil)
 			So(count(st1, `SELECT count(*) FROM r;`), ShouldEqual, int64(1))
+		})
+		Convey("sqlparser should read these as SQLite does", func() {
+			var (
+				rows  []types.ResponseRow
+				query = func(qt types.QueryType, q string) (rows []types.ResponseRow, err error) {
+					var resp *types.Response
+					if _, resp, err = st1.Query(buildRequest(qt, []types.Query{buildQuery(q)}), true); err == nil {
+						rows = resp.Payload.Rows
+					}
+					return
+				}
+			)
+			_, err = query(types.WriteQuery, `CREATE TABLE t (a TEXT)`)
+			So(err, ShouldBeNil)
+			Convey("A semicolon in a string does not end the CREATE INDEX or EXPLAIN tail it skips", func() {
+				_, err = query(types.WriteQuery, `create index i on t(a) where a = 'x;select 2 --'`)
+				So(err, ShouldBeNil)
+				So(st1.commit(), ShouldBeNil)
+				rows, err = query(types.ReadQuery, `SELECT count(*) FROM sqlite_master WHERE name = 'i'`)
+				So(err, ShouldBeNil)
+				So(rows[0].Values[0], ShouldEqual, int64(1))
+				_, err = query(types.ReadQuery, `EXPLAIN SELECT 'a;select 2 --'`)
+				So(err, ShouldBeNil)
+			})
+			Convey("A FLOAT(p) column is parsed, so a string default with a semicolon is kept", func() {
+				_, err = query(types.WriteQuery, `create table f (a float(24) default 'a;b', b INT)`)
+				So(err, ShouldBeNil)
+				_, err = query(types.WriteQuery, `INSERT INTO f (b) VALUES (1)`)
+				So(err, ShouldBeNil)
+				So(st1.commit(), ShouldBeNil)
+				rows, err = query(types.ReadQuery, `SELECT a FROM f`)
+				So(err, ShouldBeNil)
+				So(fmt.Sprintf("%s", rows[0].Values[0]), ShouldEqual, "a;b")
+			})
+			Convey("A FLOAT(p) column is parsed, so its default is checked", func() {
+				_, err = query(types.WriteQuery, `create table g (a float(24) default current_timestamp)`)
+				So(err, ShouldWrap, ErrStatefulQueryParts)
+			})
+			Convey("An empty executable comment does not panic", func() {
+				So(func() { rows, err = query(types.ReadQuery, `select /*!*/ 1`) }, ShouldNotPanic)
+				So(err, ShouldBeNil)
+				So(rows[0].Values[0], ShouldEqual, int64(1))
+			})
 		})
 		Convey("When a basic KV table is created", func() {
 			var (

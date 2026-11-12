@@ -40,6 +40,11 @@ func TestServerHandshake(t *testing.T) {
 		_, err = myclient.Connect(s.listener.Addr().String(), "root", "wrong", "")
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "ERROR 1045 (28000)")
+
+		// Authenticate before validating the database supplied in the handshake.
+		_, err = myclient.Connect(s.listener.Addr().String(), "root", "wrong", "invalid!")
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "ERROR 1045 (28000)")
 	})
 }
 
@@ -58,8 +63,7 @@ func TestConnClosesDatabases(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(conn.Close(), ShouldBeNil)
 		}
-		// go-mysql opens the handshake's database before it checks the
-		// password, so a failed login opens one too.
+		// Failed logins must not leave database or connection goroutines behind.
 		failedLogin := func() {
 			_, err := myclient.Connect(s.listener.Addr().String(), "root", "wrong", "db1")
 			So(err, ShouldNotBeNil)

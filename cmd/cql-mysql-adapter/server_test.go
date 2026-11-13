@@ -48,6 +48,24 @@ func TestServerHandshake(t *testing.T) {
 	})
 }
 
+func TestServerEmptyPassword(t *testing.T) {
+	Convey("an empty-password account rejects non-empty passwords and keeps serving", t, func() {
+		s, err := NewServer("127.0.0.1:0", "root", "")
+		So(err, ShouldBeNil)
+		go s.Serve()
+		defer s.Shutdown()
+
+		_, err = myclient.Connect(s.listener.Addr().String(), "root", "wrong", "")
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "ERROR 1045 (28000)")
+
+		conn, err := myclient.Connect(s.listener.Addr().String(), "root", "", "")
+		So(err, ShouldBeNil)
+		So(conn.Ping(), ShouldBeNil)
+		So(conn.Close(), ShouldBeNil)
+	})
+}
+
 func TestConnClosesDatabases(t *testing.T) {
 	Convey("a connection closes the databases it opened", t, func() {
 		s, err := NewServer("127.0.0.1:0", "root", "calvin")

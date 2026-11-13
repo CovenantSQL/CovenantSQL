@@ -19,7 +19,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-gorp/gorp/v3 v3.1.0
-	github.com/go-mysql-org/go-mysql v1.16.1-0.20261110165124-cf9ea3b1e27c
+	github.com/go-mysql-org/go-mysql v1.16.1-0.20261113070706-590668ee4133
 	github.com/go-playground/validator/v10 v10.30.6
 	github.com/google/go-github/v93 v93.0.0
 	github.com/google/uuid v1.6.0

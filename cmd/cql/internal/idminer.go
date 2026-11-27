@@ -161,7 +161,11 @@ func nonceGen(publicKey *asymmetric.PublicKey) *mine.NonceInfo {
 				default:
 					currentHash := mine.HashBlock(publicKeyBytes, j)
 					currentDifficulty := currentHash.Difficulty()
-					progressCh <- currentDifficulty
+					select {
+					case progressCh <- currentDifficulty:
+					case <-stopCh:
+						return
+					}
 					if currentDifficulty >= difficulty {
 						nonce := mine.NonceInfo{
 							Nonce:      j,

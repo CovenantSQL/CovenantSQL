@@ -47,9 +47,12 @@ type FetchBlockResp struct {
 	Block  *types.Block
 }
 
-// AdviseNewBlock is the RPC method to advise a new produced block to the target server.
-func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
-	err error) {
+// AdviseNewBlock takes a new block from caller, which must be a peer of the sql-chain.
+func (s *ChainRPCService) AdviseNewBlock(
+	caller proto.NodeID, req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (err error) {
+	if _, found := s.chain.rt.getPeers().Find(caller); !found {
+		return ErrNotPeer
+	}
 	if req.Block == nil {
 		return ErrNilBlock
 	}

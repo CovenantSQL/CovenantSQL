@@ -27,16 +27,36 @@ import (
 )
 
 func TestMuxAdviseNewBlock(t *testing.T) {
-	Convey("A nil block should not reach the block processing of the sql-chain", t, func() {
+	Convey("Given a sql-chain with a single peer", t, func() {
 		var (
-			blocks = make(chan *types.Block, 1)
-			mux    = &MuxService{}
+			peer     = proto.NodeID(hash.THashH([]byte("peer")).String())
+			stranger = proto.NodeID(hash.THashH([]byte("stranger")).String())
+			blocks   = make(chan *types.Block, 1)
+			mux      = &MuxService{}
 		)
-		mux.register(testDatabaseID, &ChainRPCService{chain: &Chain{blocks: blocks}})
-		err := mux.AdviseNewBlock(
-			&MuxAdviseNewBlockReq{DatabaseID: testDatabaseID}, &MuxAdviseNewBlockResp{})
-		So(err, ShouldEqual, ErrNilBlock)
-		So(blocks, ShouldBeEmpty)
+		mux.register(testDatabaseID, &ChainRPCService{chain: &Chain{blocks: blocks, rt: &runtime{
+			peers: &proto.Peers{PeersHeader: proto.PeersHeader{Servers: []proto.NodeID{peer}}},
+		}}})
+		advise := func(caller *proto.RawNodeID, block *types.Block) error {
+			return mux.AdviseNewBlock(&MuxAdviseNewBlockReq{
+				Envelope:          proto.Envelope{NodeID: caller},
+				DatabaseID:        testDatabaseID,
+				AdviseNewBlockReq: AdviseNewBlockReq{Block: block},
+			}, &MuxAdviseNewBlockResp{})
+		}
+		Convey("The block of the peer should reach the block processing", func() {
+			So(advise(peer.ToRawNodeID(), &types.Block{}), ShouldBeNil)
+			So(blocks, ShouldHaveLength, 1)
+		})
+		Convey("Blocks of other nodes should be rejected", func() {
+			So(advise(stranger.ToRawNodeID(), &types.Block{}), ShouldEqual, ErrNotPeer)
+			So(advise(nil, &types.Block{}), ShouldEqual, ErrNotPeer)
+			So(blocks, ShouldBeEmpty)
+		})
+		Convey("A nil block should not reach the block processing", func() {
+			So(advise(peer.ToRawNodeID(), nil), ShouldEqual, ErrNilBlock)
+			So(blocks, ShouldBeEmpty)
+		})
 	})
 }
 

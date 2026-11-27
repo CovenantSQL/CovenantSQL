@@ -74,6 +74,8 @@ var (
 	ErrNilGenesis = errors.New("nil genesis block")
 	// ErrNilBlock indicates that an advised block is nil.
 	ErrNilBlock = errors.New("nil block")
+	// ErrInvalidBlockSigner indicates that a block is not signed with the block producer key.
+	ErrInvalidBlockSigner = errors.New("block not signed with the block producer key")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
 	// ErrGenesisHashNotMatch indicates that the genesis block hash in config doesn't match

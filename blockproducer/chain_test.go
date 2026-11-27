@@ -376,9 +376,9 @@ func TestChain(t *testing.T) {
 			err = chain.produceBlock(begin.Add(chain.period).UTC())
 			So(err, ShouldBeNil)
 
-			// A sibling block signed with a key other than the block producer key should be
-			// rejected
-			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr2, priv2)
+			// A sibling block that names the block producer address but is signed with another
+			// key should be rejected
+			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr1, priv2)
 			So(err, ShouldBeNil)
 			So(chain.pushBlock(bl), ShouldEqual, ErrInvalidBlockSigner)
 

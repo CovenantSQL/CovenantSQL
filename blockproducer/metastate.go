@@ -584,22 +584,23 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	}
 
 	miners := make(MinerInfos, 0, minerCount)
+	// the last target miner that didn't match
+	var targetErr error
 
 	for _, m := range tx.ResourceMeta.TargetMiners {
 		if po, loaded := s.loadProviderObject(m); !loaded {
+			targetErr = ErrNoSuchMiner
 			log.WithFields(log.Fields{
 				"miner_addr": m,
 				"user_addr":  sender,
-			}).Error(err)
-			err = ErrNoSuchMiner
+			}).Error(targetErr)
 			continue
 		} else {
-			// A later target that matches must not clear an earlier failure.
 			var filterErr error
 			miners, filterErr = filterAndAppendMiner(miners, po, tx, sender)
 			if filterErr != nil {
-				err = filterErr
-				log.Warnf("miner filtered %v", err)
+				targetErr = filterErr
+				log.Warnf("miner filtered %v", filterErr)
 			}
 			// if got enough, break
 			if uint64(miners.Len()) == minerCount {
@@ -611,7 +612,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	// not enough, find more miner(s)
 	if uint64(miners.Len()) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			err = fmt.Errorf("miners match target are not enough %d:%d: %w", miners.Len(), minerCount, err)
+			err = fmt.Errorf("miners match target are not enough %d:%d: %w", miners.Len(), minerCount, targetErr)
 			return
 		}
 		var newMiners MinerInfos

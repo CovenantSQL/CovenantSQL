@@ -29,7 +29,7 @@ var (
 	ErrPrepareFailed = errors.New("prepare failed")
 	// ErrInvalidLog represents log is invalid.
 	ErrInvalidLog = errors.New("invalid log")
-	// ErrNotInPeer represents current node does not exists in peer list.
+	// ErrNotInPeer represents that the current node or a caller does not exist in peer list.
 	ErrNotInPeer = errors.New("node not in peer")
 	// ErrInvalidConfig represents invalid kayak runtime config.
 	ErrInvalidConfig = errors.New("invalid runtime config")

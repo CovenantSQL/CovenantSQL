@@ -594,8 +594,11 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 			err = ErrNoSuchMiner
 			continue
 		} else {
-			miners, err = filterAndAppendMiner(miners, po, tx, sender)
-			if err != nil {
+			// A later target that matches must not clear an earlier failure.
+			var filterErr error
+			miners, filterErr = filterAndAppendMiner(miners, po, tx, sender)
+			if filterErr != nil {
+				err = filterErr
 				log.Warnf("miner filtered %v", err)
 			}
 			// if got enough, break
@@ -608,9 +611,7 @@ func (s *metaState) matchProvidersWithUser(tx *types.CreateDatabase) (err error)
 	// not enough, find more miner(s)
 	if uint64(miners.Len()) < minerCount {
 		if uint64(len(tx.ResourceMeta.TargetMiners)) >= minerCount {
-			if err != nil {
-				err = fmt.Errorf("miners match target are not enough %d:%d: %w", miners.Len(), minerCount, err)
-			}
+			err = fmt.Errorf("miners match target are not enough %d:%d: %w", miners.Len(), minerCount, err)
 			return
 		}
 		var newMiners MinerInfos

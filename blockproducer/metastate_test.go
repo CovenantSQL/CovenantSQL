@@ -929,6 +929,33 @@ func TestMetaState(t *testing.T) {
 				So(mIDs, ShouldContain, "0000003")
 				So(mIDs, ShouldContain, "0000001")
 			})
+			Convey("When only the last of the target miners matches", func() {
+				filtered := proto.AccountAddress(hash.HashH([]byte("filtered")))
+				matched := proto.AccountAddress(hash.HashH([]byte("matched")))
+				ms.dirty.provider[filtered] = &types.ProviderProfile{
+					TargetUser: []proto.AccountAddress{addr2},
+				}
+				ms.dirty.provider[matched] = &types.ProviderProfile{
+					TargetUser: []proto.AccountAddress{addr3},
+					GasPrice:   1,
+				}
+				cd := types.CreateDatabase{
+					CreateDatabaseHeader: types.CreateDatabaseHeader{
+						Owner: addr3,
+						ResourceMeta: types.ResourceMeta{
+							TargetMiners: []proto.AccountAddress{filtered, matched},
+							Node:         2,
+						},
+						Nonce:          1,
+						GasPrice:       1,
+						AdvancePayment: uint64(conf.GConf.QPS) * conf.GConf.BillingBlockCount * 2,
+					},
+				}
+				err = cd.Sign(privKey3)
+				So(err, ShouldBeNil)
+				err = ms.apply(&cd, 0)
+				So(err, ShouldWrap, ErrMinerUserNotMatch)
+			})
 			Convey("When SQLChain create", func() {
 				ps := types.ProvideService{
 					ProvideServiceHeader: types.ProvideServiceHeader{

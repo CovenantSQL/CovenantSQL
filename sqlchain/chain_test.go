@@ -256,7 +256,9 @@ func TestMultiChain(t *testing.T) {
 			t.Fatalf("error occurred: %v", err)
 		}
 
-		if n.ID == conf.GConf.ThisNodeID {
+		// All chains share this process and call each other as its local node, which must be
+		// a peer for FetchBlock.
+		if n.ID == peers.Servers[0] {
 			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
 		}
 	}

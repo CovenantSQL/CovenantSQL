@@ -25,6 +25,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/utils"
@@ -56,6 +57,36 @@ func TestSignAndVerify(t *testing.T) {
 	if err = block.Verify(); err != ErrMerkleRootVerification {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestVerifyNilMembers(t *testing.T) {
+	Convey("A block with a nil member should not verify", t, func() {
+		block, err := CreateRandomBlock(genesisHash, false)
+		So(err, ShouldBeNil)
+		Convey("A nil failed request", func() {
+			block.FailedReqs = []*Request{nil}
+			So(block.Verify(), ShouldEqual, ErrNilBlockMember)
+		})
+		Convey("A nil query", func() {
+			block.QueryTxs = []*QueryAsTx{nil}
+			So(block.Verify(), ShouldEqual, ErrNilBlockMember)
+		})
+		Convey("A nil query response", func() {
+			block.QueryTxs = []*QueryAsTx{{Request: &Request{}}}
+			So(block.Verify(), ShouldEqual, ErrNilBlockMember)
+		})
+		Convey("A nil ack", func() {
+			block.Acks = []*SignedAckHeader{nil}
+			So(block.Verify(), ShouldEqual, ErrNilBlockMember)
+		})
+		Convey("A nil query request, which the merkle root does not cover", func() {
+			priv, _, err := asymmetric.GenSecp256k1KeyPair()
+			So(err, ShouldBeNil)
+			block.QueryTxs = []*QueryAsTx{{Response: &SignedResponseHeader{}}}
+			So(block.PackAndSignBlock(priv), ShouldBeNil)
+			So(block.Verify(), ShouldEqual, ErrNilBlockMember)
+		})
+	})
 }
 
 func TestHeaderMarshalUnmarshaler(t *testing.T) {

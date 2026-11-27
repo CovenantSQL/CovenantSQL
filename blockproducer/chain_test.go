@@ -250,6 +250,23 @@ func TestChain(t *testing.T) {
 				_ = rpcService.QueryAccountSQLChainProfiles(&types.QueryAccountSQLChainProfilesReq{Addr: addr1}, profilesResp)
 				So(profilesResp.Profiles, ShouldNotBeEmpty)
 				So(profilesResp.Profiles[0].ID, ShouldEqual, dbid1)
+
+				// The nonce of addr2 is 0, so a block applying this unsigned transaction would
+				// add its balance to addr2: neither AddTx nor a restart should put it into the
+				// pool.
+				var tx = types.NewBaseAccount(&types.Account{
+					Address:      addr2,
+					TokenBalance: [types.SupportTokenNumber]uint64{100, 100, 100, 100, 100},
+				})
+				chain.processAddTxReq(&types.AddTxReq{Tx: tx})
+				So(chain.txPool, ShouldBeEmpty)
+				err = store(chain.storage, []storageProcedure{addTx(tx)}, nil)
+				So(err, ShouldBeNil)
+				err = chain.Stop()
+				So(err, ShouldBeNil)
+				chain, err = NewChain(config)
+				So(err, ShouldBeNil)
+				So(chain.txPool, ShouldBeEmpty)
 			})
 
 			Convey("Chain APIs should return correct result of tx state", func() {

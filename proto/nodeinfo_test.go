@@ -25,6 +25,7 @@ import (
 	yaml "go.yaml.in/yaml/v2"
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func TestAccountAddress_DatabaseID(t *testing.T) {
@@ -178,10 +179,11 @@ func TestNodeID_IsEmpty(t *testing.T) {
 
 func TestNodeID_MarshalBinary(t *testing.T) {
 	Convey("NodeID MarshalBinary", t, func() {
-		var nodeID, nodeID2, nodeID3 NodeID
+		var nodeID, nodeID2 NodeID
 
 		nb, err := nodeID.MarshalBinary()
 		So(err, ShouldBeNil)
+		So(nb, ShouldBeNil)
 
 		nodeID = NodeID("0000000000000000000000000000000000000000000000000000000000000000")
 		nb, err = nodeID.MarshalBinary()
@@ -194,9 +196,34 @@ func TestNodeID_MarshalBinary(t *testing.T) {
 		err = nodeID2.UnmarshalBinary(nb)
 		So(err, ShouldBeNil)
 		So(nodeID2, ShouldResemble, nodeID)
+	})
+}
 
-		nodeID3.UnmarshalBinary([]byte("0000000000000000000000000000000000000000000000000000000000000000"))
-		So(err, ShouldBeNil)
-		So(nodeID3, ShouldResemble, nodeID)
+func TestNodeID_MsgPackRoundTrip(t *testing.T) {
+	Convey("msgpack preserves both empty NodeID representations", t, func() {
+		for _, id := range []NodeID{"", NodeID(strings.Repeat("0", NodeIDLen))} {
+			node := Node{ID: id}
+			buf, err := utils.EncodeMsgPack(&node)
+			So(err, ShouldBeNil)
+			var decoded Node
+			So(utils.DecodeMsgPack(buf.Bytes(), &decoded), ShouldBeNil)
+			So(decoded.ID, ShouldEqual, id)
+		}
+	})
+}
+
+func TestNodeID_UnmarshalBinaryRejectsText(t *testing.T) {
+	Convey("NodeID rejects 64-byte hexadecimal text", t, func() {
+		id := "00000000011a34cb8142780f692a4097d883aa2ac8a534a070a134f11bcca573"
+		for _, text := range []string{id, strings.ToUpper(id)} {
+			var nodeID NodeID
+			So(nodeID.UnmarshalBinary([]byte(text)), ShouldNotBeNil)
+			So(nodeID, ShouldEqual, NodeID(""))
+
+			buf, err := utils.EncodeMsgPack([]byte(text))
+			So(err, ShouldBeNil)
+			So(utils.DecodeMsgPack(buf.Bytes(), &nodeID), ShouldNotBeNil)
+			So(nodeID, ShouldEqual, NodeID(""))
+		}
 	})
 }

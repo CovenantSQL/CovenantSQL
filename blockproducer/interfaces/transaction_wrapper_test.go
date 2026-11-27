@@ -27,6 +27,7 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -228,6 +229,30 @@ func TestTransactionWrapper(t *testing.T) {
 		jsonData = []byte(fmt.Sprintf(`{"TxType": %d, "TestField": 11}`, pi.TransactionTypeCreateAccount))
 		err = json.Unmarshal(jsonData, &v18)
 		So(err, ShouldNotBeNil)
+	})
+}
+
+func TestTransactionWrapperTypeConsistency(t *testing.T) {
+	Convey("transaction wrapper preserves the decoded transaction type", t, func() {
+		priv, _, err := asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		tx := types.NewCreateDatabase(&types.CreateDatabaseHeader{Nonce: 1})
+		So(tx.Sign(priv), ShouldBeNil)
+
+		Convey("reject an inner type that differs from the outer type", func() {
+			for _, innerType := range []pi.TransactionType{
+				pi.TransactionTypeTransfer, pi.TransactionTypeNumber + 1,
+			} {
+				tx.SetTransactionType(innerType)
+				So(tx.Verify(), ShouldBeNil)
+				buf, err := utils.EncodeMsgPack([]interface{}{pi.TransactionTypeCreateDatabase, tx})
+				So(err, ShouldBeNil)
+				var decoded pi.Transaction
+				err = utils.DecodeMsgPack(buf.Bytes(), &decoded)
+				So(err, ShouldNotBeNil)
+				So(fmt.Sprint(err), ShouldContainSubstring, pi.ErrInvalidTransactionType.Error())
+			}
+		})
 	})
 }
 

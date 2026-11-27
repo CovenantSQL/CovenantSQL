@@ -23,6 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -30,6 +31,22 @@ type complexStructure struct {
 	Tx   pi.Transaction
 	Txs  []pi.Transaction
 	Maps map[string]pi.Transaction
+}
+
+func TestProvideServiceEmptyNodeIDRoundTrip(t *testing.T) {
+	Convey("ProvideService with an empty NodeID verifies after a msgpack round trip", t, func() {
+		priv, _, err := asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		tx := NewProvideService(&ProvideServiceHeader{})
+		So(tx.Sign(priv), ShouldBeNil)
+		So(tx.Verify(), ShouldBeNil)
+
+		buf, err := utils.EncodeMsgPack(pi.WrapTransaction(tx))
+		So(err, ShouldBeNil)
+		var decoded pi.Transaction
+		So(utils.DecodeMsgPack(buf.Bytes(), &decoded), ShouldBeNil)
+		So(decoded.Verify(), ShouldBeNil)
+	})
 }
 
 func TestEncodeDecodeTransactions(t *testing.T) {

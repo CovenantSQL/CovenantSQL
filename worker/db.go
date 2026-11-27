@@ -288,11 +288,13 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		return
 	}
 
+	// The query is executed and pooled for the next block, which waits for its response: set it
+	// even if the ack index refuses the response
+	tracker.UpdateResp(response)
 	if err = db.chain.AddResponse(&response.Header); err != nil {
 		log.WithError(err).Debug("failed to add response to index")
 		return
 	}
-	tracker.UpdateResp(response)
 
 	return
 }

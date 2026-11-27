@@ -41,7 +41,7 @@ func TestBaseAccount(t *testing.T) {
 		priv, _, err := asymmetric.GenSecp256k1KeyPair()
 		So(err, ShouldBeNil)
 		So(ba.Sign(priv), ShouldBeNil)
-		So(ba.Verify(), ShouldBeNil)
+		So(ba.Verify(), ShouldEqual, ErrSignVerification)
 	})
 }
 

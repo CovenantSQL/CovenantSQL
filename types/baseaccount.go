@@ -60,9 +60,11 @@ func (b *BaseAccount) Sign(signer *asymmetric.PrivateKey) (err error) {
 	return
 }
 
-// Verify implements interfaces/Transaction.Verify.
+// Verify implements interfaces/Transaction.Verify. A base account transaction carries no
+// signature, so it never verifies: only the genesis block, which every block producer takes from
+// its configuration, may hold one.
 func (b *BaseAccount) Verify() (err error) {
-	return
+	return ErrSignVerification
 }
 
 func init() {

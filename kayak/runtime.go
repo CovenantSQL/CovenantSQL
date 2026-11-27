@@ -329,8 +329,8 @@ func (r *Runtime) Apply(ctx context.Context, req interface{}) (result interface{
 	return
 }
 
-// Fetch defines entry for missing log startFetch.
-func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error) {
+// Fetch returns the log at index to caller, which must be in the peer list.
+func (r *Runtime) Fetch(ctx context.Context, caller proto.NodeID, index uint64) (l *kt.Log, err error) {
 	if atomic.LoadUint32(&r.started) != 1 {
 		err = kt.ErrStopped
 		return
@@ -349,6 +349,11 @@ func (r *Runtime) Fetch(ctx context.Context, index uint64) (l *kt.Log, err error
 	defer r.peersLock.RUnlock()
 
 	tm.Add("peers_lock")
+
+	if _, found := r.peers.Find(caller); !found {
+		err = kt.ErrNotInPeer
+		return
+	}
 
 	if r.role != proto.Leader {
 		// not leader

@@ -169,7 +169,7 @@ func (s *fakeService) Apply(req *kt.ApplyRequest, resp *interface{}) (err error)
 
 func (s *fakeService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err error) {
 	var l *kt.Log
-	if l, err = s.rt.Fetch(req.GetContext(), req.Index); err != nil {
+	if l, err = s.rt.Fetch(req.GetContext(), req.GetNodeID().ToNodeID(), req.Index); err != nil {
 		return
 	}
 
@@ -380,6 +380,14 @@ func TestRuntime(t *testing.T) {
 			_, _, err = rt1.Apply(context.Background(), q)
 			So(err, ShouldBeNil)
 		}
+
+		// only peers may fetch logs from the leader
+		l, err := rt1.Fetch(context.Background(), node2, 0)
+		So(err, ShouldBeNil)
+		So(l, ShouldNotBeNil)
+		stranger := proto.NodeID("000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8")
+		_, err = rt1.Fetch(context.Background(), stranger, 0)
+		So(err, ShouldEqual, kt.ErrNotInPeer)
 
 		// test rollback
 		q := &queryStructure{

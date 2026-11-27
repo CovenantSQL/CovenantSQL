@@ -18,6 +18,7 @@ package sqlchain
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -123,6 +124,36 @@ func TestCheckAndPushNewBlockSigner(t *testing.T) {
 			t.Errorf("unexpected error for a block of %s signed by another key: %v", producer, err)
 		}
 	}
+}
+
+func TestProcessBlocksBillingError(t *testing.T) {
+	// The head block has a request without a signee, which billing cannot charge
+	block := &types.Block{QueryTxs: []*types.QueryAsTx{{
+		Request:  &types.Request{},
+		Response: &types.SignedResponseHeader{},
+	}}}
+	c := &Chain{
+		heights:      make(chan int32),
+		updatePeriod: 1,
+		addr:         &proto.AccountAddress{},
+		rt: &runtime{
+			chainInitTime: time.Now(),
+			period:        time.Second,
+			head:          &state{node: newBlockNode(1, block, nil), Height: 1},
+			server:        proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000"),
+			total:         1,
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		c.processBlocks(ctx)
+	}()
+	// Height 1 is a billing height in the turn of this node
+	c.heights <- 1
+	cancel()
+	<-done
 }
 
 func TestMultiChain(t *testing.T) {

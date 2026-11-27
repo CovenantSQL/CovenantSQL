@@ -800,6 +800,7 @@ func (c *Chain) processBlocks(ctx context.Context) {
 				ub, err := c.billing(h, c.rt.getHead().node)
 				if err != nil {
 					le.WithError(err).Error("billing failed")
+					continue
 				}
 				// allocate nonce
 				nonceReq := &types.NextAccountNonceReq{}

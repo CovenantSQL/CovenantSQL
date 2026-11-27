@@ -50,6 +50,9 @@ type FetchBlockResp struct {
 // AdviseNewBlock is the RPC method to advise a new produced block to the target server.
 func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNewBlockResp) (
 	err error) {
+	if req.Block == nil {
+		return ErrNilBlock
+	}
 	s.chain.blocks <- req.Block
 	return
 }

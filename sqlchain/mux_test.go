@@ -23,7 +23,22 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/proto"
+	"github.com/CovenantSQL/CovenantSQL/types"
 )
+
+func TestMuxAdviseNewBlock(t *testing.T) {
+	Convey("A nil block should not reach the block processing of the sql-chain", t, func() {
+		var (
+			blocks = make(chan *types.Block, 1)
+			mux    = &MuxService{}
+		)
+		mux.register(testDatabaseID, &ChainRPCService{chain: &Chain{blocks: blocks}})
+		err := mux.AdviseNewBlock(
+			&MuxAdviseNewBlockReq{DatabaseID: testDatabaseID}, &MuxAdviseNewBlockResp{})
+		So(err, ShouldEqual, ErrNilBlock)
+		So(blocks, ShouldBeEmpty)
+	})
+}
 
 func TestMuxFetchBlock(t *testing.T) {
 	Convey("Given a sql-chain with a single peer", t, func() {

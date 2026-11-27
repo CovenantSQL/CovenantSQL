@@ -26,8 +26,6 @@ import (
 	"time"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
-	"github.com/CovenantSQL/CovenantSQL/crypto"
-	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/kayak"
 	kt "github.com/CovenantSQL/CovenantSQL/kayak/types"
@@ -37,7 +35,6 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/storage"
 	"github.com/CovenantSQL/CovenantSQL/types"
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
-	x "github.com/CovenantSQL/CovenantSQL/xenomint"
 )
 
 const (
@@ -84,8 +81,6 @@ type Database struct {
 	chain          *sqlchain.Chain
 	nodeID         proto.NodeID
 	mux            *DBKayakMuxService
-	privateKey     *asymmetric.PrivateKey
-	accountAddr    proto.AccountAddress
 }
 
 // NewDatabase create a single database instance using config.
@@ -101,25 +96,12 @@ func NewDatabase(cfg *DBConfig, peers *proto.Peers,
 		return
 	}
 
-	// get private key
-	var privateKey *asymmetric.PrivateKey
-	if privateKey, err = kms.GetLocalPrivateKey(); err != nil {
-		return
-	}
-
-	var accountAddr proto.AccountAddress
-	if accountAddr, err = crypto.PubKeyHash(privateKey.PubKey()); err != nil {
-		return
-	}
-
 	// init database
 	db = &Database{
 		cfg:            cfg,
 		dbID:           cfg.DatabaseID,
 		mux:            cfg.KayakMux,
 		connSeqEvictCh: make(chan uint64, 1),
-		privateKey:     privateKey,
-		accountAddr:    accountAddr,
 	}
 
 	defer func() {
@@ -237,7 +219,6 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	var (
 		isSlowQuery uint32
-		tracker     *x.QueryTracker
 		tmStart     = time.Now()
 	)
 
@@ -257,7 +238,7 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 
 	switch request.Header.QueryType {
 	case types.ReadQuery:
-		if tracker, response, err = db.chain.Query(request, false); err != nil {
+		if response, err = db.chain.Query(request, false); err != nil {
 			err = fmt.Errorf("failed to query read query: %w", err)
 			return
 		}
@@ -265,12 +246,12 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		if db.cfg.UseEventualConsistency {
 			// reset context
 			request.SetContext(context.Background())
-			if tracker, response, err = db.chain.Query(request, true); err != nil {
+			if response, err = db.chain.Query(request, true); err != nil {
 				err = fmt.Errorf("failed to execute with eventual consistency: %w", err)
 				return
 			}
 		} else {
-			if tracker, response, err = db.writeQuery(request); err != nil {
+			if response, err = db.writeQuery(request); err != nil {
 				err = fmt.Errorf("failed to execute: %w", err)
 				return
 			}
@@ -280,17 +261,6 @@ func (db *Database) Query(request *types.Request) (response *types.Response, err
 		return nil, fmt.Errorf("invalid query type: %w", ErrInvalidRequest)
 	}
 
-	response.Header.ResponseAccount = db.accountAddr
-
-	// build hash
-	if err = response.BuildHash(); err != nil {
-		err = fmt.Errorf("failed to build response hash: %w", err)
-		return
-	}
-
-	// The query is executed and pooled for the next block, which waits for its response: set it
-	// even if the ack index refuses the response
-	tracker.UpdateResp(response)
 	if err = db.chain.AddResponse(&response.Header); err != nil {
 		log.WithError(err).Debug("failed to add response to index")
 		return
@@ -395,7 +365,7 @@ func (db *Database) Destroy() (err error) {
 	return
 }
 
-func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker, response *types.Response, err error) {
+func (db *Database) writeQuery(request *types.Request) (response *types.Response, err error) {
 	// check database size first, wal/kayak/chain database size is not included
 	if db.cfg.SpaceLimit > 0 {
 		path := filepath.Join(db.cfg.DataDir, StorageFileName)
@@ -420,15 +390,7 @@ func (db *Database) writeQuery(request *types.Request) (tracker *x.QueryTracker,
 		return
 	}
 
-	var (
-		tr *TrackerAndResponse
-		ok bool
-	)
-	if tr, ok = (result).(*TrackerAndResponse); !ok {
-		return
-	}
-	tracker = tr.Tracker
-	response = tr.Response
+	response = result.(*types.Response)
 	return
 }
 

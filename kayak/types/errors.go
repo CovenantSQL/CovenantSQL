@@ -21,6 +21,8 @@ import "errors"
 var (
 	// ErrNotLeader represents current node is not a peer leader.
 	ErrNotLeader = errors.New("not leader")
+	// ErrNotFromLeader represents a log that is not sent by the leader.
+	ErrNotFromLeader = errors.New("log not sent by leader")
 	// ErrNotFollower represents current node is not a peer follower.
 	ErrNotFollower = errors.New("not follower")
 	// ErrPrepareTimeout represents timeout failure for prepare operation.

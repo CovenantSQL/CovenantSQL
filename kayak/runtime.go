@@ -365,8 +365,16 @@ func (r *Runtime) Fetch(ctx context.Context, caller proto.NodeID, index uint64) 
 	return r.wal.Get(index)
 }
 
-// FollowerApply defines entry for follower node.
-func (r *Runtime) FollowerApply(l *kt.Log) (err error) {
+// FollowerApply applies a log sent by caller, which must be the leader.
+func (r *Runtime) FollowerApply(caller proto.NodeID, l *kt.Log) (err error) {
+	r.peersLock.RLock()
+	leader := r.peers.Leader
+	r.peersLock.RUnlock()
+
+	if caller != leader {
+		return kt.ErrNotFromLeader
+	}
+
 	return r.followerApply(l, true)
 }
 

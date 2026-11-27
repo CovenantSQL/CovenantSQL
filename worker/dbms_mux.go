@@ -64,7 +64,7 @@ func (s *DBKayakMuxService) Apply(req *kt.ApplyRequest, _ *interface{}) (err err
 	id := proto.DatabaseID(req.Instance)
 
 	if v, ok := s.serviceMap.Load(id); ok {
-		return v.(*kayak.Runtime).FollowerApply(req.Log)
+		return v.(*kayak.Runtime).FollowerApply(req.GetNodeID().ToNodeID(), req.Log)
 	}
 
 	return fmt.Errorf("instance %v: %w", req.Instance, ErrUnknownMuxRequest)

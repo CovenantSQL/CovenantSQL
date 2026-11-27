@@ -30,6 +30,8 @@ var (
 	ErrSignVerification = errors.New("signature verification failed")
 	// ErrBillingNotMatch indicates that the billing request doesn't match the local result.
 	ErrBillingNotMatch = errors.New("billing request doesn't match")
+	// ErrUnsupportedBillingVersion indicates that version-0 billing cannot be verified safely.
+	ErrUnsupportedBillingVersion = errors.New("unsupported UpdateBilling version 0")
 	// ErrHashVerification indicates a failed hash verification.
 	ErrHashVerification = errors.New("hash verification failed")
 	// ErrInvalidGenesis indicates a failed genesis block verification.

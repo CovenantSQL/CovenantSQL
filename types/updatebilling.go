@@ -86,6 +86,10 @@ func (ub *UpdateBilling) Sign(signer *asymmetric.PrivateKey) (err error) {
 
 // Verify implements interfaces/Transaction.Verify.
 func (ub *UpdateBilling) Verify() (err error) {
+	// Version 0 does not include Range in the signed hash.
+	if ub.Version == 0 {
+		return ErrUnsupportedBillingVersion
+	}
 	return ub.DefaultHashSignVerifierImpl.Verify(&ub.UpdateBillingHeader)
 }
 

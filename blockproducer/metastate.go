@@ -919,7 +919,7 @@ func (s *metaState) updateBilling(tx *types.UpdateBilling) (err error) {
 		return
 	}
 
-	if tx.Version > 0 && (tx.Range.From >= tx.Range.To || newProfile.LastUpdatedHeight != tx.Range.From) {
+	if tx.Range.From >= tx.Range.To || newProfile.LastUpdatedHeight != tx.Range.From {
 		err = fmt.Errorf("update billing within range %d:(%d, %d]: %w",
 			newProfile.LastUpdatedHeight, tx.Range.From, tx.Range.To, ErrInvalidRange)
 		return

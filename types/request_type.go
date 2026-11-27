@@ -141,6 +141,16 @@ func (r *Request) Sign(signer *asymmetric.PrivateKey) (err error) {
 	// set query count
 	r.Header.BatchCount = uint64(len(r.Payload.Queries))
 
+	// msgpack sends a nil byte slice argument as nil, which the hash would take as an empty
+	// byte string: hash it as nil, as the receiver decodes it
+	for i := range r.Payload.Queries {
+		for j, arg := range r.Payload.Queries[i].Args {
+			if b, ok := arg.Value.([]byte); ok && b == nil {
+				r.Payload.Queries[i].Args[j].Value = nil
+			}
+		}
+	}
+
 	// compute payload hash
 	if err = buildHash(&r.Payload, &r.Header.QueriesHash); err != nil {
 		return

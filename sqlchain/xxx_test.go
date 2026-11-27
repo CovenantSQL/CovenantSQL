@@ -239,7 +239,8 @@ func registerNodesWithPublicKey(pub *asymmetric.PublicKey, diff int, num int) (
 		wg.Wait()
 	}
 
-	// Register a local nonce, don't know what is the matter though
+	// Act as the first node: chains sharing this process call each other as the local node,
+	// which must be one of their peers for FetchBlock.
 	kms.SetLocalNodeIDNonce(nis[0].Hash[:], &nis[0].Nonce)
 	return
 }

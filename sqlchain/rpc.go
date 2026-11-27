@@ -17,6 +17,7 @@
 package sqlchain
 
 import (
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/types"
 )
 
@@ -53,8 +54,12 @@ func (s *ChainRPCService) AdviseNewBlock(req *AdviseNewBlockReq, resp *AdviseNew
 	return
 }
 
-// FetchBlock is the RPC method to fetch a known block from the target server.
-func (s *ChainRPCService) FetchBlock(req *FetchBlockReq, resp *FetchBlockResp) (err error) {
+// FetchBlock fetches a known block for caller, which must be a peer of the sql-chain.
+func (s *ChainRPCService) FetchBlock(
+	caller proto.NodeID, req *FetchBlockReq, resp *FetchBlockResp) (err error) {
+	if _, found := s.chain.rt.getPeers().Find(caller); !found {
+		return ErrNotPeer
+	}
 	resp.Height = req.Height
 	resp.Block, err = s.chain.FetchBlock(req.Height)
 	if err == nil && resp.Block == nil {

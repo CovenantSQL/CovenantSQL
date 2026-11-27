@@ -15,3 +15,40 @@
  */
 
 package sqlchain
+
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
+	"github.com/CovenantSQL/CovenantSQL/proto"
+)
+
+func TestMuxFetchBlock(t *testing.T) {
+	Convey("Given a sql-chain with a single peer", t, func() {
+		var (
+			peer     = proto.NodeID(hash.THashH([]byte("peer")).String())
+			stranger = proto.NodeID(hash.THashH([]byte("stranger")).String())
+			mux      = &MuxService{}
+		)
+		mux.register(testDatabaseID, &ChainRPCService{chain: &Chain{rt: &runtime{
+			peers: &proto.Peers{PeersHeader: proto.PeersHeader{Servers: []proto.NodeID{peer}}},
+			head:  &state{node: &blockNode{}},
+		}}})
+		fetch := func(caller *proto.RawNodeID) error {
+			return mux.FetchBlock(&MuxFetchBlockReq{
+				Envelope:      proto.Envelope{NodeID: caller},
+				DatabaseID:    testDatabaseID,
+				FetchBlockReq: FetchBlockReq{Height: 1},
+			}, &MuxFetchBlockResp{})
+		}
+		Convey("The peer should be able to fetch blocks", func() {
+			So(fetch(peer.ToRawNodeID()), ShouldBeNil)
+		})
+		Convey("Other nodes should be rejected", func() {
+			So(fetch(stranger.ToRawNodeID()), ShouldEqual, ErrNotPeer)
+			So(fetch(nil), ShouldEqual, ErrNotPeer)
+		})
+	})
+}

@@ -45,4 +45,6 @@ var (
 	// ErrInitiating indicates that a sqlchain is in initiate state and is not available for sync
 	// requests.
 	ErrInitiating = errors.New("sqlchain is in initiate")
+	// ErrNotPeer indicates that the caller is not a peer of the sql-chain.
+	ErrNotPeer = errors.New("caller is not a peer of the sql-chain")
 )

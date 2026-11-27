@@ -255,10 +255,6 @@ func TestMultiChain(t *testing.T) {
 		if err = kms.SetNode(node); err != nil {
 			t.Fatalf("error occurred: %v", err)
 		}
-
-		if n.ID == conf.GConf.ThisNodeID {
-			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
-		}
 	}
 
 	// Test chain data reloading before exit

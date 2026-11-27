@@ -80,7 +80,8 @@ func (s *MuxService) AdviseNewBlock(req *MuxAdviseNewBlockReq, resp *MuxAdviseNe
 	if v, ok := s.serviceMap.Load(req.DatabaseID); ok {
 		resp.Envelope = req.Envelope
 		resp.DatabaseID = req.DatabaseID
-		return v.(*ChainRPCService).AdviseNewBlock(&req.AdviseNewBlockReq, &resp.AdviseNewBlockResp)
+		return v.(*ChainRPCService).AdviseNewBlock(
+			req.GetNodeID().ToNodeID(), &req.AdviseNewBlockReq, &resp.AdviseNewBlockResp)
 	}
 
 	return ErrUnknownMuxRequest

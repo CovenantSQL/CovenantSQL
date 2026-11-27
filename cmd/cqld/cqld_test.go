@@ -36,6 +36,29 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
+func TestLoadGenesisCommitment(t *testing.T) {
+	Convey("Loading the same genesis configuration produces the same commitment", t, func() {
+		previous := conf.GConf
+		defer func() { conf.GConf = previous }()
+		ts := time.Unix(1700000000, 123456789).UTC()
+		conf.GConf = &conf.Config{BP: &conf.BPInfo{BPGenesis: conf.BPGenesisInfo{
+			Version: 1, Timestamp: ts,
+			BaseAccounts: []conf.BaseAccountInfo{{StableCoinBalance: 100, CovenantCoinBalance: 200}},
+		}}}
+		first, err := loadGenesis()
+		So(err, ShouldBeNil)
+		second, err := loadGenesis()
+		So(err, ShouldBeNil)
+		So(first.Transactions[0].GetTimestamp(), ShouldEqual, ts)
+		So(second.Transactions[0].GetTimestamp(), ShouldEqual, ts)
+		So(*first.BlockHash(), ShouldEqual, *second.BlockHash())
+		So(first.VerifyHash(), ShouldBeNil)
+		So(second.VerifyHash(), ShouldBeNil)
+		So(first.Transactions[0].(*types.BaseAccount).TokenBalance,
+			ShouldResemble, [types.SupportTokenNumber]uint64{100, 200})
+	})
+}
+
 func TestCQLD(t *testing.T) {
 	Convey("Test cqld 3BPs", t, func() {
 		var (

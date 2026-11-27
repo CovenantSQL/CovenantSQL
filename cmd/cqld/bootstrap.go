@@ -213,11 +213,14 @@ func loadGenesis() (genesis *types.BPBlock, err error) {
 			"stableCoinBalance":   ba.StableCoinBalance,
 			"covenantCoinBalance": ba.CovenantCoinBalance,
 		}).Debug("setting one balance fixture in genesis block")
-		genesis.Transactions = append(genesis.Transactions, types.NewBaseAccount(
+		account := types.NewBaseAccount(
 			&types.Account{
 				Address:      proto.AccountAddress(ba.Address),
 				TokenBalance: [types.SupportTokenNumber]uint64{ba.StableCoinBalance, ba.CovenantCoinBalance},
-			}))
+			})
+		// Genesis commitments must use the configured time on every BP.
+		account.Timestamp = genesisInfo.Timestamp
+		genesis.Transactions = append(genesis.Transactions, account)
 	}
 
 	// Rewrite genesis merkle and block hash

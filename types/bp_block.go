@@ -66,26 +66,39 @@ type BPBlock struct {
 	Transactions []pi.Transaction
 }
 
-// GetTxHashes returns all hashes of tx in block.{Billings, ...}.
-func (b *BPBlock) GetTxHashes() []*hash.Hash {
-	// TODO(lambda): when you add new tx type, you need to put new tx's hash in the slice
-	// get hashes in block.Transactions
+// calcMerkleRoot commits to the complete transactions in the block.
+// Transaction.Hash remains the header hash used by transaction pools and indexes.
+func (b *BPBlock) calcMerkleRoot() (*hash.Hash, error) {
 	hs := make([]*hash.Hash, len(b.Transactions))
 
 	for i, v := range b.Transactions {
-		h := v.Hash()
+		if v == nil {
+			return nil, ErrNilBlockMember
+		}
+		enc, err := v.MarshalHash()
+		if err != nil {
+			return nil, err
+		}
+		h := hash.THashH(enc)
 		hs[i] = &h
 	}
-	return hs
+	return merkle.NewMerkle(hs).GetRoot(), nil
 }
 
-func (b *BPBlock) setMerkleRoot() {
-	var merkleRoot = merkle.NewMerkle(b.GetTxHashes()).GetRoot()
+func (b *BPBlock) setMerkleRoot() error {
+	merkleRoot, err := b.calcMerkleRoot()
+	if err != nil {
+		return err
+	}
 	b.SignedHeader.MerkleRoot = *merkleRoot
+	return nil
 }
 
 func (b *BPBlock) verifyMerkleRoot() error {
-	var merkleRoot = *merkle.NewMerkle(b.GetTxHashes()).GetRoot()
+	merkleRoot, err := b.calcMerkleRoot()
+	if err != nil {
+		return err
+	}
 	if !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
 		return ErrMerkleRootVerification
 	}
@@ -94,7 +107,9 @@ func (b *BPBlock) verifyMerkleRoot() error {
 
 // SetHash sets the block header hash, including the merkle root of the packed transactions.
 func (b *BPBlock) SetHash() error {
-	b.setMerkleRoot()
+	if err := b.setMerkleRoot(); err != nil {
+		return err
+	}
 	return b.SignedHeader.setHash()
 }
 
@@ -108,17 +123,14 @@ func (b *BPBlock) VerifyHash() error {
 
 // PackAndSignBlock computes block's hash and sign it.
 func (b *BPBlock) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
-	b.setMerkleRoot()
+	if err := b.setMerkleRoot(); err != nil {
+		return err
+	}
 	return b.SignedHeader.sign(signer)
 }
 
 // Verify verifies whether the block is valid.
 func (b *BPBlock) Verify() error {
-	for _, tx := range b.Transactions {
-		if tx == nil {
-			return ErrNilBlockMember
-		}
-	}
 	if err := b.verifyMerkleRoot(); err != nil {
 		return err
 	}

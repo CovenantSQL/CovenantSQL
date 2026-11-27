@@ -72,6 +72,8 @@ var (
 	ErrInsufficientAdvancePayment = errors.New("insufficient advance payment")
 	// ErrNilGenesis indicates that the genesis block is nil in config.
 	ErrNilGenesis = errors.New("nil genesis block")
+	// ErrNilBlock indicates that an advised block is nil.
+	ErrNilBlock = errors.New("nil block")
 	// ErrMultipleGenesis indicates that there're multiple genesis blocks while loading.
 	ErrMultipleGenesis = errors.New("multiple genesis blocks")
 	// ErrGenesisHashNotMatch indicates that the genesis block hash in config doesn't match

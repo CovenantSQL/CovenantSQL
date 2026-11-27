@@ -47,4 +47,6 @@ var (
 	ErrInitiating = errors.New("sqlchain is in initiate")
 	// ErrNotPeer indicates that the caller is not a peer of the sql-chain.
 	ErrNotPeer = errors.New("caller is not a peer of the sql-chain")
+	// ErrNilBlock indicates that an advised block is nil.
+	ErrNilBlock = errors.New("nil block")
 )

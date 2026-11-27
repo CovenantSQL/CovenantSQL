@@ -30,6 +30,9 @@ type ChainRPCService struct {
 
 // AdviseNewBlock is the RPC method to advise a new block to target server.
 func (s *ChainRPCService) AdviseNewBlock(req *types.AdviseNewBlockReq, resp *types.AdviseNewBlockResp) error {
+	if req.Block == nil {
+		return ErrNilBlock
+	}
 	s.chain.pendingBlocks <- req.Block
 	return nil
 }

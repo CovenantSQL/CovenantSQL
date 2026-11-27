@@ -152,6 +152,10 @@ func TestPublicKey_MarshalBinary(t *testing.T) {
 		So(buf1, ShouldResemble, buf2)
 		So(buf1, ShouldResemble, buf3)
 		So(publicKey.Msgsize(), ShouldEqual, publicKey2.Msgsize())
+
+		invalid := append([]byte{PublicKeyFormatHeader}, bytes.Repeat([]byte{0xff}, 32)...)
+		So(new(PublicKey).UnmarshalBinary(invalid), ShouldNotBeNil)
+		So(new(PublicKey).UnmarshalBinary(buf[1:]), ShouldNotBeNil)
 	})
 }
 

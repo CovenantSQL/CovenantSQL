@@ -73,11 +73,12 @@ func (k *PublicKey) UnmarshalBinary(keyBytes []byte) (err error) {
 	if ok {
 		*k = *pubKeyI.(*PublicKey)
 	} else {
-		pubNew, err := ParsePubKey(keyBytes)
-		if err == nil {
-			*k = *pubNew
-			parsedPublicKeyCache.Store(string(keyBytes), pubNew)
+		var pubNew *PublicKey
+		if pubNew, err = ParsePubKey(keyBytes); err != nil {
+			return
 		}
+		*k = *pubNew
+		parsedPublicKeyCache.Store(string(keyBytes), pubNew)
 	}
 	return
 }

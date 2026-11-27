@@ -27,6 +27,7 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -544,6 +545,61 @@ func TestRuntime(t *testing.T) {
 
 		So(rt.Shutdown(), ShouldBeNil)
 		So(func() { rt.Shutdown() }, ShouldNotPanic)
+	})
+	Convey("test log loading checks the last commit of each commit", t, func() {
+		node1 := proto.NodeID("000005aa62048f85da4ae9698ed59c14ec0d48a88a07c15a32265634e7e64ade")
+		peers := &proto.Peers{
+			PeersHeader: proto.PeersHeader{
+				Leader:  node1,
+				Servers: []proto.NodeID{node1},
+			},
+		}
+		privKey, _, err := asymmetric.GenSecp256k1KeyPair()
+		So(err, ShouldBeNil)
+		So(peers.Sign(privKey), ShouldBeNil)
+
+		producer := proto.NodeID("0000000000000000000000000000000000000000000000000000000000000000")
+		commitData := func(prepareIndex, lastCommit uint64) []byte {
+			data := make([]byte, 16)
+			binary.BigEndian.PutUint64(data, prepareIndex)
+			binary.BigEndian.PutUint64(data[8:], lastCommit)
+			return data
+		}
+		// load replays a WAL whose second commit names lastCommit as the previous one.
+		load := func(lastCommit uint64) error {
+			dir := filepath.Join(t.TempDir(), "wal.db")
+			w, err := kl.NewLevelDBWal(dir)
+			So(err, ShouldBeNil)
+			for _, l := range []*kt.Log{
+				{LogHeader: kt.LogHeader{Index: 0, Type: kt.LogPrepare, Producer: producer}, Data: []byte("happy1")},
+				{LogHeader: kt.LogHeader{Index: 1, Type: kt.LogCommit, Producer: producer}, Data: commitData(0, 0)},
+				{LogHeader: kt.LogHeader{Index: 2, Type: kt.LogPrepare, Producer: producer}, Data: []byte("happy2")},
+				{LogHeader: kt.LogHeader{Index: 3, Type: kt.LogCommit, Producer: producer}, Data: commitData(2, lastCommit)},
+			} {
+				So(w.Write(l), ShouldBeNil)
+			}
+			w.Close()
+
+			w, err = kl.NewLevelDBWal(dir)
+			So(err, ShouldBeNil)
+			defer w.Close()
+			_, err = kayak.NewRuntime(&kt.RuntimeConfig{
+				PrepareThreshold: 1.0,
+				CommitThreshold:  1.0,
+				PrepareTimeout:   time.Second,
+				CommitTimeout:    10 * time.Second,
+				LogWaitTimeout:   10 * time.Second,
+				Peers:            peers,
+				Wal:              w,
+				NodeID:           node1,
+				ServiceName:      "Test",
+				ApplyMethodName:  "Apply",
+			})
+			return err
+		}
+
+		So(load(1), ShouldBeNil)
+		So(load(0), ShouldWrap, kt.ErrInvalidLog)
 	})
 }
 

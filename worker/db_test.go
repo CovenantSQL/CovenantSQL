@@ -27,6 +27,7 @@ import (
 	"github.com/fortytw2/leaktest"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
@@ -296,6 +297,33 @@ func TestSingleDatabase(t *testing.T) {
 
 			err = db.Shutdown()
 			So(err, ShouldBeNil)
+		})
+
+		Convey("refused response", func() {
+			// The read is executed and pooled for the next block, then the ack index refuses
+			// its response: its request time is older than the query TTL allows. The leaves use
+			// one database ID and one block store, so the chain can start with blocks of the
+			// earlier leaves.
+			readQuery, err := buildQueryWithTimeShift(types.ReadQuery, 1, 1, 2*time.Minute, []string{
+				"select 1",
+			})
+			So(err, ShouldBeNil)
+			_, before, _, err := db.chain.FetchBlockByCount(-1)
+			So(err, ShouldBeNil)
+			_, err = db.Query(readQuery)
+			So(err, ShouldWrap, sqlchain.ErrQueryExpired)
+
+			// The next block is still produced, with the read
+			var block *types.Block
+			count := before
+			for i := 0; i < 50 && count == before; i++ {
+				time.Sleep(conf.GConf.SQLChainPeriod / 10)
+				block, count, _, err = db.chain.FetchBlockByCount(-1)
+				So(err, ShouldBeNil)
+			}
+			So(count, ShouldBeGreaterThan, before)
+			So(block.QueryTxs, ShouldHaveLength, 1)
+			So(block.QueryTxs[0].Request.Header.Hash(), ShouldEqual, readQuery.Header.Hash())
 		})
 
 		Convey("corner case", func() {

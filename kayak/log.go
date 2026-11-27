@@ -87,6 +87,8 @@ func (r *Runtime) readLogs() (err error) {
 				return
 			}
 			if lastCommit != r.lastCommit {
+				err = fmt.Errorf("last commit record in wal mismatched (expected: %v, actual: %v): %w",
+					r.lastCommit, lastCommit, kt.ErrInvalidLog)
 				return
 			}
 			if !r.pendingPrepares[prepareLog.Index] {

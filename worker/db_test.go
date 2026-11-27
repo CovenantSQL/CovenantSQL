@@ -28,9 +28,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
+	"github.com/CovenantSQL/CovenantSQL/crypto"
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/kayak"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/sqlchain"
@@ -41,6 +43,23 @@ import (
 var rootHash = hash.Hash{}
 
 const PubKeyStorePath = "./public.keystore"
+
+// cancelCommitHandler cancels the caller only after kayak has dequeued the commit.
+type cancelCommitHandler struct {
+	*Database
+	cancel         context.CancelFunc
+	callerReturned <-chan struct{}
+	committed      chan error
+}
+
+func (h *cancelCommitHandler) Commit(req interface{}, isLeader bool) (interface{}, error) {
+	h.cancel()
+	// Keep the result unavailable until Query has returned on cancellation.
+	<-h.callerReturned
+	result, err := h.Database.Commit(req, isLeader)
+	h.committed <- err
+	return result, err
+}
 
 func TestSingleDatabase(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
@@ -324,6 +343,63 @@ func TestSingleDatabase(t *testing.T) {
 			So(count, ShouldBeGreaterThan, before)
 			So(block.QueryTxs, ShouldHaveLength, 1)
 			So(block.QueryTxs[0].Request.Header.Hash(), ShouldEqual, readQuery.Header.Hash())
+		})
+
+		Convey("committed write after caller cancellation", func() {
+			writeQuery, err := buildQuery(types.WriteQuery, 1, 1, []string{
+				"create table canceled_write (value int)",
+				"insert into canceled_write values (1)",
+			})
+			So(err, ShouldBeNil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			writeQuery.SetContext(ctx)
+			callerReturned := make(chan struct{})
+			committed := make(chan error, 1)
+
+			// Use the existing storage callback to cancel after enqueueing, with no
+			// result ready for commitFuture.Get to choose instead of cancellation.
+			// Rebuilding the runtime on the same WAL relies on this leaf starting with an empty WAL.
+			So(db.kayakRuntime.Shutdown(), ShouldBeNil)
+			runtimeCfg := *db.kayakConfig
+			runtimeCfg.Handler = &cancelCommitHandler{db, cancel, callerReturned, committed}
+			db.kayakRuntime, err = kayak.NewRuntime(&runtimeCfg)
+			So(err, ShouldBeNil)
+			db.mux.register(db.dbID, db.kayakRuntime)
+			So(db.kayakRuntime.Start(), ShouldBeNil)
+
+			_, before, _, err := db.chain.FetchBlockByCount(-1)
+			So(err, ShouldBeNil)
+			_, err = db.Query(writeQuery)
+			close(callerReturned)
+			So(err, ShouldWrap, context.Canceled)
+			select {
+			case err = <-committed:
+				So(err, ShouldBeNil)
+			case <-time.After(5 * time.Second):
+				t.Fatal("commit did not finish after the caller returned")
+			}
+
+			var block *types.Block
+			count := before
+			for i := 0; i < 50 && count == before; i++ {
+				time.Sleep(conf.GConf.SQLChainPeriod / 10)
+				block, count, _, err = db.chain.FetchBlockByCount(-1)
+				So(err, ShouldBeNil)
+			}
+			So(count, ShouldBeGreaterThan, before)
+			So(block.Verify(), ShouldBeNil)
+			So(block.QueryTxs, ShouldHaveLength, 1)
+			tx := block.QueryTxs[0]
+			So(tx.Request.Header.Hash(), ShouldResemble, writeQuery.Header.Hash())
+			So(tx.Response.RequestHash, ShouldResemble, writeQuery.Header.Hash())
+			So(tx.Response.AffectedRows, ShouldEqual, 1)
+			key, err := kms.GetLocalPrivateKey()
+			So(err, ShouldBeNil)
+			addr, err := crypto.PubKeyHash(key.PubKey())
+			So(err, ShouldBeNil)
+			So(tx.Response.ResponseAccount, ShouldResemble, addr)
+			So(tx.Response.VerifyHash(), ShouldBeNil)
 		})
 
 		Convey("corner case", func() {

@@ -419,17 +419,13 @@ func (p *nodeProfile) sendQuery(req *types.Request) (err error) {
 }
 
 func (p *nodeProfile) sendQueryEx(req *types.Request, genAck bool) (err error) {
-	tracker, resp, err := p.Chain.Query(req, p.IsLeader)
+	resp, err := p.Chain.Query(req, p.IsLeader)
 	if err != nil {
-		return
-	}
-	if err = resp.BuildHash(); err != nil {
 		return
 	}
 	if err = p.Chain.AddResponse(&resp.Header); err != nil {
 		return
 	}
-	tracker.UpdateResp(resp)
 
 	if !genAck {
 		return

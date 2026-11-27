@@ -1027,16 +1027,28 @@ func (c *Chain) UpdatePeers(peers *proto.Peers) error {
 	return c.rt.updatePeers(peers)
 }
 
-// Query queries req from local chain state and returns the query results in resp.
+// Query queries req from local chain state and publishes the response for pooled queries.
+// The returned response must not be modified after publication.
 func (c *Chain) Query(
-	req *types.Request, isLeader bool) (tracker *x.QueryTracker, resp *types.Response, err error,
+	req *types.Request, isLeader bool) (resp *types.Response, err error,
 ) {
 	// TODO(leventeliu): we're using an external context passed by request. Make sure that
 	// cancelling will be propagated to this context before chain instance stops.
 	// update metrics
 	c.expVars.Get(mwMinerChainRequestsCount).(mw.Metric).Add(1)
 
-	return c.st.QueryWithContext(req.GetContext(), req, isLeader)
+	var tracker *x.QueryTracker
+	if tracker, resp, err = c.st.QueryWithContext(req.GetContext(), req, isLeader); err != nil {
+		return
+	}
+	resp.Header.ResponseAccount = *c.addr
+	if err = resp.BuildHash(); err != nil {
+		err = fmt.Errorf("failed to build response hash: %w", err)
+		return
+	}
+	// Block producing must not depend on the caller receiving or indexing the response.
+	tracker.UpdateResp(resp)
+	return
 }
 
 // AddResponse addes a response to the ackIndex, awaiting for acknowledgement.

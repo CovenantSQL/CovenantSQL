@@ -34,4 +34,6 @@ var (
 	ErrHashVerification = errors.New("hash verification failed")
 	// ErrInvalidGenesis indicates a failed genesis block verification.
 	ErrInvalidGenesis = errors.New("invalid genesis block")
+	// ErrNilBlockMember indicates that a block holds a nil transaction, request, response or ack.
+	ErrNilBlockMember = errors.New("nil member in block")
 )

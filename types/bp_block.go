@@ -114,6 +114,11 @@ func (b *BPBlock) PackAndSignBlock(signer *asymmetric.PrivateKey) error {
 
 // Verify verifies whether the block is valid.
 func (b *BPBlock) Verify() error {
+	for _, tx := range b.Transactions {
+		if tx == nil {
+			return ErrNilBlockMember
+		}
+	}
 	if err := b.verifyMerkleRoot(); err != nil {
 		return err
 	}

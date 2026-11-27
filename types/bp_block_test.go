@@ -172,4 +172,10 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 	if err != ErrMerkleRootVerification {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
+	block.Transactions = append(block.Transactions, nil)
+	err = block.Verify()
+	if err != ErrNilBlockMember {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }

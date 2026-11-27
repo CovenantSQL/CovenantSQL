@@ -109,8 +109,25 @@ func (b *Block) PackAsGenesis() (err error) {
 	return b.SignedHeader.ComputeHash()
 }
 
-// Verify verifies the merkle root and header signature of the block.
+// Verify verifies the members, merkle root and header signature of the block.
 func (b *Block) Verify() (err error) {
+	// Reject nil members before they are dereferenced: the merkle root reads the failed
+	// requests, responses and acks, and replaying the block reads the requests of QueryTxs.
+	for _, r := range b.FailedReqs {
+		if r == nil {
+			return ErrNilBlockMember
+		}
+	}
+	for _, q := range b.QueryTxs {
+		if q == nil || q.Request == nil || q.Response == nil {
+			return ErrNilBlockMember
+		}
+	}
+	for _, a := range b.Acks {
+		if a == nil {
+			return ErrNilBlockMember
+		}
+	}
 	// Verify merkle root
 	if merkleRoot := b.computeMerkleRoot(); !merkleRoot.IsEqual(&b.SignedHeader.MerkleRoot) {
 		return ErrMerkleRootVerification

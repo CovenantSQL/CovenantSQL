@@ -164,7 +164,7 @@ func newFakeService(rt *kayak.Runtime) (fs *fakeService) {
 
 func (s *fakeService) Apply(req *kt.ApplyRequest, resp *interface{}) (err error) {
 	// add some delay for timeout test
-	return s.rt.FollowerApply(req.Log)
+	return s.rt.FollowerApply(req.GetNodeID().ToNodeID(), req.Log)
 }
 
 func (s *fakeService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err error) {
@@ -177,9 +177,8 @@ func (s *fakeService) Fetch(req *kt.FetchRequest, resp *kt.FetchResponse) (err e
 	return
 }
 
-func (s *fakeService) serveConn(c net.Conn) {
-	var r proto.NodeID
-	s.s.ServeCodec(crpc.NewNodeAwareServerCodec(context.Background(), utils.GetMsgPackServerCodec(c), r.ToRawNodeID()))
+func (s *fakeService) serveConn(c net.Conn, remote proto.NodeID) {
+	s.s.ServeCodec(crpc.NewNodeAwareServerCodec(context.Background(), utils.GetMsgPackServerCodec(c), remote.ToRawNodeID()))
 }
 
 type fakeCaller struct {
@@ -188,7 +187,8 @@ type fakeCaller struct {
 	s      *smux.Session
 }
 
-func newFakeCaller(m *fakeMux, nodeID proto.NodeID) (c *fakeCaller) {
+// newFakeCaller returns a caller from node self to node nodeID.
+func newFakeCaller(m *fakeMux, self, nodeID proto.NodeID) (c *fakeCaller) {
 	fakeConn := mock_conn.NewConn()
 	cipher1 := etls.NewCipher([]byte("123"))
 	cipher2 := etls.NewCipher([]byte("123"))
@@ -203,7 +203,7 @@ func newFakeCaller(m *fakeMux, nodeID proto.NodeID) (c *fakeCaller) {
 				break
 			}
 
-			go c.m.get(c.target).serveConn(s)
+			go c.m.get(c.target).serveConn(s, self)
 		}
 	}()
 
@@ -305,8 +305,8 @@ func TestRuntime(t *testing.T) {
 		fs2 := newFakeService(rt2)
 		m.register(node2, fs2)
 
-		fakeCaller2Node1 := newFakeCaller(m, node1)
-		fakeCaller2Node2 := newFakeCaller(m, node2)
+		fakeCaller2Node1 := newFakeCaller(m, node2, node1)
+		fakeCaller2Node2 := newFakeCaller(m, node1, node2)
 		rt1.WaiterNewCallerFunc = func(proto.NodeID) kayak.Caller {
 			return fakeCaller2Node2
 		}
@@ -388,6 +388,12 @@ func TestRuntime(t *testing.T) {
 		stranger := proto.NodeID("000003f49592f83d0473bddb70d543f1096b4ffed5e5f942a3117e256b7052b8")
 		_, err = rt1.Fetch(context.Background(), stranger, 0)
 		So(err, ShouldEqual, kt.ErrNotInPeer)
+
+		// only the leader may send logs to a follower
+		injected := *l
+		injected.Index = 1 << 20
+		So(rt2.FollowerApply(stranger, &injected), ShouldEqual, kt.ErrNotFromLeader)
+		So(rt2.FollowerApply(node2, &injected), ShouldEqual, kt.ErrNotFromLeader)
 
 		// test rollback
 		q := &queryStructure{
@@ -692,8 +698,8 @@ func BenchmarkRuntime(b *testing.B) {
 		fs2 := newFakeService(rt2)
 		m.register(node2, fs2)
 
-		fakeCaller2Node1 := newFakeCaller(m, node1)
-		fakeCaller2Node2 := newFakeCaller(m, node2)
+		fakeCaller2Node1 := newFakeCaller(m, node2, node1)
+		fakeCaller2Node2 := newFakeCaller(m, node1, node2)
 		rt1.WaiterNewCallerFunc = func(proto.NodeID) kayak.Caller {
 			return fakeCaller2Node2
 		}

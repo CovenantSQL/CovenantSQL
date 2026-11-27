@@ -28,6 +28,7 @@ import (
 
 	"github.com/CovenantSQL/CovenantSQL/conf"
 	"github.com/CovenantSQL/CovenantSQL/consistent"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
 	"github.com/CovenantSQL/CovenantSQL/proto"
@@ -83,6 +84,43 @@ func TestIndexKey(t *testing.T) {
 		if c1, c2 := bytes.Compare(k1, k2) > 0, bi1.height > bi2.height; c1 != c2 {
 			t.Fatalf("unexpected compare result: heights=%d,%d keys=%s,%s",
 				bi1.height, bi2.height, hex.EncodeToString(k1), hex.EncodeToString(k2))
+		}
+	}
+}
+
+func TestCheckAndPushNewBlockSigner(t *testing.T) {
+	_, peers, err := createTestPeers(2)
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	pk, err := kms.GetLocalPrivateKey()
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	forger, _, err := asymmetric.GenSecp256k1KeyPair()
+	if err != nil {
+		t.Fatalf("error occurred: %v", err)
+	}
+	parent := hash.THashH([]byte("parent"))
+	c := &Chain{pk: pk, rt: &runtime{
+		chainInitTime: time.Now().Add(-time.Minute),
+		period:        time.Second,
+		nextTurn:      2, // the turn of peers.Servers[1]
+		head:          &state{Head: parent},
+		peers:         peers,
+		server:        peers.Servers[0],
+	}}
+
+	// Blocks signed by another key on behalf of this node and of the peer whose turn it is
+	for _, producer := range peers.Servers {
+		block := &types.Block{SignedHeader: types.SignedHeader{Header: types.Header{
+			Producer: producer, ParentHash: parent, Timestamp: time.Now().UTC(),
+		}}}
+		if err = block.PackAndSignBlock(forger); err != nil {
+			t.Fatalf("error occurred: %v", err)
+		}
+		if err = c.CheckAndPushNewBlock(block); err != ErrInvalidProducer {
+			t.Errorf("unexpected error for a block of %s signed by another key: %v", producer, err)
 		}
 	}
 }

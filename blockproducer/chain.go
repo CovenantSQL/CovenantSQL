@@ -367,6 +367,12 @@ func (c *Chain) pushBlock(b *types.BPBlock) (err error) {
 		err = fmt.Errorf("failed to check block: %w", ierr)
 		return
 	}
+	// Verify only checks the signature against the key that the block carries, which must be
+	// the key of the block producers. It accepts a nil key when signatures are bypassed.
+	if b.SignedHeader.Signee == nil || !b.SignedHeader.Signee.IsEqual(kms.BP.PublicKey) {
+		err = ErrInvalidBlockSigner
+		return
+	}
 	if ierr = c.applyBlock(b); ierr != nil {
 		err = fmt.Errorf("failed to apply block: %w", ierr)
 		return

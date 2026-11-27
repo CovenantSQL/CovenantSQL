@@ -153,6 +153,38 @@ func TestRequest_Sign(t *testing.T) {
 	})
 }
 
+func TestRequest_SignRoundTrip(t *testing.T) {
+	privKey, _ := getCommKeys()
+
+	Convey("a signed request verifies after a msgpack round trip", t, func() {
+		req := &Request{
+			Header: SignedRequestHeader{
+				RequestHeader: RequestHeader{
+					QueryType:  WriteQuery,
+					NodeID:     proto.NodeID("0000000000000000000000000000000000000000000000000000000000000001"),
+					DatabaseID: proto.DatabaseID("db1"),
+					Timestamp:  time.Now().UTC(),
+				},
+			},
+			Payload: RequestPayload{
+				Queries: []Query{
+					{
+						Pattern: "INSERT INTO test VALUES(?, ?)",
+						Args:    []NamedArg{{Value: []byte(nil)}, {Value: []byte{}}},
+					},
+				},
+			},
+		}
+		So(req.Sign(privKey), ShouldBeNil)
+
+		buf, err := utils.EncodeMsgPack(req)
+		So(err, ShouldBeNil)
+		var dec Request
+		So(utils.DecodeMsgPack(buf.Bytes(), &dec), ShouldBeNil)
+		So(dec.Verify(), ShouldBeNil)
+	})
+}
+
 func TestResponse_Sign(t *testing.T) {
 	Convey("sign", t, func() {
 		res := &Response{

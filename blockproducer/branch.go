@@ -64,12 +64,12 @@ func newBranch(
 		var block = bn.load()
 		for _, v := range block.Transactions {
 			var k = v.Hash()
-			// Check in tx pool
-			if _, ok := inst.unpacked[k]; ok {
-				delete(inst.unpacked, k)
-			} else if err = v.Verify(); err != nil {
+			// Verify the transaction of the block even when the pool holds one with this hash,
+			// which is the hash that it carries, not one of its content
+			if err = v.Verify(); err != nil {
 				return
 			}
+			delete(inst.unpacked, k)
 			if _, ok := inst.packed[k]; ok {
 				err = ErrExistedTx
 				return
@@ -140,12 +140,12 @@ func (b *branch) applyBlock(n *blockNode) (br *branch, err error) {
 
 	for _, v := range block.Transactions {
 		var k = v.Hash()
-		// Check in tx pool
-		if _, ok := cpy.unpacked[k]; ok {
-			delete(cpy.unpacked, k)
-		} else if err = v.Verify(); err != nil {
+		// Verify the transaction of the block even when the pool holds one with this hash,
+		// which is the hash that it carries, not one of its content
+		if err = v.Verify(); err != nil {
 			return
 		}
+		delete(cpy.unpacked, k)
 		if _, ok := cpy.packed[k]; ok {
 			err = ErrExistedTx
 			return

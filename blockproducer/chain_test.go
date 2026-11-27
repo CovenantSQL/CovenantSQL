@@ -17,6 +17,7 @@
 package blockproducer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -31,9 +32,11 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
 	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/kms"
+	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
 	"github.com/CovenantSQL/CovenantSQL/proto"
 	rpc "github.com/CovenantSQL/CovenantSQL/rpc/mux"
 	"github.com/CovenantSQL/CovenantSQL/types"
+	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
 func newTransfer(
@@ -50,6 +53,21 @@ func newTransfer(
 	})
 	err = t.Sign(signer)
 	return
+}
+
+// changeFirstTransfer returns a copy of bl, decoded as a node that relays it decodes it, in which
+// the amount of the first transfer is changed.
+func changeFirstTransfer(bl *types.BPBlock) (*types.BPBlock, error) {
+	enc, err := utils.EncodeMsgPack(bl)
+	if err != nil {
+		return nil, err
+	}
+	changed := &types.BPBlock{}
+	if err = utils.DecodeMsgPack(enc.Bytes(), changed); err != nil {
+		return nil, err
+	}
+	changed.Transactions[0].(*pi.TransactionWrapper).Unwrap().(*types.Transfer).Amount++
+	return changed, nil
 }
 
 func newCreateDatabase(
@@ -348,7 +366,7 @@ func TestChain(t *testing.T) {
 				nonce          pi.AccountNonce
 				t1, t2, t3, t4 pi.Transaction
 				f0, f1         *branch
-				bl             *types.BPBlock
+				bl, sibling    *types.BPBlock
 			)
 
 			// Create transactions for testing
@@ -369,6 +387,11 @@ func TestChain(t *testing.T) {
 
 			err = chain.storeTx(t1)
 			So(err, ShouldBeNil)
+			// A sibling block holding t1, produced before the chain packs t1
+			var arena = f0.makeArena()
+			arena.addTx(t1)
+			_, sibling, err = arena.produceBlock(2, begin.Add(2*chain.period).UTC(), addr1, priv1)
+			So(err, ShouldBeNil)
 			Convey("The chain should report error on duplicated transaction", func() {
 				err = chain.storeTx(t1)
 				So(err, ShouldEqual, ErrExistedTx)
@@ -382,6 +405,12 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(chain.pushBlock(bl), ShouldEqual, ErrInvalidBlockSigner)
 
+			// So should a sibling block whose transfer was changed after it was signed, although
+			// the pool holds a transfer with the hash that it carries
+			bl, err = changeFirstTransfer(sibling)
+			So(err, ShouldBeNil)
+			So(errors.Is(chain.pushBlock(bl), verifier.ErrHashValueNotMatch), ShouldBeTrue)
+
 			// Create a sibling block from fork#0 and apply
 			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr1, priv1)
 			So(err, ShouldBeNil)
@@ -394,6 +423,15 @@ func TestChain(t *testing.T) {
 
 			err = chain.storeTx(t2)
 			So(err, ShouldBeNil)
+
+			// And a block on the head whose transfer was changed after it was signed
+			_, bl, err = chain.headBranch.makeArena().produceBlock(
+				2, begin.Add(2*chain.period).UTC(), addr1, priv1)
+			So(err, ShouldBeNil)
+			bl, err = changeFirstTransfer(bl)
+			So(err, ShouldBeNil)
+			So(errors.Is(chain.pushBlock(bl), verifier.ErrHashValueNotMatch), ShouldBeTrue)
+
 			err = chain.produceBlock(begin.Add(2 * chain.period).UTC())
 			So(err, ShouldBeNil)
 

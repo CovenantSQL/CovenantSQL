@@ -255,12 +255,6 @@ func TestMultiChain(t *testing.T) {
 		if err = kms.SetNode(node); err != nil {
 			t.Fatalf("error occurred: %v", err)
 		}
-
-		// All chains share this process and call each other as its local node, which must be
-		// a peer for FetchBlock.
-		if n.ID == peers.Servers[0] {
-			kms.SetLocalNodeIDNonce(rawNodeID.CloneBytes(), &n.Nonce)
-		}
 	}
 
 	// Test chain data reloading before exit

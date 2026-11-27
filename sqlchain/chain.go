@@ -942,14 +942,22 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 		return ErrInvalidBlock
 	}
 
-	// Verify block signatures
+	// Verify block signatures, which only checks them against the key that the block carries, or
+	// none at all when signatures are bypassed: the checks below make sure that it is the key of
+	// the producer.
 	if err = block.Verify(); err != nil {
 		le.WithError(err).Error("failed to verify block")
 		return
 	}
+	signee := block.Signee()
 
 	// Short circuit the checking process if it's a self-produced block
 	if block.Producer() == c.rt.server {
+		if signee == nil || !signee.IsEqual(c.pk.PubKey()) {
+			err = ErrInvalidProducer
+			le.WithError(err).Error("block of this node is not signed by this node")
+			return
+		}
 		return c.pushBlock(block)
 	}
 	// Check block producer
@@ -966,6 +974,20 @@ func (c *Chain) CheckAndPushNewBlock(block *types.Block) (err error) {
 			"expected": next,
 			"actual":   index,
 		}).WithError(err).Error("invalid producer of new block")
+		return
+	}
+
+	// The node ID of the producer is derived from its key and nonce. The nonce comes from the
+	// local key store, which the network layer fills when it authenticates a session with the
+	// peer, so that checking the block does not wait on the network.
+	var producer *proto.Node
+	if producer, err = kms.GetNodeInfo(block.Producer()); err != nil {
+		le.WithError(err).Error("failed to get the nonce of the block producer")
+		return
+	}
+	if !kms.IsIDPubNonceValid(block.SignedHeader.Producer.ToRawNodeID(), &producer.Nonce, signee) {
+		err = ErrInvalidProducer
+		le.WithError(err).Error("block is not signed by its producer")
 		return
 	}
 

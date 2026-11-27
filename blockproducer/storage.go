@@ -445,8 +445,8 @@ func loadTxPool(st xi.Storage) (txPool map[hash.Hash]pi.Transaction, err error) 
 		if err = utils.DecodeMsgPack(enc, &dec); err != nil {
 			return
 		}
-		// Keep only the transactions that verify, as AddTx does: block producing and the
-		// transactions of other blocks found in the pool are not verified again.
+		// Keep only the transactions that verify, as AddTx does: block producing packs the
+		// transactions of the pool without verifying them again.
 		if ierr := dec.Verify(); ierr != nil {
 			log.WithField("hash", th.Short(4)).WithError(ierr).Warning(
 				"drop transaction that fails verification from pool")

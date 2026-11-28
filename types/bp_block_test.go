@@ -22,8 +22,15 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
+	pi "github.com/CovenantSQL/CovenantSQL/blockproducer/interfaces"
+	"github.com/CovenantSQL/CovenantSQL/crypto/asymmetric"
+	"github.com/CovenantSQL/CovenantSQL/crypto/hash"
 	"github.com/CovenantSQL/CovenantSQL/crypto/verifier"
+	"github.com/CovenantSQL/CovenantSQL/proto"
 	"github.com/CovenantSQL/CovenantSQL/utils"
 )
 
@@ -178,4 +185,159 @@ func TestBlock_PackAndSignBlock(t *testing.T) {
 	if err != ErrNilBlockMember {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestBPBlockTransactionCommitment(t *testing.T) {
+	Convey("A signed block commits to the complete transactions it carries", t, func() {
+		signer, _ := asymmetric.PrivKeyFromBytes(bytes.Repeat([]byte{1}, 32))
+		relayer, _ := asymmetric.PrivKeyFromBytes(bytes.Repeat([]byte{2}, 32))
+		bp, _ := asymmetric.PrivKeyFromBytes(bytes.Repeat([]byte{3}, 32))
+		nodeID := (&proto.RawNodeID{}).ToNodeID()
+		resign := func(tx pi.Transaction) error { return tx.Sign(relayer) }
+		cases := []struct {
+			name   string
+			tx     pi.Transaction
+			mutate func(pi.Transaction) error
+		}{
+			{"ProvideService signer", NewProvideService(&ProvideServiceHeader{NodeID: nodeID, Nonce: 1}), resign},
+			{"UpdatePermission signer", NewUpdatePermission(&UpdatePermissionHeader{Nonce: 1}), resign},
+			{"IssueKeys signer", NewIssueKeys(&IssueKeysHeader{Nonce: 1}), resign},
+			{"UpdateBilling signer", NewUpdateBilling(&UpdateBillingHeader{Nonce: 1, Version: 1}), resign},
+			{"CreateDatabase timestamp", NewCreateDatabase(&CreateDatabaseHeader{Nonce: 1}), func(tx pi.Transaction) error {
+				cd := tx.(*CreateDatabase)
+				cd.Timestamp = cd.Timestamp.Add(time.Nanosecond)
+				return nil
+			}},
+			{"transaction type", NewCreateDatabase(&CreateDatabaseHeader{Nonce: 1}), func(tx pi.Transaction) error {
+				tx.(*CreateDatabase).TxType = pi.TransactionTypeBaseAccount
+				return nil
+			}},
+		}
+		for _, tc := range cases {
+			Convey(tc.name, func() {
+				tc.tx.(interface{ SetTimestamp(time.Time) }).SetTimestamp(time.Unix(1700000000, 123456789).UTC())
+				So(tc.tx.Sign(signer), ShouldBeNil)
+				So(tc.tx.Verify(), ShouldBeNil)
+				block := &BPBlock{Transactions: []pi.Transaction{tc.tx}}
+				So(block.PackAndSignBlock(bp), ShouldBeNil)
+				So(block.Verify(), ShouldBeNil)
+
+				enc, err := utils.EncodeMsgPack(block)
+				So(err, ShouldBeNil)
+				var changed BPBlock
+				So(utils.DecodeMsgPack(enc.Bytes(), &changed), ShouldBeNil)
+				So(changed.Verify(), ShouldBeNil)
+				tx := changed.Transactions[0].(*pi.TransactionWrapper).Unwrap()
+				So(tc.mutate(tx), ShouldBeNil)
+				So(tx.Verify(), ShouldBeNil)
+				So(tx.Hash(), ShouldEqual, tc.tx.Hash())
+				So(changed.SignedHeader, ShouldResemble, block.SignedHeader)
+				So(changed.Verify(), ShouldEqual, ErrMerkleRootVerification)
+				So(changed.VerifyHash(), ShouldEqual, ErrMerkleRootVerification)
+
+				// Recomputing the root and block hash cannot reuse the BP signature.
+				So(changed.SetHash(), ShouldBeNil)
+				So(*changed.BlockHash(), ShouldNotEqual, *block.BlockHash())
+				So(changed.Verify(), ShouldEqual, verifier.ErrSignatureNotMatch)
+			})
+		}
+	})
+}
+
+func TestBPBlockTransactionCommitmentRoundTrip(t *testing.T) {
+	Convey("Complete transaction commitments survive MsgPack and interface wrappers", t, func() {
+		key, _ := asymmetric.PrivKeyFromBytes(bytes.Repeat([]byte{1}, 32))
+		nodeID := (&proto.RawNodeID{}).ToNodeID()
+		txs := []pi.Transaction{
+			NewTransfer(&TransferHeader{Amount: 1, Nonce: 1}),
+			NewProvideService(&ProvideServiceHeader{NodeID: nodeID, TargetUser: []proto.AccountAddress{{1}}, Nonce: 1}),
+			NewCreateDatabase(&CreateDatabaseHeader{ResourceMeta: ResourceMeta{
+				TargetMiners: []proto.AccountAddress{{2}}, Node: 1, ConsistencyLevel: 0.5,
+			}, Nonce: 1}),
+			NewUpdatePermission(&UpdatePermissionHeader{Permission: &UserPermission{
+				Role: Admin, Patterns: []string{"SELECT * FROM test"},
+			}, Nonce: 1}),
+			NewIssueKeys(&IssueKeysHeader{MinerKeys: []MinerKey{{EncryptionKey: "key"}}, Nonce: 1}),
+			NewUpdateBilling(&UpdateBillingHeader{Version: 0, Nonce: 1}),
+			NewUpdateBilling(&UpdateBillingHeader{Version: 1, Nonce: 1, Users: []*UserCost{
+				{Cost: 1, Miners: []*MinerIncome{{Income: 1}, nil}}, nil,
+			}}),
+		}
+		for _, tx := range txs {
+			So(tx.Sign(key), ShouldBeNil)
+		}
+		// Nil verifier fields also occur in unsigned objects and must encode stably.
+		unsigned := NewProvideService(&ProvideServiceHeader{NodeID: nodeID})
+		keyOnly := NewProvideService(&ProvideServiceHeader{NodeID: nodeID})
+		keyOnly.Signee = key.PubKey()
+		txs = append(txs, unsigned, keyOnly, NewBaseAccount(&Account{Address: proto.AccountAddress{3}}))
+		for _, ts := range []time.Time{
+			{}, time.Unix(1700000000, 0).UTC(), time.Unix(-1, 123456789).UTC(),
+			time.Unix(1700000000, 123456789).In(time.FixedZone("offset", 8*60*60)),
+			time.Now(), // Include a monotonic clock reading and the local location.
+		} {
+			for _, tx := range txs {
+				tx.(interface{ SetTimestamp(time.Time) }).SetTimestamp(ts)
+			}
+			block := &BPBlock{
+				SignedHeader: BPSignedHeader{BPHeader: BPHeader{Timestamp: ts}},
+				Transactions: txs,
+			}
+			So(block.PackAndSignBlock(key), ShouldBeNil)
+			// Decode twice to cover concrete-to-wrapper and wrapper-to-wrapper transport.
+			for round := 0; round < 2; round++ {
+				enc, err := utils.EncodeMsgPack(block)
+				So(err, ShouldBeNil)
+				var decoded BPBlock
+				So(utils.DecodeMsgPack(enc.Bytes(), &decoded), ShouldBeNil)
+				So(decoded.Verify(), ShouldBeNil)
+				So(decoded.VerifyHash(), ShouldBeNil)
+				So(*decoded.BlockHash(), ShouldEqual, *block.BlockHash())
+				So(len(decoded.Transactions), ShouldEqual, len(txs))
+				for i, tx := range decoded.Transactions {
+					wrapped := tx.(*pi.TransactionWrapper)
+					So(reflect.TypeOf(wrapped.Unwrap()), ShouldEqual, reflect.TypeOf(txs[i]))
+					before, err := txs[i].MarshalHash()
+					So(err, ShouldBeNil)
+					after, err := wrapped.MarshalHash()
+					So(err, ShouldBeNil)
+					So(after, ShouldResemble, before)
+					So(tx.Hash(), ShouldEqual, txs[i].Hash())
+				}
+				block = &decoded
+			}
+		}
+	})
+}
+
+func TestBPBlockGenesisCommitment(t *testing.T) {
+	Convey("Genesis commits to base account contents", t, func() {
+		account := &Account{Address: proto.AccountAddress{1}, TokenBalance: [SupportTokenNumber]uint64{100}}
+		tx := NewBaseAccount(account)
+		block := &BPBlock{Transactions: []pi.Transaction{tx}}
+		So(block.SetHash(), ShouldBeNil)
+		So(block.VerifyHash(), ShouldBeNil)
+		So(block.SignedHeader.MerkleRoot, ShouldNotEqual, hash.Hash{})
+		originalHash := *block.BlockHash()
+
+		tx.TokenBalance[0]++
+		So(tx.Hash(), ShouldEqual, hash.Hash{})
+		So(block.VerifyHash(), ShouldEqual, ErrMerkleRootVerification)
+		So(block.SetHash(), ShouldBeNil)
+		So(*block.BlockHash(), ShouldNotEqual, originalHash)
+	})
+}
+
+func TestBPBlockTransactionCommitmentError(t *testing.T) {
+	Convey("A transaction encoding error prevents block hashing and verification", t, func() {
+		// UpdateBilling rejects unsupported encoding versions in MarshalHash.
+		tx := NewUpdateBilling(&UpdateBillingHeader{Version: -1})
+		_, err := tx.MarshalHash()
+		So(err, ShouldNotBeNil)
+		block := &BPBlock{Transactions: []pi.Transaction{tx}}
+		So(block.SetHash(), ShouldResemble, err)
+		So(block.PackAndSignBlock(testingPrivateKey), ShouldResemble, err)
+		So(block.VerifyHash(), ShouldResemble, err)
+		So(block.Verify(), ShouldResemble, err)
+	})
 }

@@ -35,6 +35,41 @@ import (
 	"github.com/CovenantSQL/CovenantSQL/utils/log"
 )
 
+func TestMetaStateBaseAccountCommitment(t *testing.T) {
+	Convey("Applying genesis keeps the committed account immutable", t, func() {
+		for _, wrapped := range []bool{false, true} {
+			account := types.Account{
+				Address:      proto.AccountAddress{1},
+				TokenBalance: [types.SupportTokenNumber]uint64{100, 200},
+			}
+			base := types.NewBaseAccount(&account)
+			var tx pi.Transaction = base
+			if wrapped {
+				tx = pi.WrapTransaction(tx)
+			}
+			block := &types.BPBlock{Transactions: []pi.Transaction{tx}}
+			So(block.SetHash(), ShouldBeNil)
+			before, err := tx.MarshalHash()
+			So(err, ShouldBeNil)
+
+			state := newMetaState()
+			So(state.apply(tx, 0), ShouldBeNil)
+			nonce, err := state.nextNonce(account.Address)
+			So(err, ShouldBeNil)
+			So(nonce, ShouldEqual, 1)
+			So(state.increaseAccountStableBalance(account.Address, 5), ShouldBeNil)
+			balance, loaded := state.loadAccountTokenBalance(account.Address, types.Particle)
+			So(loaded, ShouldBeTrue)
+			So(balance, ShouldEqual, 105)
+			So(base.Account, ShouldResemble, account)
+			after, err := tx.MarshalHash()
+			So(err, ShouldBeNil)
+			So(after, ShouldResemble, before)
+			So(block.VerifyHash(), ShouldBeNil)
+		}
+	})
+}
+
 func TestMetaState(t *testing.T) {
 	Convey("Given a new metaState object and a persistence db instance", t, func() {
 		var (

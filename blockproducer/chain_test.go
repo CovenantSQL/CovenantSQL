@@ -17,7 +17,6 @@
 package blockproducer
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -426,7 +425,10 @@ func TestChain(t *testing.T) {
 			// the pool holds a transfer with the hash that it carries
 			bl, err = changeFirstTransfer(sibling)
 			So(err, ShouldBeNil)
-			So(errors.Is(chain.pushBlock(bl), verifier.ErrHashValueNotMatch), ShouldBeTrue)
+			So(chain.pushBlock(bl), ShouldWrap, types.ErrMerkleRootVerification)
+			// A BP signature cannot make the changed transaction valid.
+			So(bl.PackAndSignBlock(priv1), ShouldBeNil)
+			So(chain.pushBlock(bl), ShouldWrap, verifier.ErrHashValueNotMatch)
 
 			// Create a sibling block from fork#0 and apply
 			_, bl, err = f0.produceBlock(2, begin.Add(2*chain.period).UTC(), addr1, priv1)
@@ -447,7 +449,9 @@ func TestChain(t *testing.T) {
 			So(err, ShouldBeNil)
 			bl, err = changeFirstTransfer(bl)
 			So(err, ShouldBeNil)
-			So(errors.Is(chain.pushBlock(bl), verifier.ErrHashValueNotMatch), ShouldBeTrue)
+			So(chain.pushBlock(bl), ShouldWrap, types.ErrMerkleRootVerification)
+			So(bl.PackAndSignBlock(priv1), ShouldBeNil)
+			So(chain.pushBlock(bl), ShouldWrap, verifier.ErrHashValueNotMatch)
 
 			err = chain.produceBlock(begin.Add(2 * chain.period).UTC())
 			So(err, ShouldBeNil)

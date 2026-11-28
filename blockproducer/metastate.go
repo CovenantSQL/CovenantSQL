@@ -120,14 +120,15 @@ func (s *metaState) loadAccountTokenBalance(addr proto.AccountAddress,
 	return
 }
 
-func (s *metaState) storeBaseAccount(k proto.AccountAddress, v *types.Account) (err error) {
+func (s *metaState) storeBaseAccount(k proto.AccountAddress, v types.Account) (err error) {
 	log.WithFields(log.Fields{
 		"addr":    k,
 		"account": v,
 	}).Debug("store account")
 	// Since a transfer tx may create an empty receiver account, this method should try to cover
 	// the side effect.
-	if ao, ok := s.loadOrStoreAccountObject(k, v); ok {
+	// State owns its account copy; nonce and balance updates must not mutate a transaction.
+	if ao, ok := s.loadOrStoreAccountObject(k, &v); ok {
 		if ao.NextNonce != 0 {
 			err = ErrAccountExists
 			return
@@ -1139,7 +1140,7 @@ func (s *metaState) applyTransaction(tx pi.Transaction, height uint32) (err erro
 		}
 		return
 	case *types.BaseAccount:
-		err = s.storeBaseAccount(t.Address, &t.Account)
+		err = s.storeBaseAccount(t.Address, t.Account)
 	case *types.ProvideService:
 		err = s.updateProviderList(t, height)
 	case *types.CreateDatabase:

@@ -161,8 +161,9 @@ func (id *NodeID) IsEqual(target *NodeID) bool {
 
 // MarshalBinary does the serialization.
 func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
-	if id == nil {
-		return []byte{}, nil
+	// Keep the empty string distinct from a 32-byte zero hash.
+	if id == nil || *id == "" {
+		return nil, nil
 	}
 	h, err := hash.NewHashFromStr(string(*id))
 	return h[:], err
@@ -170,11 +171,6 @@ func (id *NodeID) MarshalBinary() (keyBytes []byte, err error) {
 
 // UnmarshalBinary does the deserialization.
 func (id *NodeID) UnmarshalBinary(keyBytes []byte) (err error) {
-	// for backward compatible
-	if len(keyBytes) == 64 {
-		*id = NodeID(keyBytes)
-		return
-	}
 	h, err := hash.NewHash(keyBytes)
 	if err != nil {
 		log.Error("load 32 bytes nodeID failed")

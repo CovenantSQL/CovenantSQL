@@ -141,6 +141,7 @@ func (w *TransactionWrapper) UnmarshalJSON(data []byte) (err error) {
 func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 	helperDecoder, decodeDriver := codec.GenHelperDecoder(d)
 	containerLen := decodeDriver.ReadArrayStart()
+	var txType TransactionType
 
 	for i := 0; i < containerLen; i++ {
 		if decodeDriver.CheckBreak() {
@@ -154,7 +155,6 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 				// invalid type, can not instantiate transaction
 				panic(ErrInvalidTransactionType)
 			} else {
-				var txType TransactionType
 				helperDecoder.DecFallback(&txType, true)
 
 				var err error
@@ -178,7 +178,7 @@ func (w *TransactionWrapper) decodeFromWrapper(d *codec.Decoder) {
 
 	decodeDriver.ReadArrayEnd()
 
-	if containerLen < 2 {
+	if containerLen < 2 || w.GetTransactionType() != txType {
 		panic(ErrInvalidTransactionType)
 	}
 }
